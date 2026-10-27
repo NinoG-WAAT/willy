@@ -1,0 +1,45 @@
+---
+import { consentLabel, describeMeeting } from "../domain/meetings/home";
+import type { MeetingListItem } from "../domain/meetings/list-item";
+import { formatSchedule } from "./format-schedule";
+
+interface Props {
+  item: MeetingListItem;
+}
+
+const { item } = Astro.props;
+const description = describeMeeting(item);
+const attendees = `${String(item.attendeeCount)} ${item.attendeeCount === 1 ? "attendee" : "attendees"}`;
+---
+
+<li class="row meeting">
+  <h3 class="row-title">
+    <a href={description.href}>{item.title}</a>
+  </h3>
+  <p class="row-meta">
+    <time datetime={item.scheduledStartAt}>
+      {formatSchedule(item.scheduledStartAt, item.timezone)}
+    </time>
+    {item.attendeeCount > 0 && <span> · {attendees}</span>}
+    {item.calendarProvider !== null && <span> · From your calendar</span>}
+  </p>
+  <ul class="facts">
+    <li>
+      <span class="marker" aria-hidden="true">
+        {description.marker}
+      </span>
+      <span class="fact-label">Status:</span>
+      {description.label}
+    </li>
+    <li>
+      <span class="fact-label">Consent:</span>
+      {consentLabel(item)}
+    </li>
+  </ul>
+  <div class="row-actions">
+    <a class="button" href={description.href}>
+      {description.actionLabel}
+      <span class="sr-only"> for {item.title}</span>
+    </a>
+  </div>
+</li>

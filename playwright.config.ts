@@ -40,6 +40,8 @@ export default defineConfig({
       // Tests drive background jobs explicitly instead of racing a timer.
       WILLY_JOB_RUNNER: "off",
       WILLY_JOBS_ENDPOINT: "1",
+      // Ben's demo calendar simulates an outage so the import failure state can be tested.
+      FAKE_CALENDAR_DOWN_OWNERS: "owner-ben",
     },
   },
 });

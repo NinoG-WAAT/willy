@@ -50,7 +50,7 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | Route | Screen | Primary action | Notes |
 |---|---|---|---|
 | `GET /` | Screen 1: Upcoming and recent meetings (#14) | **New note** | Calendar context, consent readiness, note status, folder filter, search box, import form. Meeting cards show status as text + icon. |
-| `GET /meetings/new`, `POST /meetings` | New note form (title, start, IANA tz, agenda, attendees, template) | Create | Validation echoed inline. |
+| `GET /meetings/new`, `POST /meetings/new` | New note form (title, local date and time, IANA tz, duration, agenda, attendees, template) | Create | The page handles its own POST: 422 with field errors, or 303 to `/?notice=created`. A hidden submission token makes a double submit create one meeting. |
 | `GET /meetings/:id` | Screen 2: Live note (#15) when status is `scheduled/capturing/paused/failed`; redirects to review when `processing/review/published` | **Start capture** (after consent) | Rough notes form; JS: MediaRecorder, level meter, timer, chunk upload with retry, `aria-live` status. |
 | `GET /meetings/:id/review` | Screen 3: Review (#16) | **Publish to folder** | Transcript beside editable sections; speakers, decisions, action items; regenerate-selection; failed/pending states with retry. |
 | `GET /search?q=&folder=` | Search results (#18) | Open result | Snippets with escaped highlights; owner-scoped FTS. |
@@ -67,7 +67,7 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | Endpoint | Purpose | Idempotency / guards |
 |---|---|---|
 | `POST /sign-in`, `POST /sign-out` | Session create/destroy (rotate id on login) | Rate-limited; CSRF on sign-out |
-| `POST /meetings` | Create meeting | Idempotency key from the form (hidden token) |
+| `POST /meetings/new` | Create meeting | Idempotency key from the form (hidden token, `idempotency_key` scope `create_meeting`) |
 | `POST /meetings/:id` (update) | Edit title, agenda, attendees, rough notes (autosave form) | Last-write-wins with `updated_at` check; rough notes saved in any state except `deleting/deleted` |
 | `POST /meetings/import` | Import a calendar event (provider fetch or ICS text/file) | Unique on (owner, provider, provider_event_id): same event twice = one Meeting. Rate-limited |
 | `POST /meetings/:id/consent` | Owner confirms consent statement | Sets `consent_confirmed_at`, `consent_statement_version`; append-only; repeat is a no-op |

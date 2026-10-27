@@ -1,0 +1,267 @@
+---
+import Base from "../../layouts/Base.astro";
+import ErrorSummary from "../../components/ErrorSummary.astro";
+import { requireOwner } from "../../app/identity/require-owner";
+import { createMeeting } from "../../app/meetings/create-meeting";
+import { listTemplates } from "../../app/notes/templates";
+import { readFormFields, single } from "../../app/platform/form";
+import { getCreateMeetingDeps, getNotesDeps } from "../../composition";
+import { NEW_MEETING_LIMITS } from "../../domain/meetings/new-meeting";
+import type { FieldError } from "../../domain/platform/text";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const FIELDS = [
+  "csrf_token",
+  "submission_id",
+  "title",
+  "date",
+  "time",
+  "timezone",
+  "duration",
+  "agenda",
+  "attendees",
+  "template_id",
+] as const;
+
+// A fresh token per page view: submitting the same form twice creates one meeting.
+let values: Record<(typeof FIELDS)[number], string> = {
+  csrf_token: "",
+  submission_id: getNotesDeps().ids.newId(),
+  title: "",
+  date: "",
+  time: "",
+  timezone: "UTC",
+  duration: String(NEW_MEETING_LIMITS.durationDefault),
+  agenda: "",
+  attendees: "",
+  template_id: "",
+};
+let errors: FieldError[] = [];
+
+if (Astro.request.method === "POST") {
+  const fields = readFormFields(await Astro.request.formData(), FIELDS);
+  if (!fields) return new Response("Bad request", { status: 400 });
+  for (const name of FIELDS) values[name] = single(fields, name) ?? values[name];
+  const result = await createMeeting(getCreateMeetingDeps(), owner.id, {
+    title: values.title,
+    date: values.date,
+    time: values.time,
+    timezone: values.timezone,
+    durationMinutes: values.duration,
+    agenda: values.agenda,
+    attendees: values.attendees,
+    templateId: values.template_id,
+    submissionId: values.submission_id,
+  });
+  if (result.ok) {
+    return new Response(null, {
+      status: 303,
+      headers: { Location: "/?notice=created", "Cache-Control": "no-store" },
+    });
+  }
+  errors = result.error.kind === "invalid" ? result.error.errors : [];
+  Astro.response.status = 422;
+}
+
+const templates = await listTemplates(getNotesDeps(), owner.id);
+const defaultTemplate = templates.find((t) => t.isDefault);
+const zones = [...new Set(["UTC", ...Intl.supportedValuesOf("timeZone")])];
+const errorFor = (field: string) => errors.find((e) => e.field === field);
+const invalid = (field: string) => (errorFor(field) ? "true" : undefined);
+const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : undefined);
+---
+
+<Base title="New note">
+  <h1>New note</h1>
+  <p>
+    Create a note for a meeting. Nothing is recorded now: you confirm consent and start capture from
+    the note itself.
+  </p>
+
+  <ErrorSummary errors={errors} />
+
+  <form class="form form-wide" method="post" action="/meetings/new">
+    <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+    <input type="hidden" name="submission_id" value={values.submission_id} />
+
+    <div class="field">
+      <label for="title">Title</label>
+      <input
+        id="title"
+        name="title"
+        type="text"
+        required
+        maxlength={NEW_MEETING_LIMITS.title}
+        value={values.title}
+        aria-invalid={invalid("title")}
+        aria-describedby={describedBy("title")}
+      />
+      {errorFor("title") && (
+        <p class="field-error" id="title-error">
+          {errorFor("title")?.message}
+        </p>
+      )}
+    </div>
+
+    <div class="field-group">
+      <div class="field">
+        <label for="date">Date</label>
+        <input
+          id="date"
+          name="date"
+          type="date"
+          required
+          value={values.date}
+          aria-invalid={invalid("date")}
+          aria-describedby={describedBy("date")}
+        />
+        {errorFor("date") && (
+          <p class="field-error" id="date-error">
+            {errorFor("date")?.message}
+          </p>
+        )}
+      </div>
+      <div class="field">
+        <label for="time">Start time</label>
+        <input
+          id="time"
+          name="time"
+          type="time"
+          required
+          value={values.time}
+          aria-invalid={invalid("time")}
+          aria-describedby={describedBy("time")}
+        />
+        {errorFor("time") && (
+          <p class="field-error" id="time-error">
+            {errorFor("time")?.message}
+          </p>
+        )}
+      </div>
+      <div class="field">
+        <label for="duration">Duration (minutes)</label>
+        <input
+          id="duration"
+          name="duration"
+          type="number"
+          inputmode="numeric"
+          min={NEW_MEETING_LIMITS.durationMin}
+          max={NEW_MEETING_LIMITS.durationMax}
+          step="5"
+          value={values.duration}
+          aria-invalid={invalid("duration")}
+          aria-describedby={describedBy("duration")}
+        />
+        {errorFor("duration") && (
+          <p class="field-error" id="duration-error">
+            {errorFor("duration")?.message}
+          </p>
+        )}
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="timezone">Time zone</label>
+      <select
+        id="timezone"
+        name="timezone"
+        data-browser-zone
+        aria-invalid={invalid("timezone")}
+        aria-describedby={describedBy("timezone")}
+      >
+        {zones.map((zone) => (
+          <option value={zone} selected={zone === values.timezone}>
+            {zone}
+          </option>
+        ))}
+      </select>
+      {errorFor("timezone") && (
+        <p class="field-error" id="timezone-error">
+          {errorFor("timezone")?.message}
+        </p>
+      )}
+    </div>
+
+    <div class="field">
+      <label for="agenda">Agenda (optional)</label>
+      <textarea
+        id="agenda"
+        name="agenda"
+        rows="4"
+        maxlength={NEW_MEETING_LIMITS.agenda}
+        aria-invalid={invalid("agenda")}
+        aria-describedby={describedBy("agenda")}
+      >{values.agenda}</textarea>
+      {errorFor("agenda") && (
+        <p class="field-error" id="agenda-error">
+          {errorFor("agenda")?.message}
+        </p>
+      )}
+    </div>
+
+    <div class="field">
+      <label for="attendees">Attendees (optional)</label>
+      <textarea
+        id="attendees"
+        name="attendees"
+        rows="4"
+        aria-describedby={
+          errorFor("attendees") ? "attendees-error attendees-help" : "attendees-help"
+        }
+        aria-invalid={invalid("attendees")}
+      >{values.attendees}</textarea>
+      <p id="attendees-help" class="help">
+        One per line: <code>Name &lt;email&gt;</code>, an email, or just a name. Only list people
+        who will be in the meeting. Listing someone here does not record their consent.
+      </p>
+      {errorFor("attendees") && (
+        <p class="field-error" id="attendees-error">
+          {errorFor("attendees")?.message}
+        </p>
+      )}
+    </div>
+
+    <div class="field">
+      <label for="template_id">Template</label>
+      <select
+        id="template_id"
+        name="template_id"
+        aria-invalid={invalid("template_id")}
+        aria-describedby={describedBy("template_id")}
+      >
+        <option value="" selected={values.template_id === ""}>
+          {defaultTemplate ? `My default (${defaultTemplate.name})` : "Built-in layout"}
+        </option>
+        {templates.map((t) => (
+          <option value={t.id} selected={t.id === values.template_id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      {errorFor("template_id") && (
+        <p class="field-error" id="template_id-error">
+          {errorFor("template_id")?.message}
+        </p>
+      )}
+      <p class="help">
+        Sections of the note generated after the meeting.{" "}
+        <a href="/settings/templates">Manage templates</a>
+      </p>
+    </div>
+
+    <div class="row-actions">
+      <button class="button" type="submit">
+        Create note
+      </button>
+      <a href="/">Cancel</a>
+    </div>
+  </form>
+
+  <script>
+    import "../../scripts/new-note";
+  </script>
+</Base>

@@ -17,3 +17,14 @@ export function inTransaction<T>(db: DatabaseSync, work: () => T): T {
 export function isUniqueViolation(error: unknown): boolean {
   return error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
 }
+
+/** Runs sync work now but reports a throw as a rejected promise, as an async port promises. */
+export function settle<T>(work: () => T): Promise<T> {
+  return new Promise((resolve, reject) => {
+    try {
+      resolve(work());
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
