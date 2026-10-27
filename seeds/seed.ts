@@ -1,16 +1,10 @@
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
+import { DEV_KEYRING } from "../src/adapters/crypto/dev-keyring";
 import { segmentTextContext } from "../src/domain/transcription/encryption-context";
 import type { PasswordHasher } from "../src/ports/password-hasher";
 import type { TextCipher } from "../src/ports/text-cipher";
 
-/**
- * Obviously fake development key (never a secret): lets seeds and tests run through the real
- * cipher. Production keys come from the ENCRYPTION_KEYS secret.
- */
-export const DEV_KEYRING = {
-  spec: `dev:${Buffer.alloc(32, 7).toString("base64")}`,
-  activeKeyId: "dev",
-};
+export { DEV_KEYRING };
 
 /** Development-only password for both seeded owners. Never use it anywhere real. */
 export const DEV_PASSWORD = "willy-dev-password";

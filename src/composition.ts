@@ -1,6 +1,11 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
+import { createChunkCipher } from "./adapters/crypto/chunk-cipher";
+import { DEV_FILE_URL_SECRET, DEV_KEYRING } from "./adapters/crypto/dev-keyring";
+import { parseKeyring } from "./adapters/crypto/envelope-cipher";
+import { createFileTokenService, type FileTokenService } from "./adapters/crypto/file-tokens";
+import { createLocalObjectStore } from "./adapters/fs/local-object-store";
 import { createPbkdf2Hasher } from "./adapters/crypto/pbkdf2-password-hasher";
 import { sha256Hex } from "./adapters/crypto/sha256";
 import { readLlmConfig } from "./adapters/llm/config";
@@ -19,6 +24,7 @@ import { SqliteSessionRepository } from "./adapters/sqlite/session-repository";
 import { SqliteTemplateRepository } from "./adapters/sqlite/template-repository";
 import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
+import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
 import type { MeetingDeps } from "./app/meetings/capture";
 import type { NotesDeps } from "./app/notes/deps";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
@@ -139,4 +145,50 @@ export function getSummarizer(): Summarizer {
     });
   }
   return summarizer;
+}
+
+let chunks: ChunkStore | undefined;
+let fileTokens: FileTokenService | undefined;
+
+/** Fake development secrets are only acceptable outside production. */
+function developmentFallbackAllowed(): boolean {
+  return process.env["NODE_ENV"] !== "production";
+}
+
+/**
+ * Encrypted audio chunk storage on the local disk (`<WILLY_DATA_DIR>/objects`). The Cloudflare
+ * composition wires `createR2ObjectStore` with the R2 binding instead. Keys come from
+ * ENCRYPTION_KEYS / ENCRYPTION_ACTIVE_KEY_ID; without them a fake dev key is used outside
+ * production only.
+ */
+export function getChunkStore(): ChunkStore {
+  if (!chunks) {
+    const spec = process.env["ENCRYPTION_KEYS"];
+    const activeKeyId = process.env["ENCRYPTION_ACTIVE_KEY_ID"];
+    let keyring: { spec: string; activeKeyId: string };
+    if (spec && activeKeyId) keyring = { spec, activeKeyId };
+    else if (developmentFallbackAllowed()) keyring = DEV_KEYRING;
+    else throw new Error("ENCRYPTION_KEYS and ENCRYPTION_ACTIVE_KEY_ID must be set in production");
+    const dir = join(process.env["WILLY_DATA_DIR"] ?? "./data", "objects");
+    chunks = createChunkStore({
+      objects: createLocalObjectStore(dir),
+      cipher: createChunkCipher(parseKeyring(keyring.spec), keyring.activeKeyId),
+    });
+  }
+  return chunks;
+}
+
+/** Signs short-lived file URLs (`/api/files/:token`); FILE_URL_SECRET must be 32+ characters. */
+export function getFileTokens(): FileTokenService {
+  if (!fileTokens) {
+    const secret = process.env["FILE_URL_SECRET"];
+    if (!secret && !developmentFallbackAllowed()) {
+      throw new Error("FILE_URL_SECRET must be set in production");
+    }
+    fileTokens = createFileTokenService({
+      secret: secret ?? DEV_FILE_URL_SECRET,
+      clock: new SystemClock(),
+    });
+  }
+  return fileTokens;
 }
