@@ -42,6 +42,8 @@ export default defineConfig({
       WILLY_JOBS_ENDPOINT: "1",
       // Ben's demo calendar simulates an outage so the import failure state can be tested.
       FAKE_CALENDAR_DOWN_OWNERS: "owner-ben",
+      // Short audio chunks so the capture tests do not wait ten seconds per chunk.
+      WILLY_CAPTURE_SEGMENT_MS: "1500",
     },
   },
 });

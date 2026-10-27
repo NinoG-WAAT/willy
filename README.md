@@ -18,7 +18,8 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | Sign-in and sessions, meeting lifecycle, STT/LLM/storage adapters, jobs, deletion job | in progress |
 | Folders and templates (settings pages: create, edit, default, delete) | done |
 | Screen 1: meetings home, new note, calendar import (demo calendar; Google connect flow pending) | done |
-| Screens 2-4 (live note, review, search/settings hub), search and export | not started |
+| Screen 2: live note (consent, capture, rough notes, recording state, failure recovery) | done |
+| Screens 3-4 (review, search/settings hub), search and export | not started |
 
 ## Prerequisites
 
@@ -70,6 +71,7 @@ All names live in [.env.example](.env.example) with placeholders. Never commit `
 | `GOOGLE_OAUTH_REDIRECT_URIS` | exact-match redirect allowlist, comma separated (https, or http for localhost only) |
 | `CALENDAR_WEBHOOK_SECRET` | HMAC secret verifying inbound calendar webhooks |
 | `OAUTH_STATE_SECRET` | HMAC secret binding the OAuth `state` to the signed-in owner |
+| `WILLY_CAPTURE_SEGMENT_MS` | length of each uploaded audio chunk (default 10000; tests shorten it) |
 | `FAKE_CALENDAR_DOWN_OWNERS` | fake mode only: owner ids whose demo calendar simulates an outage (tests) |
 
 Speech-to-text, LLM and object-storage variables are added to `.env.example` by their own adapter PRs (#8, #9, #10); until then those providers are not wired.

@@ -43,6 +43,7 @@ import type { ImportDeps } from "./app/calendar/import-events";
 import type { MeetingDeps } from "./app/meetings/capture";
 import type { CreateMeetingDeps } from "./app/meetings/create-meeting";
 import type { HomeDeps } from "./app/meetings/home";
+import type { LiveNoteDeps } from "./app/meetings/live-note";
 import { providerError } from "./domain/platform/provider-error";
 import { err } from "./domain/platform/result";
 import type { CalendarSource } from "./ports/calendar-source";
@@ -411,4 +412,24 @@ export function getCalendarImportDeps(): ImportDeps {
       random: () => Math.random(),
     },
   };
+}
+
+export function getLiveNoteDeps(): LiveNoteDeps {
+  return {
+    detail: getMeetingCatalog(),
+    notes: getMeetingCatalog(),
+    chunks: new SqliteChunkRepository(getDatabase()),
+    clock: new SystemClock(),
+  };
+}
+
+/**
+ * Length of each uploaded audio chunk. 10 seconds by default; WILLY_CAPTURE_SEGMENT_MS lets
+ * end-to-end runs use shorter chunks. Bounded to what the upload endpoint accepts.
+ */
+export function getCaptureSegmentMs(): number {
+  const configured = Number(process.env["WILLY_CAPTURE_SEGMENT_MS"]);
+  return Number.isInteger(configured) && configured >= 1_000 && configured <= 60_000
+    ? configured
+    : 10_000;
 }

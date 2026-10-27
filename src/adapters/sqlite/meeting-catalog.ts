@@ -10,6 +10,12 @@ import type { Clock } from "../../ports/clock";
 import type { IdGenerator } from "../../ports/id-generator";
 import type { MeetingCreation, NewMeetingRecord } from "../../ports/meeting-creation";
 import type {
+  MeetingDetail,
+  MeetingDetailQuery,
+  RoughNotesStore,
+} from "../../ports/meeting-detail";
+import { err, ok, type Result } from "../../domain/platform/result";
+import type {
   MeetingListFilter,
   MeetingListItem,
   MeetingListQuery,
@@ -44,7 +50,12 @@ function toItem(r: Record<string, unknown>): MeetingListItem {
  * Every statement is scoped by owner_id. Three small ports, one SQLite class.
  */
 export class SqliteMeetingCatalog
-  implements MeetingListQuery, MeetingCreation, CalendarImportRepository
+  implements
+    MeetingListQuery,
+    MeetingCreation,
+    CalendarImportRepository,
+    MeetingDetailQuery,
+    RoughNotesStore
 {
   constructor(
     private readonly db: DatabaseSync,
@@ -190,6 +201,55 @@ export class SqliteMeetingCatalog
         return { meetingId, created: true };
       }),
     );
+  }
+
+  findDetail(ownerId: string, meetingId: string): Promise<MeetingDetail | null> {
+    const r = this.db
+      .prepare(
+        `SELECT id, title, status, agenda, rough_notes, scheduled_start_at, scheduled_end_at, timezone,
+                consent_confirmed_at, capture_started_at, updated_at
+           FROM meeting
+          WHERE owner_id = ? AND id = ? AND status NOT IN ('deleting', 'deleted')`,
+      )
+      .get(ownerId, meetingId);
+    if (!r) return Promise.resolve(null);
+    const attendees = this.db
+      .prepare(
+        "SELECT name, email FROM attendee WHERE owner_id = ? AND meeting_id = ? ORDER BY created_at, name",
+      )
+      .all(ownerId, meetingId)
+      .map((a) => ({ name: String(a["name"]), email: text(a["email"]) }));
+    return Promise.resolve({
+      id: String(r["id"]),
+      title: String(r["title"]),
+      status: String(r["status"]) as MeetingStatus,
+      agenda: text(r["agenda"]),
+      roughNotes: text(r["rough_notes"]) ?? "",
+      scheduledStartAt: String(r["scheduled_start_at"]),
+      scheduledEndAt: text(r["scheduled_end_at"]),
+      timezone: String(r["timezone"]),
+      attendees,
+      consentConfirmedAt: text(r["consent_confirmed_at"]),
+      captureStartedAt: text(r["capture_started_at"]),
+      updatedAt: String(r["updated_at"]),
+    });
+  }
+
+  saveRoughNotes(
+    ownerId: string,
+    meetingId: string,
+    notes: string,
+    now: Date,
+  ): Promise<Result<{ savedAt: string }, "not_found">> {
+    const savedAt = now.toISOString();
+    // Only rough_notes and updated_at: consent, status and capture state are never touched here.
+    const result = this.db
+      .prepare(
+        `UPDATE meeting SET rough_notes = ?, updated_at = ?
+          WHERE owner_id = ? AND id = ? AND status NOT IN ('deleting', 'deleted')`,
+      )
+      .run(notes, savedAt, ownerId, meetingId);
+    return Promise.resolve(Number(result.changes) === 1 ? ok({ savedAt }) : err("not_found"));
   }
 
   /** Adds attendees that are not on the meeting yet; never removes or duplicates any. */

@@ -51,7 +51,7 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 |---|---|---|---|
 | `GET /` | Screen 1: Upcoming and recent meetings (#14) | **New note** | Calendar context, consent readiness, note status, folder filter, search box, import form. Meeting cards show status as text + icon. |
 | `GET /meetings/new`, `POST /meetings/new` | New note form (title, local date and time, IANA tz, duration, agenda, attendees, template) | Create | The page handles its own POST: 422 with field errors, or 303 to `/?notice=created`. A hidden submission token makes a double submit create one meeting. |
-| `GET /meetings/:id` | Screen 2: Live note (#15) when status is `scheduled/capturing/paused/failed`; redirects to review when `processing/review/published` | **Start capture** (after consent) | Rough notes form; JS: MediaRecorder, level meter, timer, chunk upload with retry, `aria-live` status. |
+| `GET /meetings/:id`, `POST /meetings/:id` | Screen 2: Live note (#15). Always available for the owner's meeting; after capture it shows the state and keeps rough notes editable, and the review screen (#16) takes over from there | **Start capture** (after consent) | Rough notes form; JS: MediaRecorder, level meter, timer, chunk upload with retry, `aria-live` status. |
 | `GET /meetings/:id/review` | Screen 3: Review (#16) | **Publish to folder** | Transcript beside editable sections; speakers, decisions, action items; regenerate-selection; failed/pending states with retry. |
 | `GET /search?q=&folder=` | Search results (#18) | Open result | Snippets with escaped highlights; owner-scoped FTS. |
 | `GET /meetings/:id/review#seg-<n>` | Source context | | Opened from a search hit or section source link; highlights the cited segment range. |
@@ -68,7 +68,7 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 |---|---|---|
 | `POST /sign-in`, `POST /sign-out` | Session create/destroy (rotate id on login) | Rate-limited; CSRF on sign-out |
 | `POST /meetings/new` | Create meeting | Idempotency key from the form (hidden token, `idempotency_key` scope `create_meeting`) |
-| `POST /meetings/:id` (update) | Edit title, agenda, attendees, rough notes (autosave form) | Last-write-wins with `updated_at` check; rough notes saved in any state except `deleting/deleted` |
+| `POST /meetings/:id` (`intent=save_notes|start|pause|resume|stop`), `POST /api/meetings/:id/notes` (JSON autosave `{roughNotes}`) | Rough notes, consent + capture controls | The page handles its own form POST (PRG). Last write wins; rough notes saved in any state except `deleting/deleted`; `start` records consent first and the server refuses without the tick |
 | `POST /meetings/import` | Import a calendar event (provider fetch or ICS text/file) | Unique on (owner, provider, provider_event_id): same event twice = one Meeting. Rate-limited |
 | `POST /meetings/:id/consent` | Owner confirms consent statement | Sets `consent_confirmed_at`, `consent_statement_version`; append-only; repeat is a no-op |
 | `POST /meetings/:id/capture/start`, `/pause`, `/resume`, `/stop` | Capture lifecycle | Server rejects start without stored consent; `stop` enqueues exactly one transcription job (unique job key `(meeting_id, 'transcribe')`) |

@@ -19,6 +19,34 @@ export function expireSession(token: string): void {
   }
 }
 
+/** Read-only query against the e2e server's database (never used to change state). */
+function readOnly<T>(run: (db: ReturnType<typeof openDatabase>) => T): T {
+  const dir = process.env["E2E_DATA_DIR"];
+  if (!dir) throw new Error("E2E_DATA_DIR is not set (set by playwright.config.ts)");
+  const db = openDatabase(join(dir, "willy.db"));
+  try {
+    return run(db);
+  } finally {
+    db.close();
+  }
+}
+
+export function countTranscribeJobs(meetingId: string): number {
+  return readOnly((db) =>
+    Number(
+      db
+        .prepare("SELECT COUNT(*) AS n FROM job WHERE meeting_id = ? AND kind = 'transcribe'")
+        .get(meetingId)?.["n"],
+    ),
+  );
+}
+
+export function meetingStatus(meetingId: string): string {
+  return readOnly((db) =>
+    String(db.prepare("SELECT status FROM meeting WHERE id = ?").get(meetingId)?.["status"]),
+  );
+}
+
 /**
  * Inserts a fresh meeting straight into the e2e server's database (there is no capture UI yet)
  * and returns its id. "capturing" meetings carry a stored consent, as the schema requires.
