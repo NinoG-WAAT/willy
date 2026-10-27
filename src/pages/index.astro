@@ -1,13 +1,163 @@
 ---
 import Base from "../layouts/Base.astro";
+import MeetingCard from "../components/MeetingCard.astro";
 import { requireOwner } from "../app/identity/require-owner";
+import { loadMeetingsHome } from "../app/meetings/home";
+import { noticeMessage, problemMessage } from "../app/meetings/messages";
+import { getHomeDeps } from "../composition";
 
 export const prerender = false;
-// Owner route (middleware default-deny). Screen 1 (#14) replaces this placeholder.
+
+// Owner route (middleware default-deny). The owner id comes from the session only.
 const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const params = Astro.url.searchParams;
+const folderParam = params.get("folder");
+const folderId =
+  folderParam !== null && folderParam !== "" && folderParam.length <= 100 ? folderParam : null;
+const includeArchived = params.get("archived") === "1";
+
+const home = await loadMeetingsHome(getHomeDeps(), owner.id, { folderId, includeArchived });
+const { groups } = home;
+const notice = noticeMessage(params);
+const problem = problemMessage(params.get("problem"));
+const selectedFolder = home.folders.find((f) => f.id === folderId) ?? null;
+const filtering = folderId !== null || includeArchived;
+const nothingToShow = home.total === 0;
 ---
 
-<Base>
-  <h1>Willycrumbs</h1>
-  <p>Welcome, {owner.displayName}. Consent-first meeting notes for founders.</p>
+<Base title="Meetings">
+  <div class="page-head">
+    <h1>Meetings</h1>
+    <div class="row-actions">
+      <a class="button" href="/meetings/new">
+        New note
+      </a>
+      <form
+        method="post"
+        action="/meetings/import"
+        data-pending-text="Importing from your calendar…"
+      >
+        <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+        <button class="button button-quiet" type="submit">
+          Import from calendar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <p id="pending-status" class="sr-only" role="status"></p>
+  {notice !== null && (
+    <p class="notice" role="status">
+      {notice}
+    </p>
+  )}
+  {problem !== null && (
+    <p class="alert" role="alert">
+      {problem}
+    </p>
+  )}
+
+  <div class="toolbar">
+    <form class="inline-form" role="search" method="get" action="/search">
+      <div class="field">
+        <label for="search-q">Search your notes</label>
+        <input id="search-q" name="q" type="search" required maxlength="200" />
+      </div>
+      <button class="button button-quiet" type="submit">
+        Search
+      </button>
+    </form>
+
+    <form class="inline-form" method="get" action="/">
+      <div class="field">
+        <label for="folder-filter">Folder</label>
+        <select id="folder-filter" name="folder">
+          <option value="">All folders</option>
+          {home.folders.map((f) => (
+            <option value={f.id} selected={f.id === folderId}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div class="check">
+        <input
+          id="show-archived"
+          name="archived"
+          type="checkbox"
+          value="1"
+          checked={includeArchived}
+        />
+        <label for="show-archived">Show archived</label>
+      </div>
+      <button class="button button-quiet" type="submit">
+        Apply
+      </button>
+      {filtering && <a href="/">Clear filters</a>}
+    </form>
+  </div>
+
+  {nothingToShow && !filtering && (
+    <section aria-labelledby="empty-heading" class="empty">
+      <h2 id="empty-heading">No meetings yet</h2>
+      <p>
+        Create a note for a meeting you are about to have, or import the next two weeks from your
+        calendar. Nothing is recorded until you confirm consent.
+      </p>
+    </section>
+  )}
+  {nothingToShow && filtering && (
+    <section aria-labelledby="empty-heading" class="empty">
+      <h2 id="empty-heading">No meetings match</h2>
+      <p>
+        {selectedFolder !== null
+          ? `Nothing is filed in the folder "${selectedFolder.name}" yet.`
+          : "There are no meetings for these filters."}
+        <a href="/">Clear filters</a>
+      </p>
+    </section>
+  )}
+
+  {groups.inProgress.length > 0 && (
+    <section aria-labelledby="in-progress-heading">
+      <h2 id="in-progress-heading">In progress</h2>
+      <ul class="rows">
+        {groups.inProgress.map((item) => (
+          <MeetingCard item={item} />
+        ))}
+      </ul>
+    </section>
+  )}
+
+  {!nothingToShow && (
+    <section aria-labelledby="upcoming-heading">
+      <h2 id="upcoming-heading">Upcoming</h2>
+      {groups.upcoming.length === 0 ? (
+        <p>Nothing scheduled. Create a note or import your calendar.</p>
+      ) : (
+        <ul class="rows">
+          {groups.upcoming.map((item) => (
+            <MeetingCard item={item} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )}
+
+  {groups.recent.length > 0 && (
+    <section aria-labelledby="recent-heading">
+      <h2 id="recent-heading">Recent</h2>
+      <ul class="rows">
+        {groups.recent.map((item) => (
+          <MeetingCard item={item} />
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <script>
+    import "../scripts/pending-submit";
+  </script>
 </Base>

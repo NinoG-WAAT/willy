@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  consentLabel,
-  describeMeeting,
-  groupMeetings,
-} from "../../../src/domain/meetings/home";
+import { consentLabel, describeMeeting, groupMeetings } from "../../../src/domain/meetings/home";
 import type { MeetingListItem } from "../../../src/ports/meeting-list";
 
 const NOW = new Date("2026-11-03T10:00:00.000Z");
@@ -35,7 +31,10 @@ describe("groupMeetings", () => {
         item("paused", { status: "paused", scheduledStartAt: "2026-11-03T08:00:00.000Z" }),
         item("old-pub", { status: "published", scheduledStartAt: "2026-10-01T09:00:00.000Z" }),
         item("newer-review", { status: "review", scheduledStartAt: "2026-11-02T09:00:00.000Z" }),
-        item("missed", { scheduledStartAt: "2026-11-01T09:00:00.000Z", scheduledEndAt: "2026-11-01T09:30:00.000Z" }),
+        item("missed", {
+          scheduledStartAt: "2026-11-01T09:00:00.000Z",
+          scheduledEndAt: "2026-11-01T09:30:00.000Z",
+        }),
       ],
       NOW,
     );
@@ -46,15 +45,26 @@ describe("groupMeetings", () => {
 
   it("keeps a meeting that is still running (end in the future) in upcoming", () => {
     const groups = groupMeetings(
-      [item("running", { scheduledStartAt: "2026-11-03T09:30:00.000Z", scheduledEndAt: "2026-11-03T10:30:00.000Z" })],
+      [
+        item("running", {
+          scheduledStartAt: "2026-11-03T09:30:00.000Z",
+          scheduledEndAt: "2026-11-03T10:30:00.000Z",
+        }),
+      ],
       NOW,
     );
     expect(groups.upcoming).toHaveLength(1);
   });
 
   it("assumes one hour when a scheduled meeting has no end", () => {
-    const justEnded = item("a", { scheduledStartAt: "2026-11-03T08:30:00.000Z", scheduledEndAt: null });
-    const stillOn = item("b", { scheduledStartAt: "2026-11-03T09:30:00.000Z", scheduledEndAt: null });
+    const justEnded = item("a", {
+      scheduledStartAt: "2026-11-03T08:30:00.000Z",
+      scheduledEndAt: null,
+    });
+    const stillOn = item("b", {
+      scheduledStartAt: "2026-11-03T09:30:00.000Z",
+      scheduledEndAt: null,
+    });
     const groups = groupMeetings([justEnded, stillOn], NOW);
     expect(groups.upcoming.map((m) => m.id)).toEqual(["b"]);
     expect(groups.recent.map((m) => m.id)).toEqual(["a"]);
@@ -72,7 +82,13 @@ describe("describeMeeting", () => {
     ["paused", {}, "Recording paused", "Resume note", "/meetings/m1"],
     ["processing", {}, "Transcribing", "View progress", "/meetings/m1/review"],
     ["review", {}, "Draft ready for review", "Review note", "/meetings/m1/review"],
-    ["published", { folderName: "Board updates" }, "Published to Board updates", "Open note", "/meetings/m1/review"],
+    [
+      "published",
+      { folderName: "Board updates" },
+      "Published to Board updates",
+      "Open note",
+      "/meetings/m1/review",
+    ],
     ["published", {}, "Published", "Open note", "/meetings/m1/review"],
     ["failed", {}, "Needs attention: processing failed", "Open and retry", "/meetings/m1/review"],
     ["archived", {}, "Archived", "Open note", "/meetings/m1"],
@@ -93,7 +109,9 @@ describe("describeMeeting", () => {
 
 describe("consentLabel", () => {
   it("states readiness in words and never claims consent from others", () => {
-    expect(consentLabel(item("a"))).toBe("Your consent confirmation is still needed before capture");
+    expect(consentLabel(item("a"))).toBe(
+      "Your consent confirmation is still needed before capture",
+    );
     expect(consentLabel(item("a", { consentConfirmedAt: "2026-11-03T09:00:00.000Z" }))).toBe(
       "You confirmed consent",
     );

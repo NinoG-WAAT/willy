@@ -4,10 +4,7 @@ import { SqliteFolderRepository } from "../../../src/adapters/sqlite/folder-repo
 import { SqliteMeetingCatalog } from "../../../src/adapters/sqlite/meeting-catalog";
 import { SqliteTemplateRepository } from "../../../src/adapters/sqlite/template-repository";
 import { FixedClock, SequentialIds } from "../../../src/adapters/system/fakes";
-import {
-  createMeeting,
-  type CreateMeetingDeps,
-} from "../../../src/app/meetings/create-meeting";
+import { createMeeting, type CreateMeetingDeps } from "../../../src/app/meetings/create-meeting";
 import { loadMeetingsHome } from "../../../src/app/meetings/home";
 import { count, freshDb, insert, owner, T0 } from "../../support/db-fixtures";
 
@@ -71,13 +68,17 @@ describe("createMeeting", () => {
 
   it("stores no template when the owner has none (the built-in layout applies at summary time)", async () => {
     await createMeeting(deps, "A", form());
-    expect(db.prepare("SELECT template_id FROM meeting").get()).toMatchObject({ template_id: null });
+    expect(db.prepare("SELECT template_id FROM meeting").get()).toMatchObject({
+      template_id: null,
+    });
   });
 
   it("applies an explicitly chosen template", async () => {
     seedTemplate("A", "t1");
     await createMeeting(deps, "A", form({ templateId: "t1" }));
-    expect(db.prepare("SELECT template_id FROM meeting").get()).toMatchObject({ template_id: "t1" });
+    expect(db.prepare("SELECT template_id FROM meeting").get()).toMatchObject({
+      template_id: "t1",
+    });
   });
 
   it("rejects another owner's template as a field error and stores nothing", async () => {
@@ -117,8 +118,18 @@ describe("createMeeting", () => {
 describe("loadMeetingsHome", () => {
   it("returns grouped meetings and the owner's folders for the filter", async () => {
     await createMeeting(deps, "A", form());
-    await createMeeting(deps, "B", form({ title: "Bens call", submissionId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" }));
-    insert(db, "folder", { id: "f1", owner_id: "A", name: "Board", created_at: T0, updated_at: T0 });
+    await createMeeting(
+      deps,
+      "B",
+      form({ title: "Bens call", submissionId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" }),
+    );
+    insert(db, "folder", {
+      id: "f1",
+      owner_id: "A",
+      name: "Board",
+      created_at: T0,
+      updated_at: T0,
+    });
     const home = await loadMeetingsHome(
       {
         list: catalog,

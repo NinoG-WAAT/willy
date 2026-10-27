@@ -35,7 +35,12 @@ describe("normalizeNewMeeting", () => {
   });
 
   it("defaults the duration to 30 minutes and an empty agenda to null", () => {
-    const result = normalizeNewMeeting({ ...valid, durationMinutes: "", agenda: "  ", attendees: "" });
+    const result = normalizeNewMeeting({
+      ...valid,
+      durationMinutes: "",
+      agenda: "  ",
+      attendees: "",
+    });
     expect(result).toMatchObject({
       ok: true,
       value: { endsAt: "2026-11-03T08:30:00.000Z", agenda: null, attendees: [] },
@@ -53,7 +58,15 @@ describe("normalizeNewMeeting", () => {
       attendees: "bad <not-an-email>",
     });
     expect(fieldsOf(result)).toEqual(
-      expect.arrayContaining(["title", "date", "time", "timezone", "duration", "agenda", "attendees"]),
+      expect.arrayContaining([
+        "title",
+        "date",
+        "time",
+        "timezone",
+        "duration",
+        "agenda",
+        "attendees",
+      ]),
     );
   });
 
@@ -61,8 +74,16 @@ describe("normalizeNewMeeting", () => {
     ["title too long", { title: "t".repeat(201) }, "title"],
     ["duration not a number", { durationMinutes: "abc" }, "duration"],
     ["duration too long", { durationMinutes: "481" }, "duration"],
-    ["nonexistent local time", { date: "2026-03-08", time: "02:30", timezone: "America/New_York" }, "time"],
-    ["too many attendees", { attendees: Array.from({ length: 101 }, (_, i) => `p${String(i)}@example.com`).join("\n") }, "attendees"],
+    [
+      "nonexistent local time",
+      { date: "2026-03-08", time: "02:30", timezone: "America/New_York" },
+      "time",
+    ],
+    [
+      "too many attendees",
+      { attendees: Array.from({ length: 101 }, (_, i) => `p${String(i)}@example.com`).join("\n") },
+      "attendees",
+    ],
   ])("rejects %s", (_label, patch, field) => {
     expect(fieldsOf(normalizeNewMeeting({ ...valid, ...patch }))).toContain(field);
   });

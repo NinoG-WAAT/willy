@@ -7,6 +7,8 @@ import { createEnvelopeCipher, parseKeyring } from "./adapters/crypto/envelope-c
 import { createJsonLogger } from "./adapters/logging/json-logger";
 import { createFileTokenService, type FileTokenService } from "./adapters/crypto/file-tokens";
 import { createLocalObjectStore } from "./adapters/fs/local-object-store";
+import { createFixtureCalendarSource } from "./adapters/calendar/fixture-calendar-source";
+import { readCalendarConfig } from "./adapters/calendar/config";
 import { createPbkdf2Hasher } from "./adapters/crypto/pbkdf2-password-hasher";
 import { sha256Hex } from "./adapters/crypto/sha256";
 import { readLlmConfig } from "./adapters/llm/config";
@@ -20,6 +22,7 @@ import { openDatabase } from "./adapters/sqlite/database";
 import { runMigrations } from "./adapters/sqlite/migrate";
 import { SqliteChunkRepository } from "./adapters/sqlite/chunk-repository";
 import { SqliteJobRepository } from "./adapters/sqlite/job-repository";
+import { SqliteMeetingCatalog } from "./adapters/sqlite/meeting-catalog";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
 import { SqliteSettingsRepository } from "./adapters/sqlite/settings-repository";
@@ -35,6 +38,13 @@ import type { StatusDeps } from "./app/transcription/processing-status";
 import { retentionJobHandler, scheduleRetentionJobs } from "./app/transcription/retention";
 import { transcribeJobHandler, type TranscribeDeps } from "./app/transcription/transcribe-job";
 import type { UploadDeps } from "./app/transcription/upload-chunk";
+import type { ImportDeps } from "./app/calendar/import-events";
+import type { MeetingDeps } from "./app/meetings/capture";
+import type { CreateMeetingDeps } from "./app/meetings/create-meeting";
+import type { HomeDeps } from "./app/meetings/home";
+import { providerError } from "./domain/platform/provider-error";
+import { err } from "./domain/platform/result";
+import type { CalendarSource } from "./ports/calendar-source";
 import type { NotesDeps } from "./app/notes/deps";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
 import type { JobRepository } from "./ports/job-repository";
@@ -343,4 +353,52 @@ export function ensureJobRunner(): void {
 export function getStatusDeps(): StatusDeps {
   const deps = getTranscribeDeps();
   return { meetings: deps.meetings, chunks: deps.chunks, jobs: deps.jobs };
+}
+
+let catalog: SqliteMeetingCatalog | undefined;
+
+function getMeetingCatalog(): SqliteMeetingCatalog {
+  catalog ??= new SqliteMeetingCatalog(getDatabase(), new RandomIds(), new SystemClock());
+  return catalog;
+}
+
+export function getHomeDeps(): HomeDeps {
+  return { list: getMeetingCatalog(), folders: getNotesDeps().folders, clock: new SystemClock() };
+}
+
+export function getCreateMeetingDeps(): CreateMeetingDeps {
+  return { creation: getMeetingCatalog(), notes: getNotesDeps() };
+}
+
+/**
+ * CALENDAR_PROVIDER=fake (default) uses the labelled demo calendar. FAKE_CALENDAR_DOWN_OWNERS
+ * (comma separated owner ids) simulates an outage for those owners so the failure state can be
+ * shown and tested. The Google provider needs its connect flow and a persistent credential
+ * store, which are not wired yet, so it reports "not connected" instead of pretending.
+ */
+function getCalendarSource(): CalendarSource {
+  const config = readCalendarConfig(process.env);
+  if (config.ok && config.value.mode === "fake") {
+    const down = (process.env["FAKE_CALENDAR_DOWN_OWNERS"] ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    return createFixtureCalendarSource({ now: () => new Date(), downOwners: down });
+  }
+  const message = config.ok
+    ? "Google Calendar is not connected yet"
+    : "calendar integration is not configured";
+  return { listEvents: () => Promise.resolve(err(providerError("rejected", message))) };
+}
+
+export function getCalendarImportDeps(): ImportDeps {
+  return {
+    calendar: getCalendarSource(),
+    repo: getMeetingCatalog(),
+    retry: {
+      policy: { maxAttempts: 3, baseMs: 200, capMs: 1500 },
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      random: () => Math.random(),
+    },
+  };
 }

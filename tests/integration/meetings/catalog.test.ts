@@ -95,7 +95,12 @@ describe("create", () => {
 describe("list", () => {
   it("returns only the owner's meetings with counts, consent and note context", async () => {
     folder(db, "A", "f1", { name: "Board" });
-    meeting(db, "A", "m1", { title: "Published one", status: "published", consent_confirmed_at: T0, consent_statement_version: 1 });
+    meeting(db, "A", "m1", {
+      title: "Published one",
+      status: "published",
+      consent_confirmed_at: T0,
+      consent_statement_version: 1,
+    });
     attendee(db, "A", "m1", "a1");
     attendee(db, "A", "m1", "a2");
     note(db, "A", "m1", "n1", { status: "published", published_at: T0, folder_id: "f1" });
@@ -128,17 +133,25 @@ describe("list", () => {
   it("filters by folder, and another owner's folder id yields nothing", async () => {
     folder(db, "A", "f1");
     folder(db, "B", "fb");
-    meeting(db, "A", "m1", { status: "published", consent_confirmed_at: T0, consent_statement_version: 1 });
+    meeting(db, "A", "m1", {
+      status: "published",
+      consent_confirmed_at: T0,
+      consent_statement_version: 1,
+    });
     note(db, "A", "m1", "n1", { status: "published", published_at: T0, folder_id: "f1" });
     meeting(db, "A", "m2");
-    expect((await catalog.list("A", { folderId: "f1", includeArchived: false })).map((m) => m.id)).toEqual(["m1"]);
+    expect(
+      (await catalog.list("A", { folderId: "f1", includeArchived: false })).map((m) => m.id),
+    ).toEqual(["m1"]);
     expect(await catalog.list("A", { folderId: "fb", includeArchived: false })).toEqual([]);
   });
 
   it("orders newest start first", async () => {
     meeting(db, "A", "old", { scheduled_start_at: "2026-10-01T09:00:00.000Z" });
     meeting(db, "A", "new", { scheduled_start_at: "2026-12-01T09:00:00.000Z" });
-    const ids = (await catalog.list("A", { folderId: null, includeArchived: false })).map((m) => m.id);
+    const ids = (await catalog.list("A", { folderId: null, includeArchived: false })).map(
+      (m) => m.id,
+    );
     expect(ids).toEqual(["new", "old"]);
   });
 });
@@ -160,10 +173,16 @@ describe("upsertFromCalendar", () => {
 
   it("importing the same event twice is one meeting; an update refreshes calendar-owned fields only", async () => {
     await catalog.upsertFromCalendar("A", makeEvent("e1"));
-    db.prepare("UPDATE meeting SET rough_notes = 'my notes', agenda = 'my agenda' WHERE id = 'id-1'").run();
+    db.prepare(
+      "UPDATE meeting SET rough_notes = 'my notes', agenda = 'my agenda' WHERE id = 'id-1'",
+    ).run();
     const again = await catalog.upsertFromCalendar(
       "A",
-      makeEvent("e1", { title: "Renamed", startsAt: "2026-11-05T08:00:00.000Z", endsAt: "2026-11-05T09:00:00.000Z" }),
+      makeEvent("e1", {
+        title: "Renamed",
+        startsAt: "2026-11-05T08:00:00.000Z",
+        endsAt: "2026-11-05T09:00:00.000Z",
+      }),
     );
     expect(again).toEqual({ meetingId: "id-1", created: false });
     expect(count(db, "meeting")).toBe(1);

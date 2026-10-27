@@ -1,10 +1,8 @@
+import { normalizeAttendees, type Attendee } from "../meetings/attendee";
 import type { Result } from "../platform/result";
 import { err, ok } from "../platform/result";
 
-export interface CalendarAttendee {
-  name: string;
-  email: string | null;
-}
+export type CalendarAttendee = Attendee;
 
 /**
  * A calendar event reduced to the minimum the product needs (product.md: minimum personal data).
@@ -29,9 +27,6 @@ export const LIMITS = {
   title: 200,
   id: 256,
   provider: 32,
-  attendees: 100,
-  name: 100,
-  email: 254,
 } as const;
 
 const EVENT_KEYS = new Set([
@@ -43,9 +38,7 @@ const EVENT_KEYS = new Set([
   "timezone",
   "attendees",
 ]);
-const ATTENDEE_KEYS = new Set(["name", "email"]);
 const ISO_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function clean(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -77,34 +70,6 @@ function toUtcIso(value: unknown): string | null {
   if (typeof value !== "string" || !ISO_WITH_OFFSET.test(value)) return null;
   const ms = Date.parse(value);
   return Number.isNaN(ms) ? null : new Date(ms).toISOString();
-}
-
-function normalizeAttendees(raw: unknown): Result<CalendarAttendee[], NormalizationError> {
-  const fail = (message: string) => err({ field: "attendees", message });
-  if (!Array.isArray(raw)) return fail("must be a list");
-  if (raw.length > LIMITS.attendees) return fail(`at most ${String(LIMITS.attendees)} attendees`);
-  const byEmail = new Set<string>();
-  const out: CalendarAttendee[] = [];
-  for (const item of raw) {
-    if (!isRecord(item) || !hasOnlyKeys(item, ATTENDEE_KEYS))
-      return fail("unexpected attendee shape");
-    const name = clean(item["name"]) ?? "";
-    const rawEmail =
-      item["email"] === null || item["email"] === undefined ? "" : clean(item["email"]);
-    if (rawEmail === null) return fail("email must be text");
-    const email = rawEmail.toLowerCase();
-    if (email !== "" && (email.length > LIMITS.email || !EMAIL.test(email)))
-      return fail("invalid email");
-    if (name.length > LIMITS.name) return fail(`name longer than ${String(LIMITS.name)}`);
-    // Never invent an attendee: with neither a name nor an email there is nobody to keep.
-    if (name === "" && email === "") continue;
-    if (email !== "") {
-      if (byEmail.has(email)) continue;
-      byEmail.add(email);
-    }
-    out.push({ name: name === "" ? email : name, email: email === "" ? null : email });
-  }
-  return ok(out);
 }
 
 /** Validates and normalizes untrusted provider data into a CalendarEvent. Unknown fields are rejected. */
