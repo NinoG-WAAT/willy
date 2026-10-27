@@ -22,7 +22,9 @@ describe("chunk cipher (AES-256-GCM, per-object nonce, key id embedded)", () => 
     expect(await c.open((await c.seal(new Uint8Array(0), "ctx")).bytes, "ctx")).toEqual(
       new Uint8Array(0),
     );
-    expect(await c.open((await c.seal(big, "ctx")).bytes, "ctx")).toEqual(big);
+    // Buffer.equals: toEqual on a 1 MiB array takes seconds under parallel load and made CI flaky.
+    const opened = await c.open((await c.seal(big, "ctx")).bytes, "ctx");
+    expect(Buffer.from(opened).equals(Buffer.from(big))).toBe(true);
   });
 
   it("never stores the plaintext and uses a fresh nonce every time", async () => {
