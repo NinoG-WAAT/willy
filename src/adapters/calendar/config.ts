@@ -9,8 +9,6 @@ export type CalendarConfig =
       redirectAllowlist: string[];
       webhookSecret: string;
       stateSecret: string;
-      encryptionKeys: Record<string, string>;
-      activeKeyId: string;
     };
 
 export type EnvLike = Readonly<Record<string, string | undefined>>;
@@ -21,8 +19,6 @@ const REQUIRED_FOR_GOOGLE = [
   "GOOGLE_OAUTH_REDIRECT_URIS",
   "CALENDAR_WEBHOOK_SECRET",
   "OAUTH_STATE_SECRET",
-  "TOKEN_ENCRYPTION_KEYS",
-  "TOKEN_ENCRYPTION_ACTIVE_KEY_ID",
 ] as const;
 
 /**
@@ -43,17 +39,6 @@ export function readCalendarConfig(env: EnvLike): Result<CalendarConfig, string>
   }
   if (missing.length > 0) return err(`missing environment variables: ${missing.join(", ")}`);
 
-  const encryptionKeys: Record<string, string> = {};
-  for (const entry of (values["TOKEN_ENCRYPTION_KEYS"] ?? "").split(",")) {
-    const [id, key, ...rest] = entry.trim().split(":");
-    if (!id || !key || rest.length > 0)
-      return err("TOKEN_ENCRYPTION_KEYS must look like 'id:base64key,id2:base64key'");
-    encryptionKeys[id] = key;
-  }
-  const activeKeyId = values["TOKEN_ENCRYPTION_ACTIVE_KEY_ID"] ?? "";
-  if (!(activeKeyId in encryptionKeys))
-    return err("TOKEN_ENCRYPTION_ACTIVE_KEY_ID is not listed in TOKEN_ENCRYPTION_KEYS");
-
   return ok({
     mode: "google",
     clientId: values["GOOGLE_OAUTH_CLIENT_ID"] ?? "",
@@ -64,7 +49,5 @@ export function readCalendarConfig(env: EnvLike): Result<CalendarConfig, string>
       .filter(Boolean),
     webhookSecret: values["CALENDAR_WEBHOOK_SECRET"] ?? "",
     stateSecret: values["OAUTH_STATE_SECRET"] ?? "",
-    encryptionKeys,
-    activeKeyId,
   });
 }

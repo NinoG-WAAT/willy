@@ -1,7 +1,7 @@
 import { providerError, type ProviderError } from "../../domain/platform/provider-error";
 import { err, ok, type Result } from "../../domain/platform/result";
 import type { CalendarCredentialStore } from "../../ports/calendar-credential-store";
-import type { TokenCipher } from "../../ports/token-cipher";
+import type { TextCipher } from "../../ports/text-cipher";
 import { guardedFetchJson } from "../http/guarded-fetch";
 
 export const GOOGLE_TOKEN_HOST = "oauth2.googleapis.com";
@@ -11,7 +11,7 @@ const EXPIRY_MARGIN_MS = 60_000;
 
 export interface GoogleCredentialsConfig {
   store: CalendarCredentialStore;
-  cipher: TokenCipher;
+  cipher: TextCipher;
   fetch: typeof fetch;
   clientId: string;
   clientSecret: string;
@@ -93,11 +93,18 @@ export function createGoogleCredentials(config: GoogleCredentialsConfig): Google
     });
   }
 
+  /** Null when the record is corrupt, tampered with, or sealed for another owner (decrypt throws). */
+  async function openCredentials(sealed: string, ownerId: string): Promise<Credentials | null> {
+    try {
+      return parseCredentials(await config.cipher.decrypt(sealed, contextOf(ownerId)));
+    } catch {
+      return null;
+    }
+  }
+
   async function persist(ownerId: string, credentials: Credentials): Promise<void> {
-    await config.store.save(
-      ownerId,
-      await config.cipher.seal(JSON.stringify(credentials), contextOf(ownerId)),
-    );
+    const sealed = await config.cipher.encrypt(JSON.stringify(credentials), contextOf(ownerId));
+    await config.store.save(ownerId, sealed.ciphertext);
   }
 
   return {
@@ -118,8 +125,7 @@ export function createGoogleCredentials(config: GoogleCredentialsConfig): Google
     async getAccessToken(ownerId) {
       const sealed = await config.store.load(ownerId);
       if (sealed === null) return err(providerError("rejected", "calendar is not connected"));
-      const opened = await config.cipher.open(sealed, contextOf(ownerId));
-      const current = opened.ok ? parseCredentials(opened.value) : null;
+      const current = await openCredentials(sealed, ownerId);
       if (!current)
         return err(providerError("rejected", "stored calendar credentials are unreadable"));
 

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { defined } from "../../support/assert";
 import { createInMemoryCredentialStore } from "../../../src/adapters/calendar/in-memory-credential-store";
 import { createGoogleCredentials } from "../../../src/adapters/calendar/google-credentials";
-import { createAesGcmCipher } from "../../../src/adapters/crypto/aes-gcm-cipher";
+import {
+  createEnvelopeCipher,
+  parseKeyring,
+} from "../../../src/adapters/crypto/envelope-cipher";
 
 const key = Buffer.alloc(32, 7).toString("base64");
 
@@ -15,11 +18,7 @@ function setup(respond: (call: Call) => Response | Promise<Response> = defaultRe
   let nowMs = Date.parse("2026-11-01T10:00:00Z");
   const calls: Call[] = [];
   const store = createInMemoryCredentialStore();
-  const cipher = createAesGcmCipher({
-    keys: { k1: key },
-    activeKeyId: "k1",
-    randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)),
-  });
+  const cipher = createEnvelopeCipher(parseKeyring(`k1:${key}`), "k1");
   const fetchStub: typeof fetch = async (input, init) => {
     const call = {
       url: new URL(input instanceof Request ? input.url : input.toString()),
