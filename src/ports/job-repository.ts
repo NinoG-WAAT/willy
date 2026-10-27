@@ -22,6 +22,11 @@ export interface NewJob {
   kind: JobKind;
   /** Unique per logical side effect: enqueueing the same key twice yields one job. */
   jobKey: string;
+  /**
+   * A `failed` job with this key is reset to pending (recovery after the owner's retry). A
+   * pending, running or finished job is never disturbed.
+   */
+  requeueIfFailed?: boolean;
 }
 
 export interface JobRepository {

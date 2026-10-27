@@ -23,6 +23,7 @@ import { runMigrations } from "./adapters/sqlite/migrate";
 import { SqliteChunkRepository } from "./adapters/sqlite/chunk-repository";
 import { SqliteJobRepository } from "./adapters/sqlite/job-repository";
 import { SqliteMeetingCatalog } from "./adapters/sqlite/meeting-catalog";
+import { SqliteNoteRepository } from "./adapters/sqlite/note-repository";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
 import { SqliteSettingsRepository } from "./adapters/sqlite/settings-repository";
@@ -33,6 +34,7 @@ import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
 import { runDueJobs, type JobHandler, type RunnerDeps } from "./app/jobs/runner";
+import { summaryJobHandler } from "./app/notes/summary-job";
 import type { StatusDeps } from "./app/transcription/processing-status";
 import { retentionJobHandler, scheduleRetentionJobs } from "./app/transcription/retention";
 import { transcribeJobHandler, type TranscribeDeps } from "./app/transcription/transcribe-job";
@@ -300,11 +302,20 @@ function getRunnerDeps(): RunnerDeps {
   };
 }
 
-/** Job kinds with a handler today; summarize (#12) and delete (#13) add theirs here. */
+/** Job kinds with a handler today; delete (#13) adds its own here. */
 function getJobHandlers(): JobHandler[] {
   const deps = getTranscribeDeps();
   return [
     transcribeJobHandler(deps),
+    summaryJobHandler({
+      meetings: deps.meetings,
+      notes: new SqliteNoteRepository(getDatabase(), new RandomIds()),
+      templates: new SqliteTemplateRepository(getDatabase()),
+      summarizer: getSummarizer(),
+      textCipher: deps.textCipher,
+      clock: deps.clock,
+      logger: deps.logger,
+    }),
     retentionJobHandler({
       chunks: deps.chunks,
       chunkStore: deps.chunkStore,
