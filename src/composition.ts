@@ -3,6 +3,9 @@ import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { createPbkdf2Hasher } from "./adapters/crypto/pbkdf2-password-hasher";
 import { sha256Hex } from "./adapters/crypto/sha256";
+import { createTranscriber } from "./adapters/stt";
+import { readSttConfig } from "./adapters/stt/config";
+import { createRetryingTranscriber } from "./adapters/stt/retrying-transcriber";
 import { InMemoryRateLimiter } from "./adapters/memory/in-memory-rate-limiter";
 import { openDatabase } from "./adapters/sqlite/database";
 import { runMigrations } from "./adapters/sqlite/migrate";
@@ -13,6 +16,7 @@ import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import type { MeetingDeps } from "./app/meetings/capture";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
+import type { Transcriber } from "./ports/transcriber";
 
 /**
  * The only place adapters are wired (CLAUDE.md section 5, D). This Node/SQLite composition is for
@@ -77,4 +81,23 @@ export function getMeetingDeps(): MeetingDeps {
     };
   }
   return meetings;
+}
+
+let transcriber: Transcriber | undefined;
+
+/**
+ * Speech-to-text with retries. The fake is the default; STT_PROVIDER=deepgram needs STT_API_KEY.
+ * A bad configuration fails fast here, naming variables but never their values.
+ */
+export function getTranscriber(): Transcriber {
+  if (!transcriber) {
+    const config = readSttConfig(process.env);
+    if (!config.ok) throw new Error(`Invalid speech-to-text configuration: ${config.error}`);
+    transcriber = createRetryingTranscriber(createTranscriber(config.value, fetch), {
+      policy: { maxAttempts: 4, baseMs: 500, capMs: 8000 },
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      random: Math.random,
+    });
+  }
+  return transcriber;
 }
