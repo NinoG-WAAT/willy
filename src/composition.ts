@@ -32,7 +32,6 @@ import { SqliteTemplateRepository } from "./adapters/sqlite/template-repository"
 import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
-import type { MeetingDeps } from "./app/meetings/capture";
 import { runDueJobs, type JobHandler, type RunnerDeps } from "./app/jobs/runner";
 import type { StatusDeps } from "./app/transcription/processing-status";
 import { retentionJobHandler, scheduleRetentionJobs } from "./app/transcription/retention";
