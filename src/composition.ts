@@ -3,7 +3,8 @@ import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { createChunkCipher } from "./adapters/crypto/chunk-cipher";
 import { DEV_FILE_URL_SECRET, DEV_KEYRING } from "./adapters/crypto/dev-keyring";
-import { parseKeyring } from "./adapters/crypto/envelope-cipher";
+import { createEnvelopeCipher, parseKeyring } from "./adapters/crypto/envelope-cipher";
+import { createJsonLogger } from "./adapters/logging/json-logger";
 import { createFileTokenService, type FileTokenService } from "./adapters/crypto/file-tokens";
 import { createLocalObjectStore } from "./adapters/fs/local-object-store";
 import { createPbkdf2Hasher } from "./adapters/crypto/pbkdf2-password-hasher";
@@ -18,8 +19,10 @@ import { InMemoryRateLimiter } from "./adapters/memory/in-memory-rate-limiter";
 import { openDatabase } from "./adapters/sqlite/database";
 import { runMigrations } from "./adapters/sqlite/migrate";
 import { SqliteChunkRepository } from "./adapters/sqlite/chunk-repository";
+import { SqliteJobRepository } from "./adapters/sqlite/job-repository";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
+import { SqliteSettingsRepository } from "./adapters/sqlite/settings-repository";
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
 import { SqliteSessionRepository } from "./adapters/sqlite/session-repository";
 import { SqliteTemplateRepository } from "./adapters/sqlite/template-repository";
@@ -27,10 +30,17 @@ import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
 import type { MeetingDeps } from "./app/meetings/capture";
+import { runDueJobs, type JobHandler, type RunnerDeps } from "./app/jobs/runner";
+import type { StatusDeps } from "./app/transcription/processing-status";
+import { retentionJobHandler, scheduleRetentionJobs } from "./app/transcription/retention";
+import { transcribeJobHandler, type TranscribeDeps } from "./app/transcription/transcribe-job";
 import type { UploadDeps } from "./app/transcription/upload-chunk";
 import type { NotesDeps } from "./app/notes/deps";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
+import type { JobRepository } from "./ports/job-repository";
+import type { Logger } from "./ports/logger";
 import type { Summarizer } from "./ports/summarizer";
+import type { TextCipher } from "./ports/text-cipher";
 import type { Transcriber } from "./ports/transcriber";
 
 /**
@@ -157,20 +167,22 @@ function developmentFallbackAllowed(): boolean {
   return process.env["NODE_ENV"] !== "production";
 }
 
+/** ENCRYPTION_KEYS / ENCRYPTION_ACTIVE_KEY_ID; a fake dev key is allowed outside production only. */
+function getKeyring(): { spec: string; activeKeyId: string } {
+  const spec = process.env["ENCRYPTION_KEYS"];
+  const activeKeyId = process.env["ENCRYPTION_ACTIVE_KEY_ID"];
+  if (spec && activeKeyId) return { spec, activeKeyId };
+  if (developmentFallbackAllowed()) return DEV_KEYRING;
+  throw new Error("ENCRYPTION_KEYS and ENCRYPTION_ACTIVE_KEY_ID must be set in production");
+}
+
 /**
  * Encrypted audio chunk storage on the local disk (`<WILLY_DATA_DIR>/objects`). The Cloudflare
- * composition wires `createR2ObjectStore` with the R2 binding instead. Keys come from
- * ENCRYPTION_KEYS / ENCRYPTION_ACTIVE_KEY_ID; without them a fake dev key is used outside
- * production only.
+ * composition wires `createR2ObjectStore` with the R2 binding instead.
  */
 export function getChunkStore(): ChunkStore {
   if (!chunks) {
-    const spec = process.env["ENCRYPTION_KEYS"];
-    const activeKeyId = process.env["ENCRYPTION_ACTIVE_KEY_ID"];
-    let keyring: { spec: string; activeKeyId: string };
-    if (spec && activeKeyId) keyring = { spec, activeKeyId };
-    else if (developmentFallbackAllowed()) keyring = DEV_KEYRING;
-    else throw new Error("ENCRYPTION_KEYS and ENCRYPTION_ACTIVE_KEY_ID must be set in production");
+    const keyring = getKeyring();
     const dir = join(process.env["WILLY_DATA_DIR"] ?? "./data", "objects");
     chunks = createChunkStore({
       objects: createLocalObjectStore(dir),
@@ -178,6 +190,17 @@ export function getChunkStore(): ChunkStore {
     });
   }
   return chunks;
+}
+
+let textCipher: TextCipher | undefined;
+
+/** Envelope cipher for transcript text (and provider tokens), same keys as the chunk cipher. */
+export function getTextCipher(): TextCipher {
+  if (!textCipher) {
+    const keyring = getKeyring();
+    textCipher = createEnvelopeCipher(parseKeyring(keyring.spec), keyring.activeKeyId);
+  }
+  return textCipher;
 }
 
 /** Signs short-lived file URLs (`/api/files/:token`); FILE_URL_SECRET must be 32+ characters. */
@@ -210,4 +233,114 @@ export function getUploadDeps(): UploadDeps {
     };
   }
   return upload;
+}
+
+let logger: Logger | undefined;
+
+/** Structured JSON lines on stdout. Fields are redacted by name. */
+export function getLogger(): Logger {
+  if (!logger) {
+    logger = createJsonLogger(
+      (line) => {
+        process.stdout.write(`${line}\n`);
+      },
+      () => new Date(),
+      { service: "willycrumbs" },
+    );
+  }
+  return logger;
+}
+
+let jobRepository: JobRepository | undefined;
+
+function getJobRepository(): JobRepository {
+  jobRepository ??= new SqliteJobRepository(getDatabase(), new RandomIds());
+  return jobRepository;
+}
+
+let transcribeDeps: TranscribeDeps | undefined;
+
+function getTranscribeDeps(): TranscribeDeps {
+  if (!transcribeDeps) {
+    const { meetings, clock } = getMeetingDeps();
+    transcribeDeps = {
+      meetings,
+      chunks: new SqliteChunkRepository(getDatabase()),
+      chunkStore: getChunkStore(),
+      transcriber: getTranscriber(),
+      textCipher: getTextCipher(),
+      settings: new SqliteSettingsRepository(getDatabase()),
+      jobs: getJobRepository(),
+      ids: new RandomIds(),
+      clock,
+      logger: getLogger(),
+    };
+  }
+  return transcribeDeps;
+}
+
+const JOB_LEASE_MS = 5 * 60_000;
+
+function getRunnerDeps(): RunnerDeps {
+  return {
+    jobs: getJobRepository(),
+    clock: new SystemClock(),
+    logger: getLogger(),
+    random: Math.random,
+    leaseMs: JOB_LEASE_MS,
+  };
+}
+
+/** Job kinds with a handler today; summarize (#12) and delete (#13) add theirs here. */
+function getJobHandlers(): JobHandler[] {
+  const deps = getTranscribeDeps();
+  return [
+    transcribeJobHandler(deps),
+    retentionJobHandler({
+      chunks: deps.chunks,
+      chunkStore: deps.chunkStore,
+      clock: deps.clock,
+      logger: deps.logger,
+    }),
+  ];
+}
+
+/** Runs every due job once (the interval runner's tick; also the dev/test endpoint). */
+export async function runJobsNow(): Promise<{ ran: number }> {
+  const deps = getTranscribeDeps();
+  await scheduleRetentionJobs({ chunks: deps.chunks, jobs: deps.jobs, clock: deps.clock });
+  return runDueJobs(getRunnerDeps(), getJobHandlers());
+}
+
+const JOB_TICK_MS = 2_000;
+let runnerStarted = false;
+let ticking = false;
+
+/**
+ * Starts the in-process job runner once per Node process (local development, tests, single-server
+ * deployments). Disable with WILLY_JOB_RUNNER=off; on Cloudflare a Queue consumer and a cron
+ * trigger call `runDueJobs` instead. Ticks never overlap and failures are logged, not swallowed.
+ */
+export function ensureJobRunner(): void {
+  if (runnerStarted || process.env["WILLY_JOB_RUNNER"] === "off") return;
+  runnerStarted = true;
+  const timer = setInterval(() => {
+    if (ticking) return;
+    ticking = true;
+    runJobsNow()
+      .catch((cause: unknown) => {
+        getLogger().error("runner.tick_failed", {
+          errorName: cause instanceof Error ? cause.name : "unknown",
+        });
+      })
+      .finally(() => {
+        ticking = false;
+      });
+  }, JOB_TICK_MS);
+  timer.unref();
+}
+
+export function getStatusDeps(): StatusDeps {
+  const deps = getTranscribeDeps();
+  return { meetings: deps.meetings, chunks: deps.chunks, jobs: deps.jobs };
 }

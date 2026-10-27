@@ -37,6 +37,9 @@ export default defineConfig({
       WILLY_DATA_DIR: dataDir,
       // Every test signs in from 127.0.0.1; the per-email limit is what the rate-limit test exercises.
       SIGN_IN_CLIENT_LIMIT: "1000",
+      // Tests drive background jobs explicitly instead of racing a timer.
+      WILLY_JOB_RUNNER: "off",
+      WILLY_JOBS_ENDPOINT: "1",
     },
   },
 });
