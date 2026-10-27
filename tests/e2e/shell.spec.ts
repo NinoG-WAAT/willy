@@ -7,8 +7,8 @@ test("GET /healthz returns status only", async ({ request }) => {
 });
 
 test("the shell has landmarks, a title and a working skip link", async ({ page }) => {
-  await page.goto("/");
-  await expect(page).toHaveTitle("Willycrumbs");
+  await page.goto("/sign-in");
+  await expect(page).toHaveTitle("Sign in - Willycrumbs");
   await expect(page.getByRole("banner")).toBeVisible();
   await expect(page.getByRole("main")).toBeVisible();
   await expect(page.getByRole("contentinfo")).toBeVisible();
@@ -23,7 +23,7 @@ test("the shell has landmarks, a title and a working skip link", async ({ page }
 });
 
 test("responses carry security headers", async ({ request }) => {
-  const response = await request.get("/");
+  const response = await request.get("/sign-in");
   const headers = response.headers();
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
@@ -31,7 +31,7 @@ test("responses carry security headers", async ({ request }) => {
 });
 
 test("the page does not scroll horizontally", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/sign-in");
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
