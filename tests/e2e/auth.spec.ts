@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { insertSession } from "../support/e2e-db";
+import { expireSession } from "../support/e2e-db";
 
 const PASSWORD = "willy-dev-password";
 
@@ -121,23 +121,15 @@ test("a cross-origin POST is rejected even with a valid token", async ({ page })
 test("an expired session lands on the session-expired page, then on sign-in", async ({
   page,
   context,
-  baseURL,
 }) => {
-  const token = `expired-${Math.random().toString(36).slice(2)}`;
-  insertSession({ ownerId: "owner-ada", token, ageMs: 30 * 24 * 3600 * 1000 });
-  await context.addCookies([
-    {
-      name: "__Host-willy_session",
-      value: token,
-      url: baseURL ?? "http://127.0.0.1:4321",
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-    },
-  ]);
+  await signIn(page, "ada@example.test");
+  const cookie = (await context.cookies()).find((c) => c.name === "__Host-willy_session");
+  expireSession(cookie?.value ?? "");
   await page.goto("/");
   await expect(page).toHaveURL(/\/session-expired/);
   await expect(page.getByRole("heading", { level: 1, name: "Your session expired" })).toBeVisible();
+  // The dead cookie was cleared, so this is now an ordinary signed-out visit.
+  expect((await context.cookies()).some((c) => c.name === "__Host-willy_session")).toBe(false);
   await page.getByRole("link", { name: "Sign in again" }).click();
   await expect(page).toHaveURL(/\/sign-in/);
 });

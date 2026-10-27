@@ -1,0 +1,99 @@
+---
+import Base from "../layouts/Base.astro";
+import { getIdentityDeps, getSignInLimits } from "../composition";
+import {
+  LOGIN_CSRF_COOKIE,
+  SESSION_COOKIE,
+  loginCsrfCookieOptions,
+  sessionCookieOptions,
+} from "../app/identity/cookies";
+import { handleSignIn } from "../app/identity/handle-sign-in";
+import { safeNextPath } from "../domain/identity/next-path";
+
+export const prerender = false;
+
+const deps = getIdentityDeps();
+Astro.response.headers.set("Cache-Control", "no-store");
+
+if (Astro.locals.owner)
+  return Astro.redirect(safeNextPath(Astro.url.searchParams.get("next")), 303);
+
+let next = safeNextPath(Astro.url.searchParams.get("next"));
+let loginCsrf = Astro.cookies.get(LOGIN_CSRF_COOKIE)?.value;
+let error: string | null = null;
+let email = "";
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const submittedEmail = form.get("email");
+  email = typeof submittedEmail === "string" ? submittedEmail.slice(0, 254) : "";
+  const outcome = await handleSignIn(deps, {
+    form,
+    origin: Astro.request.headers.get("origin"),
+    expectedOrigin: Astro.url.origin,
+    loginCsrfCookie: loginCsrf,
+    clientKey: Astro.clientAddress,
+    currentSessionToken: Astro.cookies.get(SESSION_COOKIE)?.value,
+    limits: getSignInLimits(),
+  });
+  if (outcome.kind === "signed_in") {
+    Astro.cookies.set(SESSION_COOKIE, outcome.token, sessionCookieOptions(outcome.expiresAt));
+    // The login CSRF token is single-use: a fresh one is issued on the next visit.
+    Astro.cookies.delete(LOGIN_CSRF_COOKIE, { path: "/", secure: true, httpOnly: true });
+    return Astro.redirect(outcome.next, 303);
+  }
+  error = outcome.message;
+  Astro.response.status = outcome.status;
+  if (outcome.retryAfterSeconds !== undefined) {
+    Astro.response.headers.set("Retry-After", String(outcome.retryAfterSeconds));
+  }
+  next = safeNextPath(form.get("next")?.toString());
+}
+
+if (!loginCsrf || Astro.request.method === "POST") {
+  loginCsrf = deps.tokens.newToken();
+  Astro.cookies.set(LOGIN_CSRF_COOKIE, loginCsrf, loginCsrfCookieOptions());
+}
+---
+
+<Base title="Sign in">
+  <h1>Sign in</h1>
+  {error === null && Astro.locals.sessionState === "expired" && (
+    <p class="notice">Your session expired. Sign in again to continue.</p>
+  )}
+  {error !== null && (
+    <p class="alert" role="alert">
+      {error}
+    </p>
+  )}
+  <form class="form" method="post" action="/sign-in">
+    <input type="hidden" name="csrf_token" value={loginCsrf} />
+    <input type="hidden" name="next" value={next} />
+    <div class="field">
+      <label for="email">Email</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        autocomplete="username"
+        required
+        maxlength="254"
+        value={email}
+      />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        required
+        maxlength="200"
+      />
+    </div>
+    <button class="button" type="submit">
+      Sign in
+    </button>
+  </form>
+</Base>

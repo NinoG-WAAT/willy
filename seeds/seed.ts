@@ -1,5 +1,6 @@
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { segmentTextContext } from "../src/domain/transcription/encryption-context";
+import type { PasswordHasher } from "../src/ports/password-hasher";
 import type { TextCipher } from "../src/ports/text-cipher";
 
 /**
@@ -10,6 +11,9 @@ export const DEV_KEYRING = {
   spec: `dev:${Buffer.alloc(32, 7).toString("base64")}`,
   activeKeyId: "dev",
 };
+
+/** Development-only password for both seeded owners. Never use it anywhere real. */
+export const DEV_PASSWORD = "willy-dev-password";
 
 export interface SeedIds {
   /** Fixed "current time" of the seed; the overdue action item is due before this. */
@@ -261,9 +265,13 @@ function audit(
 /**
  * Representative development data: two distinct owners; for owner A the happy path plus empty,
  * failed, overdue, archived and deleting states; for owner B a meeting A must never see.
- * Transcript text goes through the real cipher. Seed passwords are added by the auth work (#5).
+ * Transcript text goes through the real cipher. Both owners get the development password `DEV_PASSWORD`.
  */
-export async function seedDatabase(db: DatabaseSync, cipher: TextCipher): Promise<SeedIds> {
+export async function seedDatabase(
+  db: DatabaseSync,
+  cipher: TextCipher,
+  hasher: PasswordHasher,
+): Promise<SeedIds> {
   const ids: SeedIds = {
     now: NOW,
     ownerA: "owner-ada",
@@ -280,18 +288,22 @@ export async function seedDatabase(db: DatabaseSync, cipher: TextCipher): Promis
   };
   const { ownerA, ownerB, meetings: m } = ids;
 
+  const passwordHash = await hasher.hash(DEV_PASSWORD);
+
   db.exec("BEGIN");
   try {
     insert(db, "owner", {
       id: ownerA,
       email: "ada@example.test",
       display_name: "Ada Founder",
+      password_hash: passwordHash,
       created_at: at(-60),
     });
     insert(db, "owner", {
       id: ownerB,
       email: "ben@example.test",
       display_name: "Ben Founder",
+      password_hash: passwordHash,
       created_at: at(-60),
     });
     for (const owner of [ownerA, ownerB]) {

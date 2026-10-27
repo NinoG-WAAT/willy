@@ -27,6 +27,6 @@ describe("cookie policy (OWASP A07)", () => {
   it("clears cookies with the same attributes so the browser matches them", () => {
     const o = clearCookieOptions();
     expect(o).toMatchObject({ httpOnly: true, secure: true, path: "/" });
-    expect(o.expires?.getTime()).toBe(0);
+    expect(o.expires.getTime()).toBe(0);
   });
 });
