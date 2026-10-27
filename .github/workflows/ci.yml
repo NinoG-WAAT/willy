@@ -1,0 +1,149 @@
+name: ci
+
+# Single required status check for branch protection: the aggregate job named `ci`.
+# Before package.json exists (pre-#3) every real job is skipped and `ci` still passes.
+# After #3 lands, the scripts below MUST exist in package.json: lint, typecheck, test, build.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  detect:
+    name: detect scaffold
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_package: ${{ steps.check.outputs.has_package }}
+      has_playwright: ${{ steps.check.outputs.has_playwright }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if [ -f package.json ]; then
+            echo "has_package=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_package=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No package.json yet; code jobs skipped (scaffold is issue #3)."
+          fi
+          if [ -f package.json ] && grep -q '"@playwright/test"' package.json; then
+            echo "has_playwright=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_playwright=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  lint:
+    needs: detect
+    if: needs.detect.outputs.has_package == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    needs: detect
+    if: needs.detect.outputs.has_package == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    # Single documented command: `npm test` (Vitest unit + integration, then Playwright e2e).
+    needs: detect
+    if: needs.detect.outputs.has_package == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright browsers
+        if: needs.detect.outputs.has_playwright == 'true'
+        run: npx playwright install --with-deps chromium
+      - run: npm test
+        env:
+          CI: "true"
+      - name: Upload Playwright report
+        if: failure() && needs.detect.outputs.has_playwright == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build:
+    needs: detect
+    if: needs.detect.outputs.has_package == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  audit:
+    # Non-blocking: surfaces vulnerable production dependencies as a warning annotation.
+    needs: detect
+    if: needs.detect.outputs.has_package == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: npm audit (production deps)
+        run: npm audit --omit=dev || echo "::warning::npm audit reported vulnerabilities in production dependencies"
+
+  ci:
+    # Aggregate required check. Passes when every needed job succeeded or was skipped.
+    name: ci
+    if: always()
+    needs: [detect, lint, typecheck, test, build, audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate results
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -Eq '"result": "(failure|cancelled)"'; then
+            echo "::error::One or more required jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All jobs succeeded or were skipped."
