@@ -17,6 +17,7 @@ import { createRetryingTranscriber } from "./adapters/stt/retrying-transcriber";
 import { InMemoryRateLimiter } from "./adapters/memory/in-memory-rate-limiter";
 import { openDatabase } from "./adapters/sqlite/database";
 import { runMigrations } from "./adapters/sqlite/migrate";
+import { SqliteChunkRepository } from "./adapters/sqlite/chunk-repository";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
@@ -26,6 +27,7 @@ import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
 import type { MeetingDeps } from "./app/meetings/capture";
+import type { UploadDeps } from "./app/transcription/upload-chunk";
 import type { NotesDeps } from "./app/notes/deps";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
 import type { Summarizer } from "./ports/summarizer";
@@ -191,4 +193,21 @@ export function getFileTokens(): FileTokenService {
     });
   }
   return fileTokens;
+}
+
+let upload: UploadDeps | undefined;
+
+export function getUploadDeps(): UploadDeps {
+  if (!upload) {
+    const { meetings, clock } = getMeetingDeps();
+    upload = {
+      meetings,
+      chunks: new SqliteChunkRepository(getDatabase()),
+      chunkStore: getChunkStore(),
+      ids: new RandomIds(),
+      limiter: getIdentityDeps().limiter,
+      clock,
+    };
+  }
+  return upload;
 }

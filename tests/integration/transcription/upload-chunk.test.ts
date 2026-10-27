@@ -39,6 +39,7 @@ beforeEach(() => {
     }),
     ids: new SequentialIds("chunk"),
     limiter: new InMemoryRateLimiter(clock),
+    clock,
   };
   owner(db, "A");
   owner(db, "B");

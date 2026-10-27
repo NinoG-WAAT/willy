@@ -60,14 +60,12 @@ const req = (over: Partial<ChunkUploadRequest> = {}): ChunkUploadRequest => ({
   ...over,
 });
 
-const json = async (r: { body: unknown }) => r.body;
-
 describe("handleChunkUpload", () => {
   it("passes the owner from the session, the parsed query and the bytes to the use case", async () => {
     const { calls, upload } = build(ok({ seq: 3, replay: false }));
     const res = await handleChunkUpload(upload, req());
     expect(res.status).toBe(201);
-    expect(await json(res)).toEqual({ seq: 3, replay: false });
+    expect(res.body).toEqual({ seq: 3, replay: false });
     expect(calls).toEqual([
       {
         ownerId: "A",
@@ -84,7 +82,7 @@ describe("handleChunkUpload", () => {
   it("answers a replay with 200", async () => {
     const res = await handleChunkUpload(build(ok({ seq: 3, replay: true })).upload, req());
     expect(res.status).toBe(200);
-    expect(await json(res)).toEqual({ seq: 3, replay: true });
+    expect(res.body).toEqual({ seq: 3, replay: true });
   });
 
   it("defaults the duration to 10 seconds", async () => {
@@ -106,7 +104,7 @@ describe("handleChunkUpload", () => {
     const { calls, upload } = build();
     const res = await handleChunkUpload(upload, req({ search }));
     expect(res.status).toBe(400);
-    expect(await json(res)).toEqual({ error: "bad_request" });
+    expect(res.body).toEqual({ error: "bad_request" });
     expect(calls).toHaveLength(0);
   });
 
@@ -118,19 +116,15 @@ describe("handleChunkUpload", () => {
 
   it("rejects an oversized body from Content-Length without reading it", async () => {
     const { calls, upload } = build();
-    let pulled = false;
-    const body = new ReadableStream<Uint8Array>({
-      pull() {
-        pulled = true;
-      },
-    });
+    const body = new ReadableStream<Uint8Array>();
     const res = await handleChunkUpload(
       upload,
       req({ contentLength: String(MAX_CHUNK_BYTES + 1), body }),
     );
     expect(res.status).toBe(413);
     expect(calls).toHaveLength(0);
-    expect(pulled).toBe(false);
+    // Nobody took a reader, so not a single byte of the body was consumed.
+    expect(body.locked).toBe(false);
   });
 
   it("rejects an oversized body that lies about, or omits, Content-Length (streaming cap)", async () => {
@@ -167,7 +161,7 @@ describe("handleChunkUpload", () => {
   ])("maps %j to %i %s", async (error, status, code) => {
     const res = await handleChunkUpload(build(err(error)).upload, req());
     expect(res.status).toBe(status);
-    expect(await json(res)).toEqual({ error: code });
+    expect(res.body).toEqual({ error: code });
   });
 
   it("maps rate limiting to 429 with Retry-After", async () => {
@@ -177,7 +171,7 @@ describe("handleChunkUpload", () => {
     );
     expect(res.status).toBe(429);
     expect(res.headers["Retry-After"]).toBe("17");
-    expect(await json(res)).toEqual({ error: "rate_limited" });
+    expect(res.body).toEqual({ error: "rate_limited" });
   });
 
   it("tells clients when to retry after a storage failure", async () => {
