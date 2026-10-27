@@ -1,0 +1,143 @@
+---
+import { TEMPLATE_LIMITS } from "../domain/notes/template";
+import type { FieldError } from "../domain/platform/text";
+
+interface Props {
+  action: string;
+  csrfToken: string;
+  name: string;
+  isDefault: boolean;
+  sections: { heading: string; prompt: string }[];
+  errors: FieldError[];
+  submitLabel: string;
+  /** Blank rows to offer after the existing ones (0 when re-rendering a failed submit). */
+  blankRows?: number;
+}
+
+const {
+  action,
+  csrfToken,
+  name,
+  isDefault,
+  sections,
+  errors,
+  submitLabel,
+  blankRows = 3,
+} = Astro.props;
+
+// Existing rows plus a few blank ones, capped at the template limit. Blank rows are ignored on save.
+const visibleRows = [
+  ...sections,
+  ...Array.from({ length: blankRows }, () => ({ heading: "", prompt: "" })),
+].slice(0, TEMPLATE_LIMITS.sections);
+
+/** Maps an error field path to the id of the input it belongs to. */
+const idFor = (field: string): string => {
+  const match = /^sections\.(\d+)\.(heading|prompt)$/.exec(field);
+  return match
+    ? `section-${match[1]}-${match[2]}`
+    : field === "sections"
+      ? "section-0-heading"
+      : field;
+};
+const errorFor = (id: string): FieldError | undefined => errors.find((e) => idFor(e.field) === id);
+---
+
+<form class="form form-wide" method="post" action={action}>
+  <input type="hidden" name="csrf_token" value={csrfToken} />
+  <input type="hidden" name="intent" value="save" />
+
+  {errors.length > 0 && (
+    <div class="alert" role="alert" tabindex="-1" id="form-errors">
+      <p>Fix the following before saving:</p>
+      <ul>
+        {errors.map((e) => (
+          <li>
+            <a href={`#${idFor(e.field)}`}>{e.message}</a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  <div class="field">
+    <label for="name">Template name</label>
+    <input
+      id="name"
+      name="name"
+      type="text"
+      required
+      maxlength={TEMPLATE_LIMITS.name}
+      value={name}
+      aria-invalid={errorFor("name") ? "true" : undefined}
+      aria-describedby={errorFor("name") ? "name-error" : undefined}
+    />
+    {errorFor("name") && (
+      <p class="field-error" id="name-error">
+        {errorFor("name")?.message}
+      </p>
+    )}
+  </div>
+
+  <fieldset class="field">
+    <legend>Sections</legend>
+    <p id="sections-help">
+      Each section becomes a titled part of the generated note. The prompt tells the summary what
+      belongs there. Leave a row empty to skip it, and clear a row to remove it.
+    </p>
+    {visibleRows.map((row, i) => {
+      const headingId = `section-${String(i)}-heading`;
+      const promptId = `section-${String(i)}-prompt`;
+      return (
+        <fieldset class="section-row">
+          <legend>Section {i + 1}</legend>
+          <div class="field">
+            <label for={headingId}>Heading</label>
+            <input
+              id={headingId}
+              name="section_heading"
+              type="text"
+              maxlength={TEMPLATE_LIMITS.heading}
+              value={row.heading}
+              aria-invalid={errorFor(headingId) ? "true" : undefined}
+              aria-describedby={errorFor(headingId) ? `${headingId}-error` : undefined}
+            />
+            {errorFor(headingId) && (
+              <p class="field-error" id={`${headingId}-error`}>
+                {errorFor(headingId)?.message}
+              </p>
+            )}
+          </div>
+          <div class="field">
+            <label for={promptId}>Prompt (optional)</label>
+            <textarea
+              id={promptId}
+              name="section_prompt"
+              rows="3"
+              maxlength={TEMPLATE_LIMITS.prompt}
+              aria-invalid={errorFor(promptId) ? "true" : undefined}
+              aria-describedby={errorFor(promptId) ? `${promptId}-error` : undefined}
+            >{row.prompt}</textarea>
+            {errorFor(promptId) && (
+              <p class="field-error" id={`${promptId}-error`}>
+                {errorFor(promptId)?.message}
+              </p>
+            )}
+          </div>
+        </fieldset>
+      );
+    })}
+  </fieldset>
+
+  <div class="check">
+    <input id="is-default" name="is_default" type="checkbox" checked={isDefault} />
+    <label for="is-default">Use as my default template for new meetings</label>
+  </div>
+
+  <div class="row-actions">
+    <button class="button" type="submit">
+      {submitLabel}
+    </button>
+    <a href="/settings/templates">Cancel</a>
+  </div>
+</form>

@@ -1,0 +1,49 @@
+---
+import Base from "../../../layouts/Base.astro";
+import TemplateForm from "../../../components/TemplateForm.astro";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { parseTemplateForm } from "../../../app/notes/template-form";
+import { createTemplate } from "../../../app/notes/templates";
+import { getNotesDeps } from "../../../composition";
+import { DEFAULT_TEMPLATE } from "../../../domain/notes/template";
+import type { FieldError } from "../../../domain/platform/text";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+let name = "";
+let isDefault = false;
+// Start from the built-in layout so a first template is one edit away, not a blank page.
+let sections: { heading: string; prompt: string }[] = DEFAULT_TEMPLATE.sections.map((s) => ({
+  ...s,
+}));
+let errors: FieldError[] = [];
+let blankRows = 3;
+
+if (Astro.request.method === "POST") {
+  const parsed = parseTemplateForm(await Astro.request.formData());
+  if (!parsed.ok) return new Response("Bad request", { status: 400 });
+  const result = await createTemplate(getNotesDeps(), owner.id, parsed.value);
+  if (result.ok) return Astro.redirect("/settings/templates?notice=template_created", 303);
+  ({ name, isDefault, sections } = parsed.value);
+  blankRows = 0;
+  errors = result.error.kind === "invalid" ? result.error.errors : [];
+  Astro.response.status = 422;
+}
+---
+
+<Base title="New template">
+  <h1>New template</h1>
+  <TemplateForm
+    action="/settings/templates/new"
+    csrfToken={Astro.locals.csrfToken ?? ""}
+    name={name}
+    isDefault={isDefault}
+    sections={sections}
+    errors={errors}
+    blankRows={blankRows}
+    submitLabel="Create template"
+  />
+</Base>

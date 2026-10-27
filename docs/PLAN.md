@@ -56,8 +56,8 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | `GET /search?q=&folder=` | Search results (#18) | Open result | Snippets with escaped highlights; owner-scoped FTS. |
 | `GET /meetings/:id/review#seg-<n>` | Source context | | Opened from a search hit or section source link; highlights the cited segment range. |
 | `GET /settings` | Screen 4: Settings (#19, #17) | | Sections: provider status, retention, folders, templates, export, permanent deletion. |
-| `GET /settings/templates`, `GET /settings/templates/:id` | Template editor (#17) | Save | |
-| `GET /settings/folders` | Folder management (#17) | Create | |
+| `GET /settings/templates`, `/settings/templates/new`, `/settings/templates/:id`, `/settings/templates/:id/delete` | Template list, editor and delete confirmation (#17) | Save | Pages handle their own form `POST` (re-render with field errors on failure, redirect with a fixed notice code on success). |
+| `GET /settings/folders`, `/settings/folders/:id/delete` | Folder list (create, rename) and delete confirmation (#17) | Create | Same pattern. |
 | `GET /sign-in`, `GET /signed-out`, `GET /session-expired`, `GET /forbidden-or-not-found` (rendered as the 404 body) | Auth states (#5) | | Understandable signed-out / expired / not-found pages. |
 | `GET /healthz` | Liveness, status only (`{"status":"ok"}`), no data (#20) | | |
 | `GET /diagnostics` | Authenticated diagnostics: migration version, job counts, provider status (#20) | | No transcript or audio content. |
@@ -80,8 +80,8 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | `POST /meetings/:id/action-items`, `/action-items/:itemId` | Create/edit/delete action item | Owner must be an Attendee or null; due date stored as UTC instant + display tz |
 | `POST /meetings/:id/note/regenerate` | Regenerate-selection (one section) | Creates a summary job keyed by (note, section, revision) |
 | `POST /meetings/:id/publish` | Publish note to a private folder | Confirmation field; repeat publish of same note/folder is a no-op; requires folder owned by Owner |
-| `POST /folders`, `/folders/:id/rename`, `/folders/:id/delete` | Folder CRUD | Delete of a non-empty folder is **blocked** with a message (default; see open questions) |
-| `POST /templates`, `/templates/:id`, `/templates/:id/delete` | Template CRUD | Validated lengths and counts |
+| `POST /settings/folders` (`intent=create|rename`), `POST /settings/folders/:id/delete` | Folder CRUD | Delete of a non-empty folder is **blocked** with a message (default; see open questions); unique name per owner, case-insensitive |
+| `POST /settings/templates/new`, `/settings/templates/:id`, `/settings/templates/:id/delete`, `POST /settings/templates` (`intent=set_default`) | Template CRUD | At most 12 sections, validated lengths, unique headings; deleting a template detaches the meetings that used it (they fall back to the default) |
 | `POST /settings/retention` | Retention controls | Validated enum |
 | `GET /meetings/:id/export.md` | Markdown export | `GET` is safe (read-only); owner-scoped; sanitized filename; `Content-Disposition: attachment`; `X-Content-Type-Options: nosniff`; rate-limited |
 | `POST /meetings/:id/delete` | Permanent deletion | Typed confirmation; marks `deleting` and enqueues one deletion job; repeat is a no-op |

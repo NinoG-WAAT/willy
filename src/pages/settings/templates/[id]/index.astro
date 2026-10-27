@@ -1,0 +1,50 @@
+---
+import Base from "../../../../layouts/Base.astro";
+import TemplateForm from "../../../../components/TemplateForm.astro";
+import { requireOwner } from "../../../../app/identity/require-owner";
+import { parseTemplateForm } from "../../../../app/notes/template-form";
+import { findTemplate, updateTemplate } from "../../../../app/notes/templates";
+import { getNotesDeps } from "../../../../composition";
+import type { FieldError } from "../../../../domain/platform/text";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+const deps = getNotesDeps();
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const id = Astro.params.id ?? "";
+// Same 404 for a missing template and for another owner's template.
+const found = await findTemplate(deps, owner.id, id);
+if (!found.ok) return Astro.rewrite("/404");
+
+let { name, isDefault, sections } = found.value;
+let errors: FieldError[] = [];
+let blankRows = 3;
+
+if (Astro.request.method === "POST") {
+  const parsed = parseTemplateForm(await Astro.request.formData());
+  if (!parsed.ok) return new Response("Bad request", { status: 400 });
+  const result = await updateTemplate(deps, owner.id, id, parsed.value);
+  if (result.ok) return Astro.redirect("/settings/templates?notice=template_saved", 303);
+  if (result.error.kind === "not_found") return Astro.rewrite("/404");
+  ({ name, isDefault, sections } = parsed.value);
+  blankRows = 0;
+  errors = result.error.kind === "invalid" ? result.error.errors : [];
+  Astro.response.status = 422;
+}
+---
+
+<Base title={`Edit template ${found.value.name}`}>
+  <h1>Edit template</h1>
+  <TemplateForm
+    action={`/settings/templates/${found.value.id}`}
+    csrfToken={Astro.locals.csrfToken ?? ""}
+    name={name}
+    isDefault={isDefault}
+    sections={sections}
+    errors={errors}
+    blankRows={blankRows}
+    submitLabel="Save template"
+  />
+</Base>

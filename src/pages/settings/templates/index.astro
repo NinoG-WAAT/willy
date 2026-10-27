@@ -1,0 +1,97 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { noticeText } from "../../../app/notes/notices";
+import { listTemplates, setDefaultTemplate } from "../../../app/notes/templates";
+import { readFormFields, single } from "../../../app/platform/form";
+import { getNotesDeps } from "../../../composition";
+import { DEFAULT_TEMPLATE } from "../../../domain/notes/template";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+const deps = getNotesDeps();
+Astro.response.headers.set("Cache-Control", "no-store");
+
+if (Astro.request.method === "POST") {
+  const fields = readFormFields(await Astro.request.formData(), ["csrf_token", "intent", "id"]);
+  if (!fields || single(fields, "intent") !== "set_default") {
+    return new Response("Bad request", { status: 400 });
+  }
+  const result = await setDefaultTemplate(deps, owner.id, single(fields, "id") ?? "");
+  if (!result.ok) return Astro.rewrite("/404");
+  return Astro.redirect("/settings/templates?notice=template_default", 303);
+}
+
+const templates = await listTemplates(deps, owner.id);
+const notice = noticeText(Astro.url.searchParams.get("notice"));
+const hasDefault = templates.some((t) => t.isDefault);
+---
+
+<Base title="Templates">
+  <div class="page-head">
+    <h1>Templates</h1>
+    <a class="button" href="/settings/templates/new">
+      New template
+    </a>
+  </div>
+  <p>
+    A template lists the sections of the note generated after a meeting, for example a weekly sync
+    or a customer call. Pick one when you create a meeting, or set a default.
+  </p>
+
+  {notice !== null && (
+    <p class="notice" role="status">
+      {notice}
+    </p>
+  )}
+
+  {templates.length === 0 ? (
+    <p>
+      You have no templates yet. Until you create one, new notes use the built-in layout:
+      {DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ")}.
+    </p>
+  ) : (
+    <>
+      {!hasDefault && (
+        <p>
+          None of your templates is the default, so new notes use the built-in layout:
+          {DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ")}.
+        </p>
+      )}
+      <ul class="rows">
+        {templates.map((template) => (
+          <li class="row">
+            <h2>
+              {template.name}
+              {template.isDefault && <span class="badge">Default</span>}
+            </h2>
+            <p class="row-meta">
+              {template.sections.length} {template.sections.length === 1 ? "section" : "sections"}:
+              {template.sections.map((s) => s.heading).join(", ")}. Used by {template.meetingCount}
+              {template.meetingCount === 1 ? " meeting" : " meetings"}.
+            </p>
+            <div class="row-actions">
+              <a href={`/settings/templates/${template.id}`}>
+                Edit<span class="sr-only"> template {template.name}</span>
+              </a>
+              {!template.isDefault && (
+                <form method="post" action="/settings/templates">
+                  <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+                  <input type="hidden" name="intent" value="set_default" />
+                  <input type="hidden" name="id" value={template.id} />
+                  <button class="button button-quiet" type="submit">
+                    Make default<span class="sr-only"> template {template.name}</span>
+                  </button>
+                </form>
+              )}
+              <a href={`/settings/templates/${template.id}/delete`}>
+                Delete<span class="sr-only"> template {template.name}</span>
+              </a>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  )}
+</Base>

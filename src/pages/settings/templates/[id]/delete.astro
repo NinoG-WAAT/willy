@@ -1,0 +1,54 @@
+---
+import Base from "../../../../layouts/Base.astro";
+import { requireOwner } from "../../../../app/identity/require-owner";
+import { deleteTemplate, findTemplate } from "../../../../app/notes/templates";
+import { readFormFields } from "../../../../app/platform/form";
+import { getNotesDeps } from "../../../../composition";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+const deps = getNotesDeps();
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const id = Astro.params.id ?? "";
+const found = await findTemplate(deps, owner.id, id);
+if (!found.ok) return Astro.rewrite("/404");
+
+if (Astro.request.method === "POST") {
+  if (!readFormFields(await Astro.request.formData(), ["csrf_token", "confirm"])) {
+    return new Response("Bad request", { status: 400 });
+  }
+  const result = await deleteTemplate(deps, owner.id, id);
+  if (!result.ok) return Astro.rewrite("/404");
+  return Astro.redirect("/settings/templates?notice=template_deleted", 303);
+}
+
+const template = found.value;
+---
+
+<Base title={`Delete template ${template.name}`}>
+  <h1>Delete template</h1>
+  <p>
+    You are about to delete the template <strong>{template.name}</strong>.
+  </p>
+  <p>
+    Scope: the template and its {template.sections.length}
+    {template.sections.length === 1 ? " section" : " sections"} are removed. Meetings and notes are
+    never deleted by this action.
+  </p>
+  <p>
+    {template.meetingCount === 0
+      ? "No meeting uses this template."
+      : `${String(template.meetingCount)} ${template.meetingCount === 1 ? "meeting uses" : "meetings use"} this template. They keep their notes and fall back to your default template when a summary is regenerated.`}
+    {template.isDefault &&
+      " It is your default template, so new notes will use the built-in layout afterwards."}
+  </p>
+  <form class="row-actions" method="post" action={`/settings/templates/${template.id}/delete`}>
+    <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+    <button class="button button-danger" type="submit">
+      Delete template
+    </button>
+    <a href="/settings/templates">Cancel</a>
+  </form>
+</Base>

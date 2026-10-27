@@ -120,7 +120,10 @@ describe("deleteFolder", () => {
 
   it("returns not_found for another owner's folder and a guessed id, deleting nothing", async () => {
     folder(db, "B", "fb");
-    expect(await deleteFolder(deps, "A", "fb")).toEqual({ ok: false, error: { kind: "not_found" } });
+    expect(await deleteFolder(deps, "A", "fb")).toEqual({
+      ok: false,
+      error: { kind: "not_found" },
+    });
     expect(await deleteFolder(deps, "A", "nope")).toEqual({
       ok: false,
       error: { kind: "not_found" },
@@ -131,7 +134,10 @@ describe("deleteFolder", () => {
   it("a repeated delete is a clean not_found rather than an error", async () => {
     folder(db, "A", "fa");
     await deleteFolder(deps, "A", "fa");
-    expect(await deleteFolder(deps, "A", "fa")).toEqual({ ok: false, error: { kind: "not_found" } });
+    expect(await deleteFolder(deps, "A", "fa")).toEqual({
+      ok: false,
+      error: { kind: "not_found" },
+    });
   });
 });
 

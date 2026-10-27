@@ -203,7 +203,10 @@ describe("deleteTemplate", () => {
   it("repeating a delete is a clean not_found", async () => {
     seedTemplate("A", "t1", "One");
     await deleteTemplate(deps, "A", "t1");
-    expect(await deleteTemplate(deps, "A", "t1")).toEqual({ ok: false, error: { kind: "not_found" } });
+    expect(await deleteTemplate(deps, "A", "t1")).toEqual({
+      ok: false,
+      error: { kind: "not_found" },
+    });
   });
 });
 
