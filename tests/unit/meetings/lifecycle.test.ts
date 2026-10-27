@@ -58,7 +58,17 @@ type Action = (m: Meeting) => Result<TransitionOutcome, unknown>;
 
 /** Statuses each action may start from, written independently of the implementation's table. */
 const MATRIX: { name: string; run: Action; from: MeetingStatus[]; to: MeetingStatus }[] = [
-  { name: "startCapture", run: (m) => startCapture(m, NOW), from: ["scheduled"], to: "capturing" },
+  {
+    name: "startCapture",
+    // The consent gate has its own tests below; here consent is already confirmed.
+    run: (m) =>
+      startCapture(
+        { ...m, consentConfirmedAt: EARLIER, consentStatementVersion: CONSENT_STATEMENT_VERSION },
+        NOW,
+      ),
+    from: ["scheduled"],
+    to: "capturing",
+  },
   { name: "pauseCapture", run: (m) => pauseCapture(m, NOW), from: ["capturing"], to: "paused" },
   { name: "resumeCapture", run: (m) => resumeCapture(m, NOW), from: ["paused"], to: "capturing" },
   {
