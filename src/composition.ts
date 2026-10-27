@@ -6,10 +6,12 @@ import { sha256Hex } from "./adapters/crypto/sha256";
 import { InMemoryRateLimiter } from "./adapters/memory/in-memory-rate-limiter";
 import { openDatabase } from "./adapters/sqlite/database";
 import { runMigrations } from "./adapters/sqlite/migrate";
+import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
 import { SqliteSessionRepository } from "./adapters/sqlite/session-repository";
 import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
+import type { MeetingDeps } from "./app/meetings/capture";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
 
 /**
@@ -62,4 +64,17 @@ export function getSignInLimits(): SignInLimits {
     };
   }
   return DEFAULT_SIGN_IN_LIMITS;
+}
+
+let meetings: MeetingDeps | undefined;
+
+export function getMeetingDeps(): MeetingDeps {
+  if (!meetings) {
+    const clock = new SystemClock();
+    meetings = {
+      meetings: new SqliteMeetingRepository(getDatabase(), new RandomIds(), clock),
+      clock,
+    };
+  }
+  return meetings;
 }
