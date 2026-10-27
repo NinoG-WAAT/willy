@@ -1,0 +1,104 @@
+:root {
+  --bg: #fbfaf7;
+  --fg: #1d1c1a;
+  --muted: #5c5a55;
+  --accent: #1f4f8f;
+  --focus: #b45309;
+  --border: #d8d4cb;
+  --gutter: 1rem;
+  --tap: 2.75rem;
+  color-scheme: light;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+main {
+  flex: 1;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  padding: 1.5rem var(--gutter);
+}
+
+main:focus {
+  outline: none;
+}
+
+.site-header,
+.site-footer {
+  padding: 0.75rem var(--gutter);
+  border-color: var(--border);
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Visible focus for every interactive element; never remove outlines without a replacement. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: 0;
+  transform: translateY(-120%);
+  padding: 0.75rem 1rem;
+  background: var(--fg);
+  color: var(--bg);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  transform: translateY(0.5rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

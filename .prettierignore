@@ -1,0 +1,9 @@
+dist/
+.astro/
+node_modules/
+playwright-report/
+test-results/
+coverage/
+package-lock.json
+# Markdown is prose owned by whoever writes the doc; do not gate CI on its formatting.
+*.md

@@ -1,0 +1,35 @@
+---
+import "../styles/global.css";
+import { pageTitle } from "../components/page-title";
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle(title)}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">
+      Skip to main content
+    </a>
+    <header class="site-header">
+      <a class="brand" href="/">
+        Willycrumbs
+      </a>
+    </header>
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>Capture only with everyone's consent.</p>
+    </footer>
+  </body>
+</html>
