@@ -2,10 +2,14 @@ import { defineConfig, devices } from "@playwright/test";
 import { createTempDataDir } from "./tests/support/temp-data-dir";
 
 const port = Number(process.env["E2E_PORT"] ?? 4321);
-const baseURL = `http://127.0.0.1:${String(port)}`;
+const baseURL = `http://localhost:${String(port)}`;
 
-// Fresh data dir per run: the server under test never touches developer data.
-const dataDir = createTempDataDir();
+// "localhost" on purpose: without security.allowedDomains Astro derives its own origin as
+// localhost:<port> (it does not trust the Host header), and its Origin check must see a match.
+// Fresh data dir per run: the server under test never touches developer data. The config is
+// loaded again in every worker, so the first load publishes the directory through the environment.
+const dataDir = process.env["E2E_DATA_DIR"] ?? createTempDataDir();
+process.env["E2E_DATA_DIR"] = dataDir;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -23,7 +27,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run build && node ./dist/server/entry.mjs",
+    command: "npm run build && npm run db:seed && node ./dist/server/entry.mjs",
     url: `${baseURL}/healthz`,
     reuseExistingServer: false,
     timeout: 120_000,
@@ -31,6 +35,8 @@ export default defineConfig({
       HOST: "127.0.0.1",
       PORT: String(port),
       WILLY_DATA_DIR: dataDir,
+      // Every test signs in from 127.0.0.1; the per-email limit is what the rate-limit test exercises.
+      SIGN_IN_CLIENT_LIMIT: "1000",
     },
   },
 });

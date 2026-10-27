@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createEnvelopeCipher, parseKeyring } from "../src/adapters/crypto/envelope-cipher";
+import { createPbkdf2Hasher } from "../src/adapters/crypto/pbkdf2-password-hasher";
 import { openDatabase } from "../src/adapters/sqlite/database";
 import { runMigrations } from "../src/adapters/sqlite/migrate";
 import { DEV_KEYRING, seedDatabase } from "../seeds/seed";
@@ -29,7 +30,7 @@ if (command === "migrate") {
   const cipher = usingEnvKeys
     ? createEnvelopeCipher(parseKeyring(spec), activeKeyId)
     : createEnvelopeCipher(parseKeyring(DEV_KEYRING.spec), DEV_KEYRING.activeKeyId);
-  const ids = await seedDatabase(db, cipher);
+  const ids = await seedDatabase(db, cipher, createPbkdf2Hasher());
   console.log(`Seeded owners ${ids.ownerA} and ${ids.ownerB}.`);
 } else {
   console.error("Usage: tsx scripts/db.ts migrate | seed");

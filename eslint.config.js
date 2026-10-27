@@ -32,5 +32,9 @@ export default tseslint.config(
     files: ["tests/**/*.ts"],
     rules: { "@typescript-eslint/no-confusing-void-expression": "off" },
   },
+  {
+    files: ["**/*.mjs", "**/*.js"],
+    languageOptions: { globals: { process: "readonly" } },
+  },
   ...domainPurity,
 );

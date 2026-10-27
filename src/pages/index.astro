@@ -1,8 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
+import { requireOwner } from "../app/identity/require-owner";
+
+export const prerender = false;
+// Owner route (middleware default-deny). Screen 1 (#14) replaces this placeholder.
+const owner = requireOwner(Astro.locals);
 ---
 
 <Base>
   <h1>Willycrumbs</h1>
-  <p>Consent-first meeting notes for founders.</p>
+  <p>Welcome, {owner.displayName}. Consent-first meeting notes for founders.</p>
 </Base>

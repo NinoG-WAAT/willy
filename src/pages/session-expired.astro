@@ -1,0 +1,19 @@
+---
+import Base from "../layouts/Base.astro";
+import { safeNextPath } from "../domain/identity/next-path";
+
+export const prerender = false;
+
+const next = safeNextPath(Astro.url.searchParams.get("next"));
+const signInHref = next === "/" ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`;
+---
+
+<Base title="Session expired">
+  <h1>Your session expired</h1>
+  <p>For your security you were signed out after a period of inactivity. Your notes are safe.</p>
+  <p>
+    <a class="button" href={signInHref}>
+      Sign in again
+    </a>
+  </p>
+</Base>

@@ -1,0 +1,15 @@
+---
+import Base from "../layouts/Base.astro";
+
+export const prerender = false;
+// One body for "does not exist" and "belongs to someone else": ids cannot be enumerated.
+Astro.response.status = 404;
+---
+
+<Base title="Not found">
+  <h1>Not found</h1>
+  <p>This page does not exist, or you do not have access to it.</p>
+  <p>
+    <a href="/">Back to your meetings</a>
+  </p>
+</Base>

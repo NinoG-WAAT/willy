@@ -1,18 +1,21 @@
 import type { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createEnvelopeCipher, parseKeyring } from "../../../src/adapters/crypto/envelope-cipher";
+import { createPbkdf2Hasher } from "../../../src/adapters/crypto/pbkdf2-password-hasher";
 import { segmentTextContext } from "../../../src/domain/transcription/encryption-context";
-import { DEV_KEYRING, seedDatabase, type SeedIds } from "../../../seeds/seed";
+import { DEV_KEYRING, DEV_PASSWORD, seedDatabase, type SeedIds } from "../../../seeds/seed";
 import { count, freshDb } from "../../support/db-fixtures";
 
 const cipher = createEnvelopeCipher(parseKeyring(DEV_KEYRING.spec), DEV_KEYRING.activeKeyId);
+
+const hasher = createPbkdf2Hasher({ iterations: 1000 });
 
 let db: DatabaseSync;
 let ids: SeedIds;
 
 beforeEach(async () => {
   db = freshDb();
-  ids = await seedDatabase(db, cipher);
+  ids = await seedDatabase(db, cipher, hasher);
 });
 
 function ownerOf(table: string, id: string): string | undefined {
@@ -24,6 +27,14 @@ describe("seed data", () => {
   it("creates two distinct owners", () => {
     expect(ids.ownerA).not.toBe(ids.ownerB);
     expect(count(db, "owner")).toBe(2);
+  });
+
+  it("lets both owners sign in with the documented development password", async () => {
+    for (const id of [ids.ownerA, ids.ownerB]) {
+      const row = db.prepare("SELECT password_hash FROM owner WHERE id = ?").get(id);
+      expect(await hasher.verify(DEV_PASSWORD, String(row?.["password_hash"]))).toBe(true);
+      expect(await hasher.verify("wrong", String(row?.["password_hash"]))).toBe(false);
+    }
   });
 
   it("covers the happy path: published meeting with transcript, note, decision, action item", () => {
