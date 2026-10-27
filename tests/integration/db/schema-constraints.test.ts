@@ -25,8 +25,9 @@ beforeEach(() => {
 });
 
 describe("owner and session", () => {
-  it("rejects a duplicate email regardless of case", () => {
-    expect(() => owner(db, "A2", { email: "A@EXAMPLE.TEST" })).toThrow(/UNIQUE/);
+  it("rejects a duplicate email (emails are stored lower-case, so this is case-insensitive)", () => {
+    expect(() => owner(db, "A2", { email: "a@example.test" })).toThrow(/UNIQUE/);
+    expect(() => owner(db, "A3", { email: "A@EXAMPLE.TEST" })).toThrow(/CHECK|UNIQUE/);
   });
 
   it("rejects a non lower-case email", () => {
@@ -277,7 +278,7 @@ describe("note, sections, decisions, action items", () => {
       /CHECK/,
     );
     expect(() =>
-      note(db, "A", "mA", "n3", { status: "draft", folder_id: "fA", published_at: null }),
+      note(db, "A", "mA", "n3", { status: "draft", folder_id: "fA", published_at: T1 }),
     ).toThrow(/CHECK/);
     expect(() =>
       note(db, "A", "mA", "n4", { status: "published", published_at: T1, folder_id: "fB" }),

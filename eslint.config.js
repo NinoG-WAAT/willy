@@ -27,5 +27,10 @@ export default tseslint.config(
       "@typescript-eslint/no-non-null-assertion": "error",
     },
   },
+  {
+    // `expect(() => insertRow(...)).toThrow()` is the idiom for constraint tests.
+    files: ["tests/**/*.ts"],
+    rules: { "@typescript-eslint/no-confusing-void-expression": "off" },
+  },
   ...domainPurity,
 );

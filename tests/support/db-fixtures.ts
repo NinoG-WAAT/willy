@@ -25,7 +25,7 @@ export function insert(db: DatabaseSync, table: string, row: Row): void {
 export function owner(db: DatabaseSync, id: string, extra: Row = {}): void {
   insert(db, "owner", {
     id,
-    email: `${id}@example.test`,
+    email: `${id.toLowerCase()}@example.test`,
     display_name: id,
     created_at: T0,
     ...extra,

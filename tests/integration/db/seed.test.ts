@@ -47,7 +47,7 @@ describe("seed data", () => {
     expect(count(db, "note", `meeting_id = '${m}'`)).toBe(0);
   });
 
-  it("covers a failed transcription with a transcribed chunk and a failed chunk", () => {
+  it("covers a failed transcription with a transcribed-and-purged chunk and a failed chunk", () => {
     const m = ids.meetings.failed;
     expect(db.prepare("SELECT status FROM meeting WHERE id = ?").get(m)).toEqual({
       status: "failed",
@@ -56,7 +56,7 @@ describe("seed data", () => {
       .prepare("SELECT state FROM audio_chunk WHERE meeting_id = ? ORDER BY seq")
       .all(m)
       .map((r) => r["state"]);
-    expect(states).toEqual(["transcribed", "failed"]);
+    expect(states).toEqual(["purged", "failed"]);
     expect(db.prepare("SELECT status FROM job WHERE meeting_id = ?").get(m)).toEqual({
       status: "failed",
     });

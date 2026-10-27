@@ -15,7 +15,9 @@
     "typecheck": "astro check",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "test": "npm run test:unit && npm run test:e2e"
+    "test": "npm run test:unit && npm run test:e2e",
+    "db:migrate": "tsx scripts/db.ts migrate",
+    "db:seed": "tsx scripts/db.ts seed"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.9",
@@ -30,6 +32,7 @@
     "eslint-plugin-astro": "^1.7.0",
     "prettier": "^3.9.10",
     "prettier-plugin-astro": "^1.1.2",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.5"
