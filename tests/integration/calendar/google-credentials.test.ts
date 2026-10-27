@@ -2,10 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defined } from "../../support/assert";
 import { createInMemoryCredentialStore } from "../../../src/adapters/calendar/in-memory-credential-store";
 import { createGoogleCredentials } from "../../../src/adapters/calendar/google-credentials";
-import {
-  createEnvelopeCipher,
-  parseKeyring,
-} from "../../../src/adapters/crypto/envelope-cipher";
+import { createEnvelopeCipher, parseKeyring } from "../../../src/adapters/crypto/envelope-cipher";
 
 const key = Buffer.alloc(32, 7).toString("base64");
 
