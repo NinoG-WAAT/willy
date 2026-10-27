@@ -85,12 +85,17 @@ export class SqliteJobRepository implements JobRepository {
 
   enqueue(job: NewJob, now: Date): Promise<{ created: boolean }> {
     const iso = now.toISOString();
+    const onConflict = job.requeueIfFailed
+      ? `ON CONFLICT (job_key) DO UPDATE SET status = 'pending', attempts = 0, last_error_code = NULL,
+           next_run_at = excluded.next_run_at, updated_at = excluded.updated_at
+         WHERE job.status = 'failed'`
+      : "ON CONFLICT (job_key) DO NOTHING";
     const result = this.db
       .prepare(
         `INSERT INTO job (id, owner_id, meeting_id, kind, job_key, status, attempts, max_attempts,
                           next_run_at, payload_json, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?, '{}', ?, ?)
-         ON CONFLICT (job_key) DO NOTHING`,
+         ${onConflict}`,
       )
       .run(
         this.ids.newId(),

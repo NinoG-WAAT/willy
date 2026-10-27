@@ -1,5 +1,4 @@
 import { canViewMeeting } from "../../domain/authz/predicates";
-import { failProcessing, type Meeting } from "../../domain/meetings/lifecycle";
 import { segmentTextContext } from "../../domain/transcription/encryption-context";
 import type { ChunkRepository, ChunkRow } from "../../ports/chunk-repository";
 import type { Clock } from "../../ports/clock";
@@ -11,6 +10,7 @@ import type { SettingsRepository } from "../../ports/settings-repository";
 import type { TextCipher } from "../../ports/text-cipher";
 import type { Transcriber } from "../../ports/transcriber";
 import type { JobHandler, JobOutcome } from "../jobs/runner";
+import { failMeetingProcessing } from "../meetings/fail-processing";
 import type { ChunkStore } from "../storage/chunk-store";
 import { purgeChunkAudio } from "./purge";
 
@@ -91,7 +91,14 @@ async function runTranscription(
 
   if (failures.length === 0) {
     await deps.jobs.enqueue(
-      { ownerId, meetingId, kind: "summarize", jobKey: summaryJobKey(meetingId) },
+      {
+        ownerId,
+        meetingId,
+        kind: "summarize",
+        jobKey: summaryJobKey(meetingId),
+        // After a failed summary and the owner's retry, transcription completes again: re-queue it.
+        requeueIfFailed: true,
+      },
       deps.clock.now(),
     );
     log.info("job.transcribed", { chunksTranscribed: transcribed });
@@ -106,7 +113,7 @@ async function runTranscription(
     permanent,
   });
   if (permanent || job.attempts >= job.maxAttempts) {
-    await failMeeting(deps, log, meeting);
+    await failMeetingProcessing(deps, log, meeting);
     return { kind: "failed", errorCode: code };
   }
   return { kind: "retry", errorCode: code };
@@ -175,11 +182,4 @@ async function transcribeChunk(
     newSegments: recorded.inserted,
   });
   return null;
-}
-
-async function failMeeting(deps: TranscribeDeps, log: Logger, meeting: Meeting): Promise<void> {
-  const outcome = failProcessing(meeting, deps.clock.now());
-  if (!outcome.ok || !outcome.value.changed) return;
-  const applied = await deps.meetings.applyTransition(meeting.ownerId, meeting, outcome.value);
-  log.error("job.meeting_failed", { applied: applied === "applied" });
 }

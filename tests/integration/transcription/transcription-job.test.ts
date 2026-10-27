@@ -185,6 +185,57 @@ describe("transcription job: happy path", () => {
   });
 });
 
+describe("recovery of a failed summary", () => {
+  it("re-queues a failed summary job once transcription is complete again", async () => {
+    await capture("A", "m1", 1);
+    await stop();
+    insert(db, "job", {
+      id: "j-sum",
+      owner_id: "A",
+      meeting_id: "m1",
+      kind: "summarize",
+      job_key: "summarize:m1:1",
+      status: "failed",
+      attempts: 5,
+      max_attempts: 5,
+      last_error_code: "llm_rejected",
+      created_at: T0,
+      updated_at: T0,
+    });
+    await run();
+    expect(
+      db.prepare("SELECT status, attempts, last_error_code FROM job WHERE id = 'j-sum'").get(),
+    ).toEqual({
+      status: "pending",
+      attempts: 0,
+      last_error_code: null,
+    });
+    expect(count(db, "job", "kind = 'summarize'")).toBe(1);
+  });
+
+  it("leaves a summary job that is already pending or running alone", async () => {
+    await capture("A", "m1", 1);
+    await stop();
+    insert(db, "job", {
+      id: "j-sum",
+      owner_id: "A",
+      meeting_id: "m1",
+      kind: "summarize",
+      job_key: "summarize:m1:1",
+      status: "running",
+      attempts: 2,
+      max_attempts: 5,
+      created_at: T0,
+      updated_at: T0,
+    });
+    await run();
+    expect(db.prepare("SELECT status, attempts FROM job WHERE id = 'j-sum'").get()).toEqual({
+      status: "running",
+      attempts: 2,
+    });
+  });
+});
+
 describe("acceptance scenario 2: partial failure, notes survive, retry resumes, no duplicates", () => {
   it("keeps the rough notes and finished chunks, retries only the failed chunk and creates no duplicate segments", async () => {
     await capture("A", "m1", 3);
