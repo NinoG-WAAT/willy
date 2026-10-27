@@ -3,6 +3,7 @@ import { createGoogleCalendarSource } from "../../../src/adapters/calendar/googl
 import type { CalendarEvent } from "../../../src/domain/calendar/event";
 import { providerError } from "../../../src/domain/platform/provider-error";
 import { ok } from "../../../src/domain/platform/result";
+import { defined } from "../../support/assert";
 import { RANGE, makeEvent } from "../../support/calendar-fixtures";
 import { calendarSourceContract } from "./calendar-source.contract";
 
@@ -26,16 +27,23 @@ function createStubGoogle() {
     summary: e.title,
     start: { dateTime: e.startsAt, timeZone: e.timezone },
     end: { dateTime: e.endsAt, timeZone: e.timezone },
-    attendees: e.attendees.map((a) => ({ displayName: a.name, ...(a.email ? { email: a.email } : {}) })),
+    attendees: e.attendees.map((a) => ({
+      displayName: a.name,
+      ...(a.email ? { email: a.email } : {}),
+    })),
   });
 
   const fetchStub: FetchLike = (input, init) => {
-    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    const url = new URL(
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+    );
     calls.push({ url, init });
     if (failure === "timeout") {
       failure = null;
       return new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+        init?.signal?.addEventListener("abort", () => {
+          reject(new Error("aborted"));
+        });
       });
     }
     if (failure) {
@@ -57,9 +65,15 @@ function createStubGoogle() {
   return {
     fetch: fetchStub,
     calls,
-    seed: (owner: string, events: CalendarEvent[]) => void calendars.set(owner, events),
-    failNext: (kind: NonNullable<typeof failure>) => void (failure = kind),
-    respondWith: (fn: (url: URL) => Response) => void (override = fn),
+    seed: (owner: string, events: CalendarEvent[]) => {
+      calendars.set(owner, events);
+    },
+    failNext: (kind: NonNullable<typeof failure>) => {
+      failure = kind;
+    },
+    respondWith: (fn: (url: URL) => Response) => {
+      override = fn;
+    },
   };
 }
 
@@ -83,7 +97,7 @@ describe("google calendar source specifics", () => {
     const { stub, source } = build();
     stub.seed("owner-a", [makeEvent("x")]);
     await source.listEvents("owner-a", RANGE);
-    const call = stub.calls[0]!;
+    const call = defined(stub.calls[0]);
     expect(call.url.protocol).toBe("https:");
     expect(call.url.hostname).toBe("www.googleapis.com");
     expect(call.url.pathname).toBe("/calendar/v3/calendars/primary/events");
@@ -94,7 +108,9 @@ describe("google calendar source specifics", () => {
 
   it("treats a redirect response as a rejection instead of following it", async () => {
     const { stub, source } = build();
-    stub.respondWith(() => new Response(null, { status: 302, headers: { location: "https://evil.test/" } }));
+    stub.respondWith(
+      () => new Response(null, { status: 302, headers: { location: "https://evil.test/" } }),
+    );
     const result = await source.listEvents("owner-a", RANGE);
     expect(!result.ok && result.error.kind).toBe("rejected");
   });
@@ -106,7 +122,13 @@ describe("google calendar source specifics", () => {
         timeZone: "America/New_York",
         items: [
           { id: "cancelled", status: "cancelled" },
-          { id: "all-day", status: "confirmed", summary: "Holiday", start: { date: "2026-11-11" }, end: { date: "2026-11-12" } },
+          {
+            id: "all-day",
+            status: "confirmed",
+            summary: "Holiday",
+            start: { date: "2026-11-11" },
+            end: { date: "2026-11-12" },
+          },
           {
             id: "ok",
             status: "confirmed",
@@ -139,13 +161,14 @@ describe("google calendar source specifics", () => {
     const { stub, source } = build();
     stub.respondWith((url) => {
       const page = Number(url.searchParams.get("pageToken") ?? "0");
+      const label = String(page);
       return Response.json({
         timeZone: "UTC",
         items: [
           {
-            id: `e${page}`,
+            id: `e${label}`,
             status: "confirmed",
-            summary: `E${page}`,
+            summary: `E${label}`,
             start: { dateTime: "2026-11-03T09:00:00Z" },
             end: { dateTime: "2026-11-03T10:00:00Z" },
           },
@@ -167,8 +190,20 @@ describe("google calendar source specifics", () => {
     stub.respondWith(() =>
       Response.json({
         items: [
-          { id: "bad-tz", status: "confirmed", summary: "x", start: { dateTime: "2026-11-03T09:00:00Z", timeZone: "Nope/Zone" }, end: { dateTime: "2026-11-03T10:00:00Z" } },
-          { id: "good", status: "confirmed", summary: "y", start: { dateTime: "2026-11-03T09:00:00Z", timeZone: "UTC" }, end: { dateTime: "2026-11-03T10:00:00Z" } },
+          {
+            id: "bad-tz",
+            status: "confirmed",
+            summary: "x",
+            start: { dateTime: "2026-11-03T09:00:00Z", timeZone: "Nope/Zone" },
+            end: { dateTime: "2026-11-03T10:00:00Z" },
+          },
+          {
+            id: "good",
+            status: "confirmed",
+            summary: "y",
+            start: { dateTime: "2026-11-03T09:00:00Z", timeZone: "UTC" },
+            end: { dateTime: "2026-11-03T10:00:00Z" },
+          },
         ],
       }),
     );
@@ -189,7 +224,10 @@ describe("google calendar source specifics", () => {
     const stub = createStubGoogle();
     const source = createGoogleCalendarSource({
       fetch: stub.fetch,
-      credentials: { getAccessToken: () => Promise.resolve({ ok: false, error: providerError("rejected", "not connected") }) },
+      credentials: {
+        getAccessToken: () =>
+          Promise.resolve({ ok: false, error: providerError("rejected", "not connected") }),
+      },
       timeoutMs: 50,
     });
     const result = await source.listEvents("owner-a", RANGE);

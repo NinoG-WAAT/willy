@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { providerError, type ProviderError } from "../../../src/domain/platform/provider-error";
 import { err, ok, type Result } from "../../../src/domain/platform/result";
+import { defined } from "../../support/assert";
 import { withRetry } from "../../../src/app/platform/retry";
 
 const policy = { maxAttempts: 3, baseMs: 100, capMs: 1000 };
@@ -14,7 +15,7 @@ function scripted(results: Result<string, ProviderError>[]) {
     },
     sleeps,
     run: () =>
-      withRetry(() => Promise.resolve(results[calls++] ?? results[results.length - 1]!), {
+      withRetry(() => Promise.resolve(results[calls++] ?? defined(results[results.length - 1])), {
         policy,
         sleep: (ms) => {
           sleeps.push(ms);
@@ -34,7 +35,11 @@ describe("withRetry", () => {
   });
 
   it("retries transient failures with backoff and then succeeds", async () => {
-    const s = scripted([err(providerError("unavailable", "x")), err(providerError("timeout", "x")), ok("done")]);
+    const s = scripted([
+      err(providerError("unavailable", "x")),
+      err(providerError("timeout", "x")),
+      ok("done"),
+    ]);
     expect(await s.run()).toEqual(ok("done"));
     expect(s.calls).toBe(3);
     expect(s.sleeps).toEqual([50, 100]);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defined } from "../../support/assert";
 import { createAesGcmCipher } from "../../../src/adapters/crypto/aes-gcm-cipher";
 
 const keyOf = (byte: number) => Buffer.alloc(32, byte).toString("base64");
@@ -13,7 +14,10 @@ describe("AES-GCM token cipher", () => {
     const c = cipher();
     const sealed = await c.seal("refresh-token-123", "calendar:owner-a");
     expect(sealed).not.toContain("refresh-token-123");
-    expect(await c.open(sealed, "calendar:owner-a")).toEqual({ ok: true, value: "refresh-token-123" });
+    expect(await c.open(sealed, "calendar:owner-a")).toEqual({
+      ok: true,
+      value: "refresh-token-123",
+    });
   });
 
   it("uses a fresh nonce per seal", async () => {
@@ -25,8 +29,8 @@ describe("AES-GCM token cipher", () => {
     const c = cipher();
     const sealed = await c.seal("secret", "ctx");
     const parts = sealed.split(".");
-    const ct = Buffer.from(parts[2]!, "base64");
-    ct[0] = ct[0]! ^ 1;
+    const ct = Buffer.from(defined(parts[2]), "base64");
+    ct[0] = defined(ct[0]) ^ 1;
     parts[2] = ct.toString("base64");
     expect(await c.open(parts.join("."), "ctx")).toEqual({ ok: false, error: "tampered" });
   });
@@ -52,7 +56,11 @@ describe("AES-GCM token cipher", () => {
   });
 
   it("rejects keys that are not 32 bytes at construction", () => {
-    expect(() => createAesGcmCipher({ keys: { k1: "c2hvcnQ=" }, activeKeyId: "k1", randomBytes })).toThrow(/32 bytes/);
-    expect(() => createAesGcmCipher({ keys: { k1: keyOf(1) }, activeKeyId: "nope", randomBytes })).toThrow(/active key/);
+    expect(() =>
+      createAesGcmCipher({ keys: { k1: "c2hvcnQ=" }, activeKeyId: "k1", randomBytes }),
+    ).toThrow(/32 bytes/);
+    expect(() =>
+      createAesGcmCipher({ keys: { k1: keyOf(1) }, activeKeyId: "nope", randomBytes }),
+    ).toThrow(/active key/);
   });
 });

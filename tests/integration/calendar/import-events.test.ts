@@ -7,7 +7,7 @@ import { RANGE, makeEvent } from "../../support/calendar-fixtures";
 function setup() {
   const calendar = createFakeCalendarSource();
   let n = 0;
-  const repo = createInMemoryCalendarImportRepository(() => `meeting-${++n}`);
+  const repo = createInMemoryCalendarImportRepository(() => `meeting-${String(++n)}`);
   const sleeps: number[] = [];
   const deps = {
     calendar,
@@ -45,7 +45,10 @@ describe("importCalendarEvents", () => {
   it("concurrent double submit still yields one meeting", async () => {
     const { calendar, repo, deps } = setup();
     calendar.seed("owner-a", [makeEvent("e1")]);
-    await Promise.all([importCalendarEvents(deps, "owner-a", RANGE), importCalendarEvents(deps, "owner-a", RANGE)]);
+    await Promise.all([
+      importCalendarEvents(deps, "owner-a", RANGE),
+      importCalendarEvents(deps, "owner-a", RANGE),
+    ]);
     expect(repo.meetingsOf("owner-a")).toHaveLength(1);
   });
 
@@ -68,7 +71,16 @@ describe("importCalendarEvents", () => {
     const [meeting] = repo.meetingsOf("owner-a");
     expect(meeting?.title).toBe("New title");
     expect(Object.keys(meeting ?? {}).sort()).toEqual(
-      ["attendees", "endsAt", "id", "provider", "providerEventId", "startsAt", "timezone", "title"].sort(),
+      [
+        "attendees",
+        "endsAt",
+        "id",
+        "provider",
+        "providerEventId",
+        "startsAt",
+        "timezone",
+        "title",
+      ].sort(),
     );
   });
 

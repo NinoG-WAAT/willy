@@ -47,7 +47,9 @@ describe("normalizeCalendarEvent", () => {
         { name: "  ", email: null },
       ],
     });
-    expect(result.ok && result.value.attendees).toEqual([{ name: "bob@example.com", email: "bob@example.com" }]);
+    expect(result.ok && result.value.attendees).toEqual([
+      { name: "bob@example.com", email: "bob@example.com" },
+    ]);
   });
 
   it("de-duplicates attendees by email", () => {
@@ -72,10 +74,19 @@ describe("normalizeCalendarEvent", () => {
     ["bad email", { attendees: [{ name: "x", email: "not-an-email" }] }, "attendees"],
     [
       "too many attendees",
-      { attendees: Array.from({ length: 101 }, (_, i) => ({ name: `p${i}`, email: `p${i}@example.com` })) },
+      {
+        attendees: Array.from({ length: 101 }, (_, i) => ({
+          name: `p${String(i)}`,
+          email: `p${String(i)}@example.com`,
+        })),
+      },
       "attendees",
     ],
-    ["overlong attendee name", { attendees: [{ name: "n".repeat(101), email: null }] }, "attendees"],
+    [
+      "overlong attendee name",
+      { attendees: [{ name: "n".repeat(101), email: null }] },
+      "attendees",
+    ],
   ])("rejects %s", (_label, patch, field) => {
     const result = normalizeCalendarEvent({ ...valid, ...patch });
     expect(result.ok).toBe(false);

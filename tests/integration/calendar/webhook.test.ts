@@ -27,9 +27,12 @@ const payload = {
 
 function setup() {
   let n = 0;
-  const repo = createInMemoryCalendarImportRepository(() => `meeting-${++n}`);
+  const repo = createInMemoryCalendarImportRepository(() => `meeting-${String(++n)}`);
   const events = createInMemoryProviderEventStore();
-  const connections = createInMemoryCalendarConnections({ "chan-a": "owner-a", "chan-b": "owner-b" });
+  const connections = createInMemoryCalendarConnections({
+    "chan-a": "owner-a",
+    "chan-b": "owner-b",
+  });
   const deps = { secret, now: () => NOW, events, connections, repo };
   const send = async (body: unknown, header?: string | null) => {
     const raw = typeof body === "string" ? body : JSON.stringify(body);
@@ -42,14 +45,18 @@ function setup() {
 describe("handleCalendarWebhook", () => {
   it("imports the event for the owner resolved from the stored connection", async () => {
     const { repo, send } = setup();
-    expect(await send(payload)).toEqual({ status: "processed", meetingId: "meeting-1", created: true });
+    expect(await send(payload)).toEqual({
+      status: "processed",
+      meetingId: "meeting-1",
+      created: true,
+    });
     expect(repo.meetingsOf("owner-a").map((m) => m.title)).toEqual(["Board prep"]);
     expect(repo.meetingsOf("owner-b")).toEqual([]);
   });
 
   it("rejects a bad signature without touching anything", async () => {
     const { repo, send } = setup();
-    const result = await send(payload, `t=${nowSec},v1=${"0".repeat(64)}`);
+    const result = await send(payload, `t=${String(nowSec)},v1=${"0".repeat(64)}`);
     expect(result).toEqual({ status: "rejected", reason: "bad_signature" });
     expect(repo.meetingsOf("owner-a")).toEqual([]);
   });
@@ -71,8 +78,16 @@ describe("handleCalendarWebhook", () => {
   it("treats a new delivery of the same calendar event as one meeting", async () => {
     const { repo, send } = setup();
     await send(payload);
-    const updated = { ...payload, id: "delivery-2", event: { ...payload.event, title: "Board prep v2" } };
-    expect(await send(updated)).toEqual({ status: "processed", meetingId: "meeting-1", created: false });
+    const updated = {
+      ...payload,
+      id: "delivery-2",
+      event: { ...payload.event, title: "Board prep v2" },
+    };
+    expect(await send(updated)).toEqual({
+      status: "processed",
+      meetingId: "meeting-1",
+      created: false,
+    });
     expect(repo.meetingsOf("owner-a")).toHaveLength(1);
     expect(repo.meetingsOf("owner-a")[0]?.title).toBe("Board prep v2");
   });
@@ -96,7 +111,10 @@ describe("handleCalendarWebhook", () => {
 
   it("rejects an unknown channel and never trusts an owner claimed in the payload", async () => {
     const { repo, send } = setup();
-    expect(await send({ ...payload, channelId: "nobody" })).toEqual({ status: "rejected", reason: "unknown_channel" });
+    expect(await send({ ...payload, channelId: "nobody" })).toEqual({
+      status: "rejected",
+      reason: "unknown_channel",
+    });
     expect(repo.meetingsOf("owner-a")).toEqual([]);
   });
 
@@ -110,7 +128,9 @@ describe("handleCalendarWebhook", () => {
         upsertFromCalendar: () => Promise.reject(new Error("db down")),
       },
     };
-    await expect(handleCalendarWebhook(failing, { signatureHeader: header, rawBody: raw })).rejects.toThrow("db down");
+    await expect(
+      handleCalendarWebhook(failing, { signatureHeader: header, rawBody: raw }),
+    ).rejects.toThrow("db down");
     expect(await events.hasSeen("google", "delivery-1")).toBe(false);
     const retry = await handleCalendarWebhook(deps, { signatureHeader: header, rawBody: raw });
     expect(retry.status).toBe("processed");

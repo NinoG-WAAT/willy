@@ -22,7 +22,10 @@ export function calendarSourceContract(name: string, create: () => CalendarSourc
       const h = create();
       h.seed("owner-a", [
         makeEvent("in-range"),
-        makeEvent("too-early", { startsAt: "2026-10-01T08:00:00.000Z", endsAt: "2026-10-01T09:00:00.000Z" }),
+        makeEvent("too-early", {
+          startsAt: "2026-10-01T08:00:00.000Z",
+          endsAt: "2026-10-01T09:00:00.000Z",
+        }),
       ]);
       const result = await h.source.listEvents("owner-a", RANGE);
       expect(result.ok).toBe(true);

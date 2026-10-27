@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { signWebhook, verifyWebhookSignature } from "../../../src/domain/calendar/webhook-signature";
+import {
+  signWebhook,
+  verifyWebhookSignature,
+} from "../../../src/domain/calendar/webhook-signature";
 
 const secret = "test-webhook-secret";
 const body = '{"eventId":"e1"}';
@@ -25,7 +28,12 @@ describe("webhook signature", () => {
 
   it("rejects a tampered body", async () => {
     const header = await signWebhook(secret, 1_000, body);
-    const result = await verifyWebhookSignature({ secret, header, body: body + " ", nowSec: 1_000 });
+    const result = await verifyWebhookSignature({
+      secret,
+      header,
+      body: body + " ",
+      nowSec: 1_000,
+    });
     expect(result).toEqual({ ok: false, error: "mismatch" });
   });
 

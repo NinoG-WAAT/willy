@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { createFakeCalendarSource } from "../../../src/adapters/calendar/fake-calendar-source";
+import { defined } from "../../support/assert";
 import { RANGE, makeEvent } from "../../support/calendar-fixtures";
 import { calendarSourceContract } from "./calendar-source.contract";
 
 calendarSourceContract("fake", () => {
   const fake = createFakeCalendarSource();
-  return { source: fake, seed: fake.seed, failNext: (kind) => fake.failNext(kind) };
+  return {
+    source: fake,
+    seed: (ownerId, events) => {
+      fake.seed(ownerId, events);
+    },
+    failNext: (kind) => {
+      fake.failNext(kind);
+    },
+  };
 });
 
 describe("fake calendar source specifics", () => {
@@ -22,7 +31,7 @@ describe("fake calendar source specifics", () => {
     const fake = createFakeCalendarSource();
     fake.seed("o", [makeEvent("x")]);
     const first = await fake.listEvents("o", RANGE);
-    if (first.ok) first.value[0]!.title = "mutated";
+    if (first.ok) defined(first.value[0]).title = "mutated";
     const second = await fake.listEvents("o", RANGE);
     expect(second.ok && second.value[0]?.title).toBe("Meeting x");
   });

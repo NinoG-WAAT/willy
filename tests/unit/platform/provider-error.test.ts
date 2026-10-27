@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { providerError, providerErrorFromStatus } from "../../../src/domain/platform/provider-error";
+import {
+  providerError,
+  providerErrorFromStatus,
+} from "../../../src/domain/platform/provider-error";
 
 describe("providerError", () => {
   it("marks rejected as non-retryable and everything else as retryable", () => {
