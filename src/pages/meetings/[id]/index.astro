@@ -1,0 +1,331 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { formatSchedule } from "../../../components/format-schedule";
+import { loadLiveNote, runCaptureAction, saveRoughNotes } from "../../../app/meetings/live-note";
+import { readFormFields, single } from "../../../app/platform/form";
+import { getCaptureSegmentMs, getLiveNoteDeps, getMeetingDeps } from "../../../composition";
+import { CONSENT_STATEMENT } from "../../../domain/meetings/lifecycle";
+import { MAX_ROUGH_NOTES_CHARS } from "../../../domain/meetings/rough-notes";
+import { isValidStorageId } from "../../../domain/storage/object-key";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const id = Astro.params.id ?? "";
+// An id that cannot exist looks exactly like another owner's: the same 404.
+if (!isValidStorageId(id)) return Astro.rewrite("/404");
+
+const live = getLiveNoteDeps();
+let loaded = await loadLiveNote(live, owner.id, id);
+if (!loaded.ok) return Astro.rewrite("/404");
+
+let problem: string | null = null;
+let notesDraft: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const fields = readFormFields(await Astro.request.formData(), [
+    "csrf_token",
+    "intent",
+    "consent",
+    "rough_notes",
+  ]);
+  const intent = fields ? single(fields, "intent") : undefined;
+  if (!fields) return new Response("Bad request", { status: 400 });
+
+  if (intent === "save_notes") {
+    const raw = single(fields, "rough_notes") ?? "";
+    const saved = await saveRoughNotes(live, owner.id, id, raw);
+    if (saved.ok) return Astro.redirect(`/meetings/${id}?notice=notes_saved`, 303);
+    if (saved.error.kind === "not_found") return Astro.rewrite("/404");
+    problem = `Your notes were not saved: they are longer than ${String(MAX_ROUGH_NOTES_CHARS)} characters. What you typed is still below.`;
+    notesDraft = raw;
+    Astro.response.status = 422;
+  } else if (intent === "start" || intent === "pause" || intent === "resume" || intent === "stop") {
+    const result = await runCaptureAction(getMeetingDeps(), owner.id, id, intent, {
+      consentAccepted: single(fields, "consent") === "on",
+    });
+    if (result.ok) return Astro.redirect(`/meetings/${id}`, 303);
+    switch (result.error.kind) {
+      case "not_found":
+        return Astro.rewrite("/404");
+      case "consent_required":
+      case "consent_not_given":
+        problem =
+          "Capture did not start. Tick the consent statement first: nothing is recorded until you confirm it.";
+        Astro.response.status = 422;
+        break;
+      case "conflict":
+        problem = "The note changed at the same moment. Check its state below and try again.";
+        Astro.response.status = 409;
+        break;
+      default:
+        problem =
+          "That action is not available in the note's current state. The page shows where things stand.";
+        Astro.response.status = 409;
+    }
+    // The state may have moved on (for example a double click): show what is true now.
+    loaded = await loadLiveNote(live, owner.id, id);
+    if (!loaded.ok) return Astro.rewrite("/404");
+  } else {
+    return new Response("Bad request", { status: 400 });
+  }
+}
+
+const { detail, controls, nextSeq, recordedMs } = loaded.value;
+const notice = Astro.url.searchParams.get("notice") === "notes_saved" ? "Notes saved." : null;
+// Browsers drop the first newline inside <textarea>, so one is added to keep the text exact.
+const textareaText = `\n${notesDraft ?? detail.roughNotes}`;
+const csrf = Astro.locals.csrfToken ?? "";
+const action = `/meetings/${detail.id}`;
+const STATUS_TEXT: Record<string, string> = {
+  scheduled: "Not started",
+  capturing: "Recording",
+  paused: "Recording paused",
+  processing: "Recording finished. Preparing the transcript.",
+  review: "Recording finished. A draft is ready for review.",
+  published: "Published",
+  failed: "Recording finished, but processing needs attention.",
+  archived: "Archived",
+};
+---
+
+<Base title={detail.title}>
+  {controls.indicator !== null && (
+    <div
+      class="rec-banner"
+      data-state={controls.indicator}
+      role="status"
+      aria-live="polite"
+      id="rec-banner"
+    >
+      <span class="rec-shape" aria-hidden="true"></span>
+      <strong id="rec-label">
+        {controls.indicator === "recording" ? "Recording" : "Recording paused"}
+      </strong>
+      <span id="rec-detail">
+        {controls.indicator === "recording"
+          ? "This note is being captured."
+          : "Capture is paused. Nothing is being recorded."}
+      </span>
+      <time id="rec-timer" aria-hidden="true">
+        00:00:00
+      </time>
+    </div>
+  )}
+
+  <h1>{detail.title}</h1>
+  <p class="row-meta">
+    <time datetime={detail.scheduledStartAt}>
+      {formatSchedule(detail.scheduledStartAt, detail.timezone)}
+    </time>
+    · {STATUS_TEXT[detail.status] ?? detail.status}
+  </p>
+
+  {notice !== null && (
+    <p class="notice" role="status">
+      {notice}
+    </p>
+  )}
+  {problem !== null && (
+    <p class="alert" role="alert">
+      {problem}
+    </p>
+  )}
+
+  <div
+    id="live-note"
+    data-meeting-id={detail.id}
+    data-csrf={csrf}
+    data-status={detail.status}
+    data-next-seq={nextSeq}
+    data-recorded-ms={recordedMs}
+    data-segment-ms={getCaptureSegmentMs()}
+    data-notes-editable={controls.notesEditable ? "1" : "0"}
+  >
+    <section aria-labelledby="capture-heading" class="panel">
+      <h2 id="capture-heading">Capture</h2>
+
+      {controls.canStart && (
+        <form method="post" action={action} id="start-form" class="form form-wide">
+          <input type="hidden" name="csrf_token" value={csrf} />
+          <input type="hidden" name="intent" value="start" />
+          {controls.showConsent ? (
+            <>
+              <div class="check consent">
+                <input
+                  id="consent"
+                  name="consent"
+                  type="checkbox"
+                  aria-describedby="consent-help"
+                />
+                <label for="consent">{CONSENT_STATEMENT}</label>
+              </div>
+              <p id="consent-help" class="help">
+                Only you can confirm this. Willycrumbs never records anyone's consent for them, and
+                nothing is captured until you start.
+              </p>
+            </>
+          ) : (
+            <p>
+              You confirmed consent on
+              <time datetime={detail.consentConfirmedAt ?? ""}>
+                {formatSchedule(
+                  detail.consentConfirmedAt ?? detail.scheduledStartAt,
+                  detail.timezone,
+                )}
+              </time>
+              .
+            </p>
+          )}
+          <div class="row-actions">
+            <button class="button" type="submit" id="start-button">
+              Start capture
+            </button>
+          </div>
+          <noscript>
+            <p class="help">
+              Audio capture needs JavaScript. Without it you can still take notes below.
+            </p>
+          </noscript>
+        </form>
+      )}
+
+      {(controls.canPause || controls.canResume || controls.canStop) && (
+        <div class="row-actions" id="capture-controls">
+          {controls.canPause && (
+            <form method="post" action={action} data-capture-action="pause">
+              <input type="hidden" name="csrf_token" value={csrf} />
+              <input type="hidden" name="intent" value="pause" />
+              <button class="button button-quiet" type="submit">
+                Pause
+              </button>
+            </form>
+          )}
+          {controls.canResume && (
+            <form method="post" action={action} data-capture-action="resume">
+              <input type="hidden" name="csrf_token" value={csrf} />
+              <input type="hidden" name="intent" value="resume" />
+              <button class="button" type="submit">
+                Resume
+              </button>
+            </form>
+          )}
+          <form
+            method="post"
+            action={action}
+            data-capture-action="stop"
+            aria-describedby="stop-help"
+          >
+            <input type="hidden" name="csrf_token" value={csrf} />
+            <input type="hidden" name="intent" value="stop" />
+            <button class="button button-danger" type="submit" id="stop-button">
+              Stop capture
+            </button>
+          </form>
+        </div>
+      )}
+      {(controls.canPause || controls.canResume || controls.canStop) && (
+        <p id="stop-help" class="help">
+          Stopping ends the recording and starts the transcript. You cannot resume this recording
+          afterwards.
+        </p>
+      )}
+
+      {controls.indicator !== null && (
+        <>
+          <div class="level" id="level" hidden>
+            <label for="level-meter">Microphone input level</label>
+            <meter id="level-meter" min="0" max="1" value="0" aria-hidden="true"></meter>
+            <p id="level-text" class="help" role="status" aria-live="polite"></p>
+          </div>
+          <p id="upload-status" class="help" role="status" aria-live="polite"></p>
+          <div id="capture-problem" class="alert" role="alert" hidden tabindex="-1">
+            <p id="capture-problem-text"></p>
+            <div class="row-actions">
+              <button class="button" type="button" id="retry-mic" hidden>
+                Try the microphone again
+              </button>
+              <button class="button" type="button" id="retry-upload" hidden>
+                Retry upload
+              </button>
+              <button class="button button-quiet" type="button" id="stop-anyway" hidden>
+                Stop anyway
+              </button>
+            </div>
+          </div>
+          <noscript>
+            <p class="alert">
+              Audio capture needs JavaScript, so no audio is being recorded in this browser. You can
+              still take notes and stop capture.
+            </p>
+          </noscript>
+        </>
+      )}
+
+      {controls.phase === "after" && <p>{STATUS_TEXT[detail.status]}</p>}
+      {controls.phase === "archived" && <p>This note is archived. Your rough notes are kept.</p>}
+    </section>
+
+    <div class="two-col">
+      <section aria-labelledby="notes-heading" class="panel">
+        <h2 id="notes-heading">Rough notes</h2>
+        <form method="post" action={action} id="notes-form" class="form form-wide">
+          <input type="hidden" name="csrf_token" value={csrf} />
+          <input type="hidden" name="intent" value="save_notes" />
+          <div class="field">
+            <label for="rough-notes">Your notes (saved as you type)</label>
+            <textarea
+              id="rough-notes"
+              name="rough_notes"
+              rows="12"
+              maxlength={MAX_ROUGH_NOTES_CHARS}
+              readonly={!controls.notesEditable}
+              aria-describedby="notes-status"
+            >{textareaText}</textarea>
+          </div>
+          <p id="notes-status" class="help" role="status" aria-live="polite">
+            {notice !== null ? "All changes saved." : ""}
+          </p>
+          <div class="row-actions">
+            <button class="button button-quiet" type="submit" id="save-notes">
+              Save notes
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <div>
+        <section aria-labelledby="attendees-heading" class="panel">
+          <h2 id="attendees-heading">Attendees</h2>
+          {detail.attendees.length === 0 ? (
+            <p>No attendees were added.</p>
+          ) : (
+            <ul class="plain">
+              {detail.attendees.map((a) => (
+                <li>
+                  {a.name}
+                  {a.email !== null && a.email !== a.name && <span class="help"> ({a.email})</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section aria-labelledby="agenda-heading" class="panel">
+          <h2 id="agenda-heading">Agenda</h2>
+          {detail.agenda === null ? (
+            <p>No agenda was added.</p>
+          ) : (
+            <p class="prewrap">{detail.agenda}</p>
+          )}
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import "../../../scripts/live-note";
+  </script>
+</Base>
