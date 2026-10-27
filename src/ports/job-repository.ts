@@ -14,6 +14,9 @@ export interface JobRow {
   nextRunAt: string | null;
   /** A redacted code (for example `stt_unavailable`), never provider or user content. */
   lastErrorCode: string | null;
+  /** Ids and counters the handler needs (for example the section to regenerate); never content. */
+  payload: Record<string, string | number>;
+  updatedAt: string;
 }
 
 export interface NewJob {
@@ -22,6 +25,7 @@ export interface NewJob {
   kind: JobKind;
   /** Unique per logical side effect: enqueueing the same key twice yields one job. */
   jobKey: string;
+  payload?: Record<string, string | number>;
   /**
    * A `failed` job with this key is reset to pending (recovery after the owner's retry). A
    * pending, running or finished job is never disturbed.
@@ -41,6 +45,6 @@ export interface JobRepository {
   markFailed(id: string, now: Date, errorCode: string): Promise<void>;
   /** Idempotent by `jobKey`. */
   enqueue(job: NewJob, now: Date): Promise<{ created: boolean }>;
-  /** Owner-scoped read for status polling. */
-  findForMeeting(ownerId: string, meetingId: string, kind: JobKind): Promise<JobRow | null>;
+  /** Owner-scoped read for status polling: every job of the meeting, oldest first. */
+  listForMeeting(ownerId: string, meetingId: string): Promise<JobRow[]>;
 }

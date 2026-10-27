@@ -6,6 +6,7 @@ const NOTICES: Readonly<Record<string, string>> = {
   template_saved: "Template saved.",
   template_default: "Default template updated.",
   template_deleted: "Template deleted.",
+  regeneration_queued: "Regenerating this section. It will update here when it is ready.",
 };
 
 /**
