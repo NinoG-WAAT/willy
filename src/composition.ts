@@ -13,11 +13,14 @@ import { InMemoryRateLimiter } from "./adapters/memory/in-memory-rate-limiter";
 import { openDatabase } from "./adapters/sqlite/database";
 import { runMigrations } from "./adapters/sqlite/migrate";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
+import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
 import { SqliteSessionRepository } from "./adapters/sqlite/session-repository";
+import { SqliteTemplateRepository } from "./adapters/sqlite/template-repository";
 import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import type { MeetingDeps } from "./app/meetings/capture";
+import type { NotesDeps } from "./app/notes/deps";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
 import type { Summarizer } from "./ports/summarizer";
 import type { Transcriber } from "./ports/transcriber";
@@ -31,6 +34,7 @@ import type { Transcriber } from "./ports/transcriber";
 
 let database: DatabaseSync | undefined;
 let identity: IdentityDeps | undefined;
+let notes: NotesDeps | undefined;
 
 export function getDatabase(): DatabaseSync {
   if (!database) {
@@ -60,6 +64,18 @@ export function getIdentityDeps(): IdentityDeps {
     };
   }
   return identity;
+}
+
+export function getNotesDeps(): NotesDeps {
+  if (!notes) {
+    notes = {
+      folders: new SqliteFolderRepository(getDatabase()),
+      templates: new SqliteTemplateRepository(getDatabase()),
+      clock: new SystemClock(),
+      ids: new RandomIds(),
+    };
+  }
+  return notes;
 }
 
 /** Defaults are production-safe; SIGN_IN_CLIENT_LIMIT exists so end-to-end runs from one address work. */

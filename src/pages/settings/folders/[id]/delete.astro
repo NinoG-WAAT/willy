@@ -1,0 +1,69 @@
+---
+import Base from "../../../../layouts/Base.astro";
+import { requireOwner } from "../../../../app/identity/require-owner";
+import { deleteFolder, findFolderForDelete } from "../../../../app/notes/folders";
+import { readFormFields } from "../../../../app/platform/form";
+import { getNotesDeps } from "../../../../composition";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+const deps = getNotesDeps();
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const id = Astro.params.id ?? "";
+// Same 404 for a missing folder and for another owner's folder.
+const found = await findFolderForDelete(deps, owner.id, id);
+if (!found.ok) return Astro.rewrite("/404");
+
+let blockedMessage: string | null = null;
+if (Astro.request.method === "POST") {
+  if (!readFormFields(await Astro.request.formData(), ["csrf_token", "confirm"])) {
+    return new Response("Bad request", { status: 400 });
+  }
+  const result = await deleteFolder(deps, owner.id, id);
+  if (result.ok) return Astro.redirect("/settings/folders?notice=folder_deleted", 303);
+  if (result.error.kind === "not_found") return Astro.rewrite("/404");
+  blockedMessage = result.error.kind === "blocked" ? result.error.message : null;
+  Astro.response.status = 409;
+}
+
+const folder = found.value;
+const blocked = blockedMessage ?? (folder.noteCount > 0 ? "blocked" : null);
+---
+
+<Base title={`Delete folder ${folder.name}`}>
+  <h1>Delete folder</h1>
+  <p>
+    You are about to delete the folder <strong>{folder.name}</strong>.
+  </p>
+  <p>
+    Scope: only the folder itself is removed. Notes are never deleted by this action, which is why a
+    folder that still contains notes cannot be deleted.
+  </p>
+  <p>
+    This folder contains {folder.noteCount} {folder.noteCount === 1 ? "note" : "notes"}.
+  </p>
+
+  {blockedMessage !== null && (
+    <p class="alert" role="alert">
+      {blockedMessage}
+    </p>
+  )}
+
+  {blocked !== null ? (
+    <p>
+      <a class="button button-quiet" href="/settings/folders">
+        Back to folders
+      </a>
+    </p>
+  ) : (
+    <form class="row-actions" method="post" action={`/settings/folders/${folder.id}/delete`}>
+      <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+      <button class="button button-danger" type="submit">
+        Delete folder
+      </button>
+      <a href="/settings/folders">Cancel</a>
+    </form>
+  )}
+</Base>

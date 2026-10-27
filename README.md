@@ -16,7 +16,8 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | Database schema, migrations, seeds, envelope encryption | done |
 | Calendar import adapter (fake + Google, webhooks, OAuth, encrypted tokens) | done (domain and adapters; screens come later) |
 | Sign-in and sessions, meeting lifecycle, STT/LLM/storage adapters, jobs, deletion job | in progress |
-| The four screens, search and export, templates and folders | not started |
+| Folders and templates (settings pages: create, edit, default, delete) | done |
+| The four main screens, search and export | not started |
 
 ## Prerequisites
 

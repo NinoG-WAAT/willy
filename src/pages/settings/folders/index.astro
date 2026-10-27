@@ -1,0 +1,147 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { createFolder, listFolders, renameFolder } from "../../../app/notes/folders";
+import { noticeText } from "../../../app/notes/notices";
+import { readFormFields, single } from "../../../app/platform/form";
+import { getNotesDeps } from "../../../composition";
+import { FOLDER_NAME_MAX } from "../../../domain/notes/folder";
+import type { FieldError } from "../../../domain/platform/text";
+
+export const prerender = false;
+
+// Owner route: the middleware has verified session, Origin and CSRF. Owner id comes from the session only.
+const owner = requireOwner(Astro.locals);
+const deps = getNotesDeps();
+Astro.response.headers.set("Cache-Control", "no-store");
+
+let errors: FieldError[] = [];
+let createValue = "";
+let failedRenameId: string | null = null;
+let failedRenameValue = "";
+
+if (Astro.request.method === "POST") {
+  const fields = readFormFields(await Astro.request.formData(), [
+    "csrf_token",
+    "intent",
+    "id",
+    "name",
+  ]);
+  const intent = fields ? single(fields, "intent") : undefined;
+  if (!fields || (intent !== "create" && intent !== "rename")) {
+    return new Response("Bad request", { status: 400 });
+  }
+  const name = single(fields, "name") ?? "";
+  if (intent === "create") {
+    const result = await createFolder(deps, owner.id, name);
+    if (result.ok) return Astro.redirect("/settings/folders?notice=folder_created", 303);
+    createValue = name;
+    errors = result.error.kind === "invalid" ? result.error.errors : [];
+  } else {
+    const id = single(fields, "id") ?? "";
+    const result = await renameFolder(deps, owner.id, id, name);
+    if (result.ok) return Astro.redirect("/settings/folders?notice=folder_renamed", 303);
+    if (result.error.kind === "not_found") return Astro.rewrite("/404");
+    failedRenameId = id;
+    failedRenameValue = name;
+    errors = result.error.kind === "invalid" ? result.error.errors : [];
+  }
+  Astro.response.status = 422;
+}
+
+const folders = await listFolders(deps, owner.id);
+const notice = noticeText(Astro.url.searchParams.get("notice"));
+const createError = failedRenameId === null ? errors[0] : undefined;
+const renameError = failedRenameId === null ? undefined : errors[0];
+---
+
+<Base title="Folders">
+  <div class="page-head">
+    <h1>Folders</h1>
+  </div>
+  <p>
+    Folders are private to you. You choose one when you publish a note, so finished notes stay
+    organised.
+  </p>
+
+  {notice !== null && (
+    <p class="notice" role="status">
+      {notice}
+    </p>
+  )}
+  {renameError && (
+    <p class="alert" role="alert">
+      {renameError.message}
+    </p>
+  )}
+
+  <h2>New folder</h2>
+  <form class="form" method="post" action="/settings/folders">
+    <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+    <input type="hidden" name="intent" value="create" />
+    <div class="field">
+      <label for="new-folder-name">Folder name</label>
+      <input
+        id="new-folder-name"
+        name="name"
+        type="text"
+        required
+        maxlength={FOLDER_NAME_MAX}
+        value={createValue}
+        aria-invalid={createError ? "true" : undefined}
+        aria-describedby={createError ? "new-folder-error" : undefined}
+      />
+      {createError && (
+        <p class="field-error" id="new-folder-error">
+          {createError.message}
+        </p>
+      )}
+    </div>
+    <button class="button" type="submit">
+      Create folder
+    </button>
+  </form>
+
+  <h2>Your folders</h2>
+  {folders.length === 0 ? (
+    <p>You have no folders yet. Create one above, then pick it when you publish a note.</p>
+  ) : (
+    <ul class="rows">
+      {folders.map((folder) => (
+        <li class="row">
+          <h3 class="row-title">{folder.name}</h3>
+          <p class="row-meta">
+            {folder.noteCount} {folder.noteCount === 1 ? "note" : "notes"}
+          </p>
+          <div class="row-actions">
+            <form class="inline-form" method="post" action="/settings/folders">
+              <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+              <input type="hidden" name="intent" value="rename" />
+              <input type="hidden" name="id" value={folder.id} />
+              <div class="field">
+                <label class="sr-only" for={`rename-${folder.id}`}>
+                  New name for folder {folder.name}
+                </label>
+                <input
+                  id={`rename-${folder.id}`}
+                  name="name"
+                  type="text"
+                  required
+                  maxlength={FOLDER_NAME_MAX}
+                  value={failedRenameId === folder.id ? failedRenameValue : folder.name}
+                  aria-invalid={failedRenameId === folder.id ? "true" : undefined}
+                />
+              </div>
+              <button class="button button-quiet" type="submit">
+                Rename<span class="sr-only"> {folder.name}</span>
+              </button>
+            </form>
+            <a href={`/settings/folders/${folder.id}/delete`}>
+              Delete<span class="sr-only"> folder {folder.name}</span>
+            </a>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )}
+</Base>

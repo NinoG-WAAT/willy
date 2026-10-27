@@ -27,6 +27,13 @@ const csrfToken = Astro.locals.csrfToken ?? "";
         Willycrumbs
       </a>
       {owner && (
+        <nav class="site-nav" aria-label="Main">
+          <a href="/">Meetings</a>
+          <a href="/settings/templates">Templates</a>
+          <a href="/settings/folders">Folders</a>
+        </nav>
+      )}
+      {owner && (
         <div class="session">
           <span>Signed in as {owner.displayName}</span>
           <form method="post" action="/sign-out">
