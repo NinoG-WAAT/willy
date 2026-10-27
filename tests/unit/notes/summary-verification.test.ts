@@ -194,7 +194,7 @@ describe("verifySummary: limits (reject, never truncate)", () => {
     ).toEqual({ ok: false, error: { kind: "too_large" } });
   });
 
-  it("normalizes whitespace and drops empty text", () => {
+  it("normalizes whitespace (keeping paragraph breaks) and drops empty text", () => {
     const result = verifySummary(
       raw({
         sections: [
@@ -206,7 +206,7 @@ describe("verifySummary: limits (reject, never truncate)", () => {
     );
     expect(result.ok && result.value.summary.sections[0]).toMatchObject({
       heading: "Summary",
-      body: "Line one two",
+      body: "Line one\ntwo",
     });
     expect(result.ok && result.value.summary.decisions).toEqual([]);
   });

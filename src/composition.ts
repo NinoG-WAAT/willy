@@ -3,6 +3,9 @@ import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { createPbkdf2Hasher } from "./adapters/crypto/pbkdf2-password-hasher";
 import { sha256Hex } from "./adapters/crypto/sha256";
+import { readLlmConfig } from "./adapters/llm/config";
+import { createSummarizer } from "./adapters/llm";
+import { createRetryingSummarizer } from "./adapters/llm/retrying-summarizer";
 import { createTranscriber } from "./adapters/stt";
 import { readSttConfig } from "./adapters/stt/config";
 import { createRetryingTranscriber } from "./adapters/stt/retrying-transcriber";
@@ -16,6 +19,7 @@ import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import type { MeetingDeps } from "./app/meetings/capture";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
+import type { Summarizer } from "./ports/summarizer";
 import type { Transcriber } from "./ports/transcriber";
 
 /**
@@ -100,4 +104,23 @@ export function getTranscriber(): Transcriber {
     });
   }
   return transcriber;
+}
+
+let summarizer: Summarizer | undefined;
+
+/**
+ * LLM summaries with retries. The fake is the default; LLM_PROVIDER=anthropic needs LLM_API_KEY.
+ * A bad configuration fails fast here, naming variables but never their values.
+ */
+export function getSummarizer(): Summarizer {
+  if (!summarizer) {
+    const config = readLlmConfig(process.env);
+    if (!config.ok) throw new Error(`Invalid LLM configuration: ${config.error}`);
+    summarizer = createRetryingSummarizer(createSummarizer(config.value, fetch), {
+      policy: { maxAttempts: 3, baseMs: 1000, capMs: 10_000 },
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      random: Math.random,
+    });
+  }
+  return summarizer;
 }
