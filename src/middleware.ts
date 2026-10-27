@@ -8,7 +8,7 @@ import {
 } from "./app/identity/route-access";
 import { securityHeaders } from "./app/ops/security-headers";
 import { isSameOrigin, requiresCsrf, tokensMatch } from "./domain/identity/csrf";
-import { getIdentityDeps } from "./composition";
+import { ensureJobRunner, getIdentityDeps } from "./composition";
 
 // The strict CSP is production-only: Astro's dev toolbar injects inline scripts.
 const security = defineMiddleware(async (_context, next) => {
@@ -47,6 +47,8 @@ async function submittedCsrfToken(request: Request): Promise<string | null> {
  */
 const auth = defineMiddleware(async (context, next) => {
   const { request, url, cookies, locals } = context;
+  // Lazily start the in-process job runner (Node only; a no-op after the first request).
+  ensureJobRunner();
   const access = classifyRoute(url.pathname);
   if (access === "signature") return next();
 

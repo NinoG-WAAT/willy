@@ -28,6 +28,17 @@ export interface NewChunk {
   createdAt: string;
 }
 
+export interface NewSegment {
+  id: string;
+  segIndex: number;
+  startMs: number;
+  endMs: number;
+  speaker: string;
+  /** Envelope-encrypted text; the id is part of the cipher context. */
+  textCiphertext: string;
+  textKeyId: string;
+}
+
 /** Metadata of uploaded audio chunks. Every method is scoped by the owner from the session. */
 export interface ChunkRepository {
   find(ownerId: string, meetingId: string, seq: number): Promise<ChunkRow | null>;
@@ -40,4 +51,28 @@ export interface ChunkRepository {
     meetingId: string,
     chunk: NewChunk,
   ): Promise<{ created: boolean }>;
+
+  listByMeeting(ownerId: string, meetingId: string): Promise<ChunkRow[]>;
+
+  /**
+   * In ONE transaction: stores the chunk's segments (unique on meeting, chunk, index, so a replay
+   * adds nothing) and marks the chunk `transcribed`. Returns how many segments were new.
+   */
+  recordTranscription(
+    ownerId: string,
+    meetingId: string,
+    seq: number,
+    segments: readonly NewSegment[],
+    now: Date,
+  ): Promise<{ inserted: number }>;
+
+  /** `uploaded` or `failed` -> `failed`, counting the attempt and keeping a redacted code. */
+  markFailed(ownerId: string, meetingId: string, seq: number, errorCode: string): Promise<void>;
+
+  /** Only a `transcribed` chunk can be purged: raw audio never goes before its text exists. */
+  markPurged(ownerId: string, meetingId: string, seq: number, now: Date): Promise<void>;
+
+  /** Transcribed chunks still holding raw audio past the owner's retention window. */
+  findExpiredTranscribed(ownerId: string, now: Date): Promise<ChunkRow[]>;
+  ownersWithRetainedAudio(): Promise<string[]>;
 }
