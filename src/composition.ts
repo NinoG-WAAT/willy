@@ -8,7 +8,6 @@ import { createJsonLogger } from "./adapters/logging/json-logger";
 import { createFileTokenService, type FileTokenService } from "./adapters/crypto/file-tokens";
 import { createLocalObjectStore } from "./adapters/fs/local-object-store";
 import { createFixtureCalendarSource } from "./adapters/calendar/fixture-calendar-source";
-import { readCalendarConfig } from "./adapters/calendar/config";
 import { createPbkdf2Hasher } from "./adapters/crypto/pbkdf2-password-hasher";
 import { sha256Hex } from "./adapters/crypto/sha256";
 import { readLlmConfig } from "./adapters/llm/config";
@@ -33,6 +32,10 @@ import { SqliteTemplateRepository } from "./adapters/sqlite/template-repository"
 import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
+import { SqliteDiagnosticsRepository } from "./adapters/sqlite/diagnostics-repository";
+import { readCalendarConfig } from "./adapters/calendar/config";
+import type { DiagnosticsDeps } from "./app/ops/diagnostics";
+import type { ObserveDeps } from "./app/ops/request-observer";
 import { requestMeetingDeletion } from "./app/meetings/delete";
 import { deleteJobHandler } from "./app/meetings/delete-job";
 import { runDueJobs, type JobHandler, type RunnerDeps } from "./app/jobs/runner";
@@ -477,4 +480,31 @@ export function getRegenerateDeps(): RegenerateDeps {
     };
   }
   return regenerateDeps;
+}
+
+let observeDeps: ObserveDeps | undefined;
+
+export function getObserveDeps(): ObserveDeps {
+  observeDeps ??= {
+    logger: getLogger(),
+    now: () => Date.now(),
+    newId: () => new RandomIds().newId(),
+  };
+  return observeDeps;
+}
+
+/** Provider names for diagnostics; a broken configuration is reported, never hidden. */
+export function getDiagnosticsDeps(): DiagnosticsDeps {
+  const stt = readSttConfig(process.env);
+  const llm = readLlmConfig(process.env);
+  const calendar = readCalendarConfig(process.env);
+  return {
+    diagnostics: new SqliteDiagnosticsRepository(getDatabase()),
+    providers: {
+      speechToText: stt.ok ? stt.value.mode : "misconfigured",
+      summaries: llm.ok ? llm.value.mode : "misconfigured",
+      calendar: calendar.ok ? calendar.value.mode : "misconfigured",
+      storage: "local",
+    },
+  };
 }

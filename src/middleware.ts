@@ -6,9 +6,32 @@ import {
   forbiddenResponse,
   unauthenticatedResponse,
 } from "./app/identity/route-access";
+import { enforceRateLimit, rateLimitedResponse } from "./app/ops/rate-limits";
+import { observeRequest } from "./app/ops/request-observer";
 import { securityHeaders } from "./app/ops/security-headers";
 import { isSameOrigin, requiresCsrf, tokensMatch } from "./domain/identity/csrf";
-import { ensureJobRunner, getIdentityDeps } from "./composition";
+import { ensureJobRunner, getIdentityDeps, getObserveDeps } from "./composition";
+
+/**
+ * Outermost: every request gets a correlation id (`X-Request-Id`, on `locals.log` lines too) and
+ * one structured log line; an unexpected exception becomes a logged 500 quoting only that id.
+ */
+const observe = defineMiddleware((context, next) =>
+  observeRequest(
+    getObserveDeps(),
+    {
+      method: context.request.method,
+      pathname: context.url.pathname,
+      inboundRequestId: context.request.headers.get("x-request-id"),
+      ownerId: () => context.locals.owner?.id,
+    },
+    ({ requestId, log }) => {
+      context.locals.requestId = requestId;
+      context.locals.log = log;
+      return next();
+    },
+  ),
+);
 
 // The strict CSP is production-only: Astro's dev toolbar injects inline scripts.
 const security = defineMiddleware(async (_context, next) => {
@@ -50,7 +73,15 @@ const auth = defineMiddleware(async (context, next) => {
   // Lazily start the in-process job runner (Node only; a no-op after the first request).
   ensureJobRunner();
   const access = classifyRoute(url.pathname);
-  if (access === "signature") return next();
+  if (access === "signature") {
+    const limited = await enforceRateLimit(getIdentityDeps().limiter, {
+      method: request.method,
+      pathname: url.pathname,
+      ownerId: undefined,
+      clientAddress: context.clientAddress,
+    });
+    return limited ? rateLimitedResponse(limited.retryAfterSeconds, url.pathname) : next();
+  }
 
   const token = cookies.get(SESSION_COOKIE)?.value;
   if (access === "public" && !token) return next();
@@ -68,6 +99,14 @@ const auth = defineMiddleware(async (context, next) => {
     return unauthenticatedResponse(result.status, request.method, url);
   }
 
+  const limited = await enforceRateLimit(getIdentityDeps().limiter, {
+    method: request.method,
+    pathname: url.pathname,
+    ownerId: result.owner.id,
+    clientAddress: context.clientAddress,
+  });
+  if (limited) return rateLimitedResponse(limited.retryAfterSeconds, url.pathname);
+
   if (requiresCsrf(request.method)) {
     const proven =
       isSameOrigin(request.headers.get("origin"), url.origin) &&
@@ -77,4 +116,4 @@ const auth = defineMiddleware(async (context, next) => {
   return next();
 });
 
-export const onRequest = sequence(security, auth);
+export const onRequest = sequence(observe, security, auth);
