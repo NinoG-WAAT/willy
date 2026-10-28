@@ -522,8 +522,3 @@ export function getSearchDeps(): SearchDeps {
 export function getExportDeps(): ExportDeps {
   return { reader: new SqliteNoteReader(getDatabase()) };
 }
-
-/** The shared per-process limiter (swap for a Durable Object or Rate Limiting binding on Cloudflare). */
-export function getRateLimiter() {
-  return getIdentityDeps().limiter;
-}

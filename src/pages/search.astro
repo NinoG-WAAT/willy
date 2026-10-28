@@ -1,10 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
 import { requireOwner } from "../app/identity/require-owner";
-import { SEARCH_LIMIT } from "../app/search/limits";
 import { searchNotes } from "../app/search/search";
 import { formatSchedule } from "../components/format-schedule";
-import { getNotesDeps, getRateLimiter, getSearchDeps } from "../composition";
+import { getNotesDeps, getSearchDeps } from "../composition";
 import { hitHref, hitKindLabel } from "../domain/search/hit-link";
 
 export const prerender = false;
@@ -22,25 +21,14 @@ const includeArchived = params.get("archived") === "1";
 const folders = await getNotesDeps().folders.list(owner.id);
 
 let error: string | null = null;
-let retryAfter: number | null = null;
 let result: Awaited<ReturnType<typeof searchNotes>> | null = null;
 
+// The per-owner rate limit for /search is enforced by the middleware (docs/OPERATIONS.md).
 if (rawQuery !== null) {
-  const allowed = await getRateLimiter().consume(`search:owner:${owner.id}`, SEARCH_LIMIT);
-  if (!allowed.allowed) {
-    retryAfter = allowed.retryAfterSeconds;
-    Astro.response.status = 429;
-    Astro.response.headers.set("Retry-After", String(allowed.retryAfterSeconds));
-  } else {
-    result = await searchNotes(getSearchDeps(), owner.id, {
-      q: rawQuery,
-      folderId,
-      includeArchived,
-    });
-    if (!result.ok) {
-      error = result.error.message;
-      Astro.response.status = 422;
-    }
+  result = await searchNotes(getSearchDeps(), owner.id, { q: rawQuery, folderId, includeArchived });
+  if (!result.ok) {
+    error = result.error.message;
+    Astro.response.status = 422;
   }
 }
 
@@ -100,13 +88,6 @@ const queryText = terms.join(" ");
       Search
     </button>
   </form>
-
-  {retryAfter !== null && (
-    <p class="alert" role="alert">
-      You are searching very fast. Wait {retryAfter} {retryAfter === 1 ? "second" : "seconds"} and
-      try again.
-    </p>
-  )}
 
   {rawQuery === null && (
     <section class="empty" aria-labelledby="hint-heading">

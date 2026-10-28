@@ -83,7 +83,7 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | `POST /settings/folders` (`intent=create|rename`), `POST /settings/folders/:id/delete` | Folder CRUD | Delete of a non-empty folder is **blocked** with a message (default; see open questions); unique name per owner, case-insensitive |
 | `POST /settings/templates/new`, `/settings/templates/:id`, `/settings/templates/:id/delete`, `POST /settings/templates` (`intent=set_default`) | Template CRUD | At most 12 sections, validated lengths, unique headings; deleting a template detaches the meetings that used it (they fall back to the default) |
 | `POST /settings/retention` | Retention controls | Validated enum |
-| `GET /meetings/:id/export.md` | Markdown export | `GET` is safe (read-only); owner-scoped; sanitized filename; `Content-Disposition: attachment`; `X-Content-Type-Options: nosniff`; rate-limited |
+| `GET /meetings/:id/export.md` (names only, no emails, no transcript; ASCII filename; `nosniff`) | Markdown export | `GET` is safe (read-only); owner-scoped; sanitized filename; `Content-Disposition: attachment`; `X-Content-Type-Options: nosniff`; rate-limited |
 | `POST /meetings/:id/delete` | Permanent deletion | Typed confirmation; marks `deleting` and enqueues one deletion job; repeat is a no-op |
 | `POST /webhooks/calendar` | Inbound provider webhook | Signature verified (constant time, timestamp tolerance); dedupe by provider event id in `ProviderEvent`; no session, no CSRF (signature instead); rate-limited |
 | `GET /oauth/calendar/start`, `GET /oauth/calendar/callback` | Google OAuth connect | `state` bound to session, redirect URI checked against allowlist, tokens encrypted at rest. `start` mutates nothing durable beyond the state nonce |
