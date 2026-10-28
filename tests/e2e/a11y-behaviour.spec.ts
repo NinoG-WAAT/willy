@@ -240,13 +240,13 @@ test.describe("reflow and phone layout", () => {
       12,
     );
     expect(nav.y).toBeGreaterThanOrEqual(brand.y + brand.height - 1);
-    expect(nav.height).toBeLessThanOrEqual(60);
-    // Every navigation link is on screen at once: nothing is hidden behind a sideways scroll.
+    // At most two rows of 44px links, and never a sideways scroll that hides one.
+    expect(nav.height).toBeLessThanOrEqual(96);
     const hidden = await page
       .getByRole("navigation", { name: "Main" })
       .evaluate((el) => el.scrollWidth - el.clientWidth);
     expect(hidden).toBeLessThanOrEqual(0);
-    expect(header.height).toBeLessThanOrEqual(140);
+    expect(header.height).toBeLessThanOrEqual(170);
   });
 
   test("on a phone, fields and primary buttons use the full width", async ({ page }) => {

@@ -699,7 +699,8 @@ details[open] > summary::before {
 
 /* Standalone action links (row actions, "Cancel" beside a submit button) are touch targets too. */
 .row-actions > a:not(.button),
-form > a:not(.button) {
+form > a:not(.button),
+a[data-source-from] {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
@@ -757,12 +758,12 @@ form > a:not(.button) {
   .site-nav {
     grid-area: nav;
     gap: 0;
-    flex-wrap: nowrap;
+    /* One row in normal fonts; a wider font wraps to a second row instead of hiding a link. */
+    flex-wrap: wrap;
     justify-content: space-between;
     margin-inline: calc(var(--gutter) * -1);
     padding-inline: var(--gutter);
     border-top: 1px solid var(--border);
-    overflow-x: auto;
   }
 
   .site-nav a {

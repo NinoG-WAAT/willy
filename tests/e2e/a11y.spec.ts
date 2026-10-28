@@ -37,7 +37,7 @@ async function expectHitTargets(page: Page): Promise<void> {
   const tooSmall = await page.evaluate(() => {
     const MIN = 44;
     const controls = document.querySelectorAll<HTMLElement>(
-      "button, input:not([type=hidden]), select, textarea, summary, a.button, nav a, .row-actions a, a.brand, a.jump-link",
+      "button, input:not([type=hidden]), select, textarea, summary, a.button, nav a, .row-actions a, a.brand, a.jump-link, a[data-source-from]",
     );
     const bad: string[] = [];
     for (const el of controls) {
