@@ -33,6 +33,8 @@ import { SqliteTemplateRepository } from "./adapters/sqlite/template-repository"
 import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
+import { requestMeetingDeletion } from "./app/meetings/delete";
+import { deleteJobHandler } from "./app/meetings/delete-job";
 import { runDueJobs, type JobHandler, type RunnerDeps } from "./app/jobs/runner";
 import type { RegenerateDeps } from "./app/notes/regenerate-section";
 import { summaryJobHandler } from "./app/notes/summary-job";
@@ -304,7 +306,7 @@ function getRunnerDeps(): RunnerDeps {
   };
 }
 
-/** Job kinds with a handler today; delete (#13) adds its own here. */
+/** Job kinds with a handler: transcribe, summarize, retention and delete. */
 function getJobHandlers(): JobHandler[] {
   const deps = getTranscribeDeps();
   return [
@@ -323,6 +325,24 @@ function getJobHandlers(): JobHandler[] {
       chunkStore: deps.chunkStore,
       clock: deps.clock,
       logger: deps.logger,
+      housekeeping: {
+        meetings: deps.meetings,
+        requestDeletion: async (ownerId, meetingId) => {
+          await requestMeetingDeletion(
+            { meetings: deps.meetings, clock: deps.clock },
+            ownerId,
+            meetingId,
+            "retention",
+          );
+        },
+        requeueFailedDeletions: (ownerId, now) => deps.jobs.requeueFailed(ownerId, "delete", now),
+      },
+    }),
+    deleteJobHandler({
+      meetings: deps.meetings,
+      chunkStore: deps.chunkStore,
+      clock: deps.clock,
+      logger: deps.logger,
     }),
   ];
 }
@@ -330,7 +350,16 @@ function getJobHandlers(): JobHandler[] {
 /** Runs every due job once (the interval runner's tick; also the dev/test endpoint). */
 export async function runJobsNow(): Promise<{ ran: number }> {
   const deps = getTranscribeDeps();
-  await scheduleRetentionJobs({ chunks: deps.chunks, jobs: deps.jobs, clock: deps.clock });
+  const settings = new SqliteSettingsRepository(getDatabase());
+  await scheduleRetentionJobs({
+    chunks: deps.chunks,
+    jobs: deps.jobs,
+    clock: deps.clock,
+    extraOwners: async () => [
+      ...(await settings.ownersWithNoteRetention()),
+      ...(await deps.jobs.ownersWithFailed("delete")),
+    ],
+  });
   return runDueJobs(getRunnerDeps(), getJobHandlers());
 }
 

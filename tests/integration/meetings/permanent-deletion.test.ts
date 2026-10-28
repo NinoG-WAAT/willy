@@ -13,7 +13,6 @@ import { SqliteChunkRepository } from "../../../src/adapters/sqlite/chunk-reposi
 import { SqliteJobRepository } from "../../../src/adapters/sqlite/job-repository";
 import { SqliteMeetingRepository } from "../../../src/adapters/sqlite/meeting-repository";
 import { SqliteNoteRepository } from "../../../src/adapters/sqlite/note-repository";
-import { SqliteSettingsRepository } from "../../../src/adapters/sqlite/settings-repository";
 import { FixedClock, SequentialIds } from "../../../src/adapters/system/fakes";
 import { runDueJobs, type RunnerDeps } from "../../../src/app/jobs/runner";
 import { requestMeetingDeletion } from "../../../src/app/meetings/delete";
@@ -97,30 +96,71 @@ async function fullMeeting(ownerId: string, id: string): Promise<void> {
     folder_id: `f-${id}`,
   });
   insert(db, "note_section", {
-    id: `${id}-sec`, owner_id: ownerId, note_id: `${id}-note`, position: 0, heading: "Summary",
-    body: "Secret summary", source_from: 0, source_to: 1, created_at: T0, updated_at: T0,
+    id: `${id}-sec`,
+    owner_id: ownerId,
+    note_id: `${id}-note`,
+    position: 0,
+    heading: "Summary",
+    body: "Secret summary",
+    source_from: 0,
+    source_to: 1,
+    created_at: T0,
+    updated_at: T0,
   });
   insert(db, "decision", {
-    id: `${id}-dec`, owner_id: ownerId, note_id: `${id}-note`, position: 0, text: "Secret decision",
-    created_at: T0, updated_at: T0,
+    id: `${id}-dec`,
+    owner_id: ownerId,
+    note_id: `${id}-note`,
+    position: 0,
+    text: "Secret decision",
+    created_at: T0,
+    updated_at: T0,
   });
   insert(db, "action_item", {
-    id: `${id}-act`, owner_id: ownerId, meeting_id: id, note_id: `${id}-note`, position: 0,
-    text: "Secret task", assignee_attendee_id: `${id}-att`, status: "open", created_at: T0, updated_at: T0,
+    id: `${id}-act`,
+    owner_id: ownerId,
+    meeting_id: id,
+    note_id: `${id}-note`,
+    position: 0,
+    text: "Secret task",
+    assignee_attendee_id: `${id}-att`,
+    status: "open",
+    created_at: T0,
+    updated_at: T0,
   });
   for (const [kind, ref, title, body] of [
     ["meeting", id, `Secret title ${id}`, "Secret rough notes"],
     ["note_section", `${id}-sec`, "Summary", "Secret summary"],
   ] as const) {
-    insert(db, "search_index", { title, body, owner_id: ownerId, meeting_id: id, kind, ref_id: ref });
+    insert(db, "search_index", {
+      title,
+      body,
+      owner_id: ownerId,
+      meeting_id: id,
+      kind,
+      ref_id: ref,
+    });
   }
   insert(db, "audit_event", {
-    id: `${id}-aud`, owner_id: ownerId, meeting_id: id, kind: "meeting.consent_confirmed",
-    actor: "owner", detail_json: "{}", occurred_at: T0,
+    id: `${id}-aud`,
+    owner_id: ownerId,
+    meeting_id: id,
+    kind: "meeting.consent_confirmed",
+    actor: "owner",
+    detail_json: "{}",
+    occurred_at: T0,
   });
   insert(db, "job", {
-    id: `${id}-job-t`, owner_id: ownerId, meeting_id: id, kind: "transcribe", job_key: `transcribe:${id}`,
-    status: "succeeded", attempts: 1, max_attempts: 5, created_at: T0, updated_at: T0,
+    id: `${id}-job-t`,
+    owner_id: ownerId,
+    meeting_id: id,
+    kind: "transcribe",
+    job_key: `transcribe:${id}`,
+    status: "succeeded",
+    attempts: 1,
+    max_attempts: 5,
+    created_at: T0,
+    updated_at: T0,
   });
 }
 
@@ -128,7 +168,8 @@ const requestDelete = (ownerId = "A", id = "m1") =>
   requestMeetingDeletion({ meetings, clock }, ownerId, id);
 const run = () => runDueJobs(runner, [deleteJobHandler(deleteDeps)]);
 const meetingRow = (id = "m1") => db.prepare("SELECT * FROM meeting WHERE id = ?").get(id);
-const deleteJob = (id = "m1") => db.prepare("SELECT * FROM job WHERE job_key = ?").get(`delete:${id}`);
+const deleteJob = (id = "m1") =>
+  db.prepare("SELECT * FROM job WHERE job_key = ?").get(`delete:${id}`);
 const objectCount = async (id = "m1", ownerId = "A") => {
   const r = await objects.get(`owner/${ownerId}/meeting/${id}/chunk-0`);
   const r1 = await objects.get(`owner/${ownerId}/meeting/${id}/chunk-1`);
@@ -206,7 +247,15 @@ describe("step 2: the deletion job removes files, indexes and rows", () => {
     await run();
 
     expect(await objectCount()).toBe(0);
-    for (const table of ["attendee", "audio_chunk", "transcript_segment", "note", "note_section", "decision", "action_item"]) {
+    for (const table of [
+      "attendee",
+      "audio_chunk",
+      "transcript_segment",
+      "note",
+      "note_section",
+      "decision",
+      "action_item",
+    ]) {
       expect(count(db, table, "owner_id = 'A'"), table).toBe(0);
     }
     expect(count(db, "search_index", "meeting_id = 'm1'")).toBe(0);
@@ -226,7 +275,11 @@ describe("step 2: the deletion job removes files, indexes and rows", () => {
   it("keeps a minimal audit record that holds no content", async () => {
     await requestDelete();
     await run();
-    const events = db.prepare("SELECT kind, actor, detail_json FROM audit_event WHERE meeting_id = 'm1' ORDER BY occurred_at, id").all();
+    const events = db
+      .prepare(
+        "SELECT kind, actor, detail_json FROM audit_event WHERE meeting_id = 'm1' ORDER BY occurred_at, id",
+      )
+      .all();
     expect(events.map((e) => e["kind"])).toEqual([
       "meeting.consent_confirmed",
       "meeting.status_changed",
@@ -247,7 +300,10 @@ describe("step 2: the deletion job removes files, indexes and rows", () => {
     await run();
     const claims = await tokens.verify(token);
     expect(claims.ok).toBe(true);
-    expect(await chunkStore.getChunk("A", "m1", 0)).toEqual({ ok: false, error: { kind: "not_found" } });
+    expect(await chunkStore.getChunk("A", "m1", 0)).toEqual({
+      ok: false,
+      error: { kind: "not_found" },
+    });
   });
 
   it("stays a 404 after completion", async () => {
@@ -266,7 +322,10 @@ describe("step 2: the deletion job removes files, indexes and rows", () => {
     await fullMeeting("B", "m1b");
     await requestDelete();
     await run();
-    for (const [o, id] of [["A", "m10"], ["B", "m1b"]] as const) {
+    for (const [o, id] of [
+      ["A", "m10"],
+      ["B", "m1b"],
+    ] as const) {
       expect(meetingRow(id)).toMatchObject({ status: "published" });
       expect(await objectCount(id, o)).toBe(2);
       expect(count(db, "note", `meeting_id = '${id}'`)).toBe(1);
@@ -277,13 +336,17 @@ describe("step 2: the deletion job removes files, indexes and rows", () => {
   it("frees the calendar event so it can be imported again", async () => {
     await requestDelete();
     await run();
-    expect(() => meeting(db, "A", "reimport", { calendar_provider: "google", provider_event_id: "evt-m1" })).not.toThrow();
+    expect(() =>
+      meeting(db, "A", "reimport", { calendar_provider: "google", provider_event_id: "evt-m1" }),
+    ).not.toThrow();
   });
 
   it("is idempotent: running the job again after completion is a quiet no-op", async () => {
     await requestDelete();
     await run();
-    db.prepare("UPDATE job SET status = 'pending', attempts = 0, next_run_at = NULL WHERE kind = 'delete'").run();
+    db.prepare(
+      "UPDATE job SET status = 'pending', attempts = 0, next_run_at = NULL WHERE kind = 'delete'",
+    ).run();
     await run();
     expect(deleteJob()).toMatchObject({ status: "succeeded" });
     expect(meetingRow()).toMatchObject({ status: "deleted" });
@@ -292,8 +355,17 @@ describe("step 2: the deletion job removes files, indexes and rows", () => {
 
   it("skips jobs that are not for a meeting being deleted", async () => {
     insert(db, "job", {
-      id: "stray", owner_id: "A", meeting_id: "m1", kind: "delete", job_key: "delete:m1",
-      status: "pending", attempts: 0, max_attempts: 5, next_run_at: T0, created_at: T0, updated_at: T0,
+      id: "stray",
+      owner_id: "A",
+      meeting_id: "m1",
+      kind: "delete",
+      job_key: "delete:m1",
+      status: "pending",
+      attempts: 0,
+      max_attempts: 5,
+      next_run_at: T0,
+      created_at: T0,
+      updated_at: T0,
     });
     await run();
     expect(meetingRow()).toMatchObject({ status: "published" });
@@ -306,7 +378,11 @@ describe("failures are visible and retried until the deletion completes", () => 
     await requestDelete();
     objects.script.failOnce("unavailable");
     await run();
-    expect(deleteJob()).toMatchObject({ status: "retrying", attempts: 1, last_error_code: "storage_unavailable" });
+    expect(deleteJob()).toMatchObject({
+      status: "retrying",
+      attempts: 1,
+      last_error_code: "storage_unavailable",
+    });
     expect(meetingRow()).toMatchObject({ status: "deleting" });
     expect(count(db, "note")).toBe(1);
     expect(logger.entries.some((e) => e.event === "job.retry_scheduled")).toBe(true);

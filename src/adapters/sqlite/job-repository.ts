@@ -135,4 +135,22 @@ export class SqliteJobRepository implements JobRepository {
       .all(ownerId, meetingId);
     return Promise.resolve(rows.map(toJobRow));
   }
+
+  requeueFailed(ownerId: string, kind: JobKind, now: Date): Promise<number> {
+    const iso = now.toISOString();
+    const result = this.db
+      .prepare(
+        `UPDATE job SET status = 'pending', attempts = 0, last_error_code = NULL, next_run_at = ?, updated_at = ?
+         WHERE owner_id = ? AND kind = ? AND status = 'failed'`,
+      )
+      .run(iso, iso, ownerId, kind);
+    return Promise.resolve(Number(result.changes));
+  }
+
+  ownersWithFailed(kind: JobKind): Promise<string[]> {
+    const rows = this.db
+      .prepare("SELECT DISTINCT owner_id FROM job WHERE kind = ? AND status = 'failed'")
+      .all(kind);
+    return Promise.resolve(rows.map((r) => String(r["owner_id"])));
+  }
 }

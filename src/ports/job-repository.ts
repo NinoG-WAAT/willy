@@ -47,4 +47,8 @@ export interface JobRepository {
   enqueue(job: NewJob, now: Date): Promise<{ created: boolean }>;
   /** Owner-scoped read for status polling: every job of the meeting, oldest first. */
   listForMeeting(ownerId: string, meetingId: string): Promise<JobRow[]>;
+
+  /** Resets the owner's `failed` jobs of a kind to pending (hourly sweep); returns how many. */
+  requeueFailed(ownerId: string, kind: JobKind, now: Date): Promise<number>;
+  ownersWithFailed(kind: JobKind): Promise<string[]>;
 }

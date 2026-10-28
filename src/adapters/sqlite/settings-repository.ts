@@ -10,4 +10,11 @@ export class SqliteSettingsRepository implements SettingsRepository {
       .get(ownerId);
     return Promise.resolve(row ? Number(row["hours"]) : 0);
   }
+
+  ownersWithNoteRetention(): Promise<string[]> {
+    const rows = this.db
+      .prepare("SELECT owner_id FROM settings WHERE note_retention_days IS NOT NULL")
+      .all();
+    return Promise.resolve(rows.map((r) => String(r["owner_id"])));
+  }
 }
