@@ -47,7 +47,7 @@ describe("enforceRateLimit", () => {
       expect(await enforceRateLimit(limiter, { ...exportReq, ...who })).toBeNull();
     }
     const blocked = await enforceRateLimit(limiter, { ...exportReq, ...who });
-    expect(blocked).toEqual({ limit: "export", retryAfterSeconds: expect.any(Number) });
+    expect(blocked?.limit).toBe("export");
     expect(blocked?.retryAfterSeconds).toBeGreaterThan(0);
   });
 

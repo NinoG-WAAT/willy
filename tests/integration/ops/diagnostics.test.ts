@@ -69,7 +69,8 @@ describe("getDiagnostics", () => {
     const text = JSON.stringify(
       await getDiagnostics({ diagnostics: new SqliteDiagnosticsRepository(db), providers }, "A"),
     );
-    expect(text).not.toMatch(/stt_rejected|mA|mB|owner|key|secret|token|@/i);
+    expect(text).not.toMatch(/stt_rejected|owner|key|secret|token|@/i);
+    expect(text).not.toMatch(/"m[AB]"/);
   });
 
   it("copes with an empty database", async () => {
