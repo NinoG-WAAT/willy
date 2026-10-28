@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createCapturingMeeting } from "../support/e2e-db";
+import { createFreshOwner } from "../support/journey-db";
 
 const PASSWORD = "willy-dev-password";
 
@@ -59,7 +60,8 @@ test("the job-run endpoint needs a session and CSRF token, and exists only when 
 }) => {
   const anonymous = await request.post("/internal/jobs/run", { maxRedirects: 0 });
   expect(anonymous.status()).toBe(303);
-  const token = await signIn(page, "ada@example.test");
+  // A fresh owner: running jobs only ever advances the signed-in owner's own jobs.
+  const token = await signIn(page, createFreshOwner().email);
   const origin = new URL(page.url()).origin;
   const noToken = await page.request.post("/internal/jobs/run", { headers: { origin } });
   expect(noToken.status()).toBe(403);
