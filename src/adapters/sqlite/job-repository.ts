@@ -4,6 +4,21 @@ import type { JobKind, JobRepository, JobRow, JobStatus, NewJob } from "../../po
 
 const MAX_ATTEMPTS = 5;
 
+function parsePayload(json: unknown): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  try {
+    const parsed: unknown = JSON.parse(typeof json === "string" ? json : "{}");
+    if (typeof parsed === "object" && parsed !== null) {
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === "string" || typeof value === "number") out[key] = value;
+      }
+    }
+  } catch {
+    // An unreadable payload only means "no extra data".
+  }
+  return out;
+}
+
 function toJobRow(r: Record<string, unknown>): JobRow {
   const meetingId = r["meeting_id"];
   const nextRunAt = r["next_run_at"];
@@ -19,6 +34,8 @@ function toJobRow(r: Record<string, unknown>): JobRow {
     maxAttempts: Number(r["max_attempts"]),
     nextRunAt: typeof nextRunAt === "string" ? nextRunAt : null,
     lastErrorCode: typeof lastError === "string" ? lastError : null,
+    payload: parsePayload(r["payload_json"]),
+    updatedAt: String(r["updated_at"]),
   };
 }
 
@@ -94,7 +111,7 @@ export class SqliteJobRepository implements JobRepository {
       .prepare(
         `INSERT INTO job (id, owner_id, meeting_id, kind, job_key, status, attempts, max_attempts,
                           next_run_at, payload_json, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?, '{}', ?, ?)
+         VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?)
          ${onConflict}`,
       )
       .run(
@@ -105,16 +122,17 @@ export class SqliteJobRepository implements JobRepository {
         job.jobKey,
         MAX_ATTEMPTS,
         iso,
+        JSON.stringify(job.payload ?? {}),
         iso,
         iso,
       );
     return Promise.resolve({ created: result.changes === 1 });
   }
 
-  findForMeeting(ownerId: string, meetingId: string, kind: JobKind): Promise<JobRow | null> {
-    const row = this.db
-      .prepare("SELECT * FROM job WHERE owner_id = ? AND meeting_id = ? AND kind = ?")
-      .get(ownerId, meetingId, kind);
-    return Promise.resolve(row ? toJobRow(row) : null);
+  listForMeeting(ownerId: string, meetingId: string): Promise<JobRow[]> {
+    const rows = this.db
+      .prepare("SELECT * FROM job WHERE owner_id = ? AND meeting_id = ? ORDER BY created_at, id")
+      .all(ownerId, meetingId);
+    return Promise.resolve(rows.map(toJobRow));
   }
 }

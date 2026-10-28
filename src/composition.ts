@@ -34,6 +34,7 @@ import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
 import { runDueJobs, type JobHandler, type RunnerDeps } from "./app/jobs/runner";
+import type { RegenerateDeps } from "./app/notes/regenerate-section";
 import { summaryJobHandler } from "./app/notes/summary-job";
 import type { StatusDeps } from "./app/transcription/processing-status";
 import { retentionJobHandler, scheduleRetentionJobs } from "./app/transcription/retention";
@@ -432,4 +433,19 @@ export function getCaptureSegmentMs(): number {
   return Number.isInteger(configured) && configured >= 1_000 && configured <= 60_000
     ? configured
     : 10_000;
+}
+
+let regenerateDeps: RegenerateDeps | undefined;
+
+export function getRegenerateDeps(): RegenerateDeps {
+  if (!regenerateDeps) {
+    const { meetings, clock } = getMeetingDeps();
+    regenerateDeps = {
+      meetings,
+      notes: new SqliteNoteRepository(getDatabase(), new RandomIds()),
+      jobs: getJobRepository(),
+      clock,
+    };
+  }
+  return regenerateDeps;
 }

@@ -26,6 +26,8 @@ test("an owner sees status, job and chunk counts for their own meeting", async (
   expect(await before.json()).toEqual({
     meetingStatus: "capturing",
     job: null,
+    summary: null,
+    regeneration: null,
     chunks: { total: 0, uploaded: 0, transcribed: 0, failed: 0, purged: 0 },
   });
 
