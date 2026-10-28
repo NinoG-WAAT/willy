@@ -47,6 +47,8 @@ import { requestMeetingDeletion } from "./app/meetings/delete";
 import { deleteJobHandler } from "./app/meetings/delete-job";
 import { runDueJobs, type JobHandler, type RunnerDeps } from "./app/jobs/runner";
 import type { RegenerateDeps } from "./app/notes/regenerate-section";
+import type { ReviewFormDeps } from "./app/notes/review-http";
+import { SqliteReviewRepository } from "./adapters/sqlite/review-repository";
 import { summaryJobHandler } from "./app/notes/summary-job";
 import type { StatusDeps } from "./app/transcription/processing-status";
 import { retentionJobHandler, scheduleRetentionJobs } from "./app/transcription/retention";
@@ -491,6 +493,25 @@ export function getRegenerateDeps(): RegenerateDeps {
     };
   }
   return regenerateDeps;
+}
+
+let reviewDeps: ReviewFormDeps | undefined;
+
+export function getReviewDeps(): ReviewFormDeps {
+  if (!reviewDeps) {
+    const capture = getMeetingDeps();
+    reviewDeps = {
+      review: {
+        reviews: new SqliteReviewRepository(getDatabase(), new RandomIds()),
+        folders: getNotesDeps().folders,
+        meetings: capture.meetings,
+        textCipher: getTextCipher(),
+        clock: capture.clock,
+      },
+      capture,
+    };
+  }
+  return reviewDeps;
 }
 
 let observeDeps: ObserveDeps | undefined;

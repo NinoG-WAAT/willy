@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { openDatabase } from "../../src/adapters/sqlite/database";
+import { seedReviewMeeting } from "./review-fixtures";
 
 /** Moves one session's idle expiry into the past in the e2e server's database (no waiting). */
 export function expireSession(token: string): void {
@@ -53,14 +54,14 @@ export function meetingStatus(meetingId: string): string {
  */
 export function createCapturingMeeting(
   ownerId: string,
-  status: "capturing" | "scheduled" = "capturing",
+  status: "capturing" | "scheduled" | "failed" | "processing" = "capturing",
   title = "E2E meeting",
 ): string {
   const dir = process.env["E2E_DATA_DIR"];
   if (!dir) throw new Error("E2E_DATA_DIR is not set (set by playwright.config.ts)");
   const id = `e2e-${Math.random().toString(36).slice(2, 10)}`;
   const now = new Date().toISOString();
-  const consented = status === "capturing";
+  const consented = status !== "scheduled";
   const db = openDatabase(join(dir, "willy.db"));
   try {
     db.prepare(
@@ -135,6 +136,24 @@ export function createDeletionInState(
         ).run(`job-${key}`, ownerId, key, iso, iso);
       }
     }
+  } finally {
+    db.close();
+  }
+  return id;
+}
+
+/**
+ * A fresh meeting in review for the owner, with a draft note, two speakers and encrypted
+ * transcript lines (see seedReviewMeeting), so a test can edit and publish it without touching
+ * shared seed data. Ids are `<id>-a1` (attendee), `<id>-sec-0`, `<id>-dec-0`, `<id>-act-0`.
+ */
+export async function createReviewMeeting(ownerId: string): Promise<string> {
+  const dir = process.env["E2E_DATA_DIR"];
+  if (!dir) throw new Error("E2E_DATA_DIR is not set (set by playwright.config.ts)");
+  const id = `e2e-${Math.random().toString(36).slice(2, 10)}`;
+  const db = openDatabase(join(dir, "willy.db"));
+  try {
+    await seedReviewMeeting(db, ownerId, id);
   } finally {
     db.close();
   }
