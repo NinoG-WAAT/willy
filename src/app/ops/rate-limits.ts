@@ -1,5 +1,6 @@
 import type { RateLimitPolicy } from "../../domain/platform/rate-limit";
 import type { RateLimiter } from "../../ports/rate-limiter";
+import { standalonePage } from "../platform/standalone-page";
 
 export interface RouteLimit {
   name: string;
@@ -86,7 +87,10 @@ export function rateLimitedResponse(retryAfterSeconds: number, pathname: string)
     });
   }
   return new Response(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Too many requests - Willycrumbs</title></head><body><main><h1>Too many requests</h1><p>Please wait ${String(retryAfterSeconds)} seconds and try again.</p></main></body></html>`,
+    standalonePage(
+      "Too many requests",
+      `<p>Please wait ${String(retryAfterSeconds)} seconds and try again.</p>`,
+    ),
     { status: 429, headers: { ...headers, "Content-Type": "text/html; charset=utf-8" } },
   );
 }

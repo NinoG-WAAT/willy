@@ -160,18 +160,19 @@ const regeneration = progress?.regeneration ?? null;
         <time datetime={meeting.scheduledStartAt}>
           {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
         </time>
-        ·
+        {" · "}
         <span class="badge" id="note-status">
           {statusLabel}
         </span>
         {note?.status === "published" && note.folderName !== null && (
           <span> in the folder {note.folderName}</span>
         )}
-        ·
+      </p>
+      <p class="row-actions">
         <a href={`/meetings/${meeting.id}/export.md`} download>
           Export as Markdown<span class="sr-only"> ({meeting.title})</span>
         </a>
-        ·<a href={`/meetings/${meeting.id}`}>Rough notes</a>
+        <a href={`/meetings/${meeting.id}`}>Rough notes</a>
       </p>
     </div>
   </div>
@@ -248,7 +249,7 @@ const regeneration = progress?.regeneration ?? null;
           {note.status === "published" && (
             <>
               <p>
-                Published
+                Published{" "}
                 {note.folderName !== null && (
                   <span>
                     {" "}
@@ -283,7 +284,7 @@ const regeneration = progress?.regeneration ?? null;
           )}
           {editable && folders.length === 0 && (
             <p>
-              Publishing files the note in a private folder, and you have none yet.
+              Publishing files the note in a private folder, and you have none yet.{" "}
               <a href="/settings/folders">Create a folder</a>, then come back: your edits stay here.
             </p>
           )}
@@ -548,7 +549,7 @@ const regeneration = progress?.regeneration ?? null;
                 <li id={`action-${a.id}`} class:list={[{ "is-hit": isHit("action_item", a.id) }]}>
                   <p>
                     {isHit("action_item", a.id) && <span class="badge">Search match</span>}
-                    <strong>{a.status === "done" ? "Done" : "Open"}</strong>
+                    <strong>{a.status === "done" ? "Done" : "Open"}</strong>{" "}
                     {a.dueAt !== null && (
                       <span>
                         · Due <time datetime={a.dueAt}>{formatSchedule(a.dueAt, zone)}</time>
@@ -860,8 +861,8 @@ const regeneration = progress?.regeneration ?? null;
                   tabindex="-1"
                   class:list={[{ "is-source": inSource(s.position) }]}
                 >
-                  <span class="seg-time">{formatOffset(s.startMs)}</span>
-                  <strong>{s.speaker}</strong>
+                  <span class="seg-time">{formatOffset(s.startMs)}</span>{" "}
+                  <strong>{s.speaker}</strong>{" "}
                   <span class="seg-flag" hidden={!inSource(s.position)}>
                     Cited
                   </span>

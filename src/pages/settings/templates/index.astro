@@ -48,14 +48,14 @@ const hasDefault = templates.some((t) => t.isDefault);
 
   {templates.length === 0 ? (
     <p>
-      You have no templates yet. Until you create one, new notes use the built-in layout:
+      You have no templates yet. Until you create one, new notes use the built-in layout:{" "}
       {DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ")}.
     </p>
   ) : (
     <>
       {!hasDefault && (
         <p>
-          None of your templates is the default, so new notes use the built-in layout:
+          None of your templates is the default, so new notes use the built-in layout:{" "}
           {DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ")}.
         </p>
       )}
@@ -63,11 +63,10 @@ const hasDefault = templates.some((t) => t.isDefault);
         {templates.map((template) => (
           <li class="row">
             <h2>
-              {template.name}
-              {template.isDefault && <span class="badge">Default</span>}
+              {template.name} {template.isDefault && <span class="badge">Default</span>}
             </h2>
             <p class="row-meta">
-              {template.sections.length} {template.sections.length === 1 ? "section" : "sections"}:
+              {template.sections.length} {template.sections.length === 1 ? "section" : "sections"}:{" "}
               {template.sections.map((s) => s.heading).join(", ")}. Used by {template.meetingCount}
               {template.meetingCount === 1 ? " meeting" : " meetings"}.
             </p>

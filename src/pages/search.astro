@@ -116,7 +116,8 @@ const queryText = terms.join(" ");
               </h3>
               <p class="row-meta">
                 {hitKindLabel(hit.kind)}
-                {hit.kind === "note_section" ? `: ${hit.label}` : ""}·{" "}
+                {hit.kind === "note_section" ? `: ${hit.label}` : ""}
+                {" · "}
                 <time datetime={hit.scheduledStartAt}>
                   {formatSchedule(hit.scheduledStartAt, hit.timezone)}
                 </time>

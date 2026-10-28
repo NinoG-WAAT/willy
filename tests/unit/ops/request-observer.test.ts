@@ -113,6 +113,9 @@ describe("observeRequest", () => {
     const body = await res.text();
     expect(body).toContain("req-0000000a");
     expect(body).not.toMatch(/boom|secret|sk-key/);
+    // Built outside the layout: it still needs a viewport for phones and a way back.
+    expect(body).toContain('<meta name="viewport"');
+    expect(body).toContain('<a href="/">Back to your meetings</a>');
     expect(logger.entries).toEqual([
       expect.objectContaining({
         level: "error",

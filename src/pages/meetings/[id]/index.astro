@@ -121,7 +121,10 @@ const STATUS_TEXT: Record<string, string> = {
     <time datetime={detail.scheduledStartAt}>
       {formatSchedule(detail.scheduledStartAt, detail.timezone)}
     </time>
-    · {STATUS_TEXT[detail.status] ?? detail.status}·
+    {" · "}
+    {STATUS_TEXT[detail.status] ?? detail.status}
+  </p>
+  <p class="row-actions">
     <a href={`/meetings/${detail.id}/export.md`} download>
       Export as Markdown<span class="sr-only"> ({detail.title})</span>
     </a>
@@ -173,7 +176,7 @@ const STATUS_TEXT: Record<string, string> = {
             </>
           ) : (
             <p>
-              You confirmed consent on
+              You confirmed consent on{" "}
               <time datetime={detail.consentConfirmedAt ?? ""}>
                 {formatSchedule(
                   detail.consentConfirmedAt ?? detail.scheduledStartAt,
@@ -268,7 +271,7 @@ const STATUS_TEXT: Record<string, string> = {
         </>
       )}
 
-      {controls.phase === "after" && <p>{STATUS_TEXT[detail.status]}</p>}
+      {controls.phase === "after" && <p role="status">{STATUS_TEXT[detail.status]}</p>}
       {controls.phase === "archived" && <p>This note is archived. Your rough notes are kept.</p>}
     </section>
 

@@ -50,7 +50,7 @@ const recording = meeting.status === "capturing" || meeting.status === "paused";
 <Base title="Delete meeting permanently">
   <h1>Delete meeting permanently</h1>
   <p>
-    You are about to delete <strong>{meeting.title}</strong>, scheduled for
+    You are about to delete <strong>{meeting.title}</strong>, scheduled for{" "}
     <time datetime={meeting.scheduledStartAt}>
       {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
     </time>
@@ -88,7 +88,7 @@ const recording = meeting.status === "capturing" || meeting.status === "paused";
       removes the files and records, and you can follow it on the settings page.
     </p>
     <p>
-      Want a copy first?
+      Want a copy first?{" "}
       <a href={`/meetings/${meeting.id}/export.md`}>Export this note to Markdown</a>. The export has
       no transcript or audio.
     </p>
