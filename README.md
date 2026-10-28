@@ -19,7 +19,8 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | Folders and templates (settings pages: create, edit, default, delete) | done |
 | Screen 1: meetings home, new note, calendar import (demo calendar; Google connect flow pending) | done |
 | Screen 2: live note (consent, capture, rough notes, recording state, failure recovery) | done |
-| Screens 3-4 (review, search/settings hub), search and export | not started |
+| Search and Markdown export | done |
+| Screens 3-4 (review, settings hub with deletion UI) | not started |
 
 ## Prerequisites
 
@@ -137,6 +138,8 @@ The deletion job and retention settings UI are in progress (#13, #19); the data 
 Full checklist: CLAUDE.md section 8.
 
 ## Known limitations
+
+- **Search does not cover transcripts.** The index holds titles, agendas, rough notes, summary sections, decisions and action items. Transcripts are encrypted at rest and an index would store their text in plaintext; indexing them needs an encrypted-index decision (docs/DATA_MODEL.md section 5). Search hits can still open the review screen at the cited source range.
 
 - Several screens and server features are not on `main` yet (see Status); this README is updated in the same PR as each behavior change.
 - No ICS file import yet; calendar import currently supports Google (and the fake).

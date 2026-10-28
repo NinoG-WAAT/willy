@@ -1,0 +1,144 @@
+---
+import Base from "../layouts/Base.astro";
+import { requireOwner } from "../app/identity/require-owner";
+import { searchNotes } from "../app/search/search";
+import { formatSchedule } from "../components/format-schedule";
+import { getNotesDeps, getSearchDeps } from "../composition";
+import { hitHref, hitKindLabel } from "../domain/search/hit-link";
+
+export const prerender = false;
+
+// Owner route (middleware default-deny). GET only: searching never changes anything.
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const params = Astro.url.searchParams;
+const rawQuery = params.get("q");
+const folderParam = params.get("folder");
+const folderId =
+  folderParam !== null && folderParam !== "" && folderParam.length <= 100 ? folderParam : null;
+const includeArchived = params.get("archived") === "1";
+const folders = await getNotesDeps().folders.list(owner.id);
+
+let error: string | null = null;
+let result: Awaited<ReturnType<typeof searchNotes>> | null = null;
+
+// The per-owner rate limit for /search is enforced by the middleware (docs/OPERATIONS.md).
+if (rawQuery !== null) {
+  result = await searchNotes(getSearchDeps(), owner.id, { q: rawQuery, folderId, includeArchived });
+  if (!result.ok) {
+    error = result.error.message;
+    Astro.response.status = 422;
+  }
+}
+
+const hits = result?.ok ? result.value.hits : [];
+const terms = result?.ok ? result.value.terms : [];
+const queryText = terms.join(" ");
+---
+
+<Base
+  title={
+    rawQuery !== null && rawQuery.trim() !== ""
+      ? `Search: ${queryText || rawQuery.slice(0, 40)}`
+      : "Search"
+  }
+>
+  <h1>Search</h1>
+  <p>
+    Search the titles, agendas, rough notes, summaries, decisions and action items of your own
+    meetings. Transcripts are not searched.
+  </p>
+
+  <form class="toolbar" role="search" method="get" action="/search">
+    <div class="field">
+      <label for="q">Search your notes</label>
+      <input
+        id="q"
+        name="q"
+        type="search"
+        required
+        maxlength="200"
+        value={rawQuery ?? ""}
+        aria-invalid={error !== null ? "true" : undefined}
+        aria-describedby={error !== null ? "q-error" : undefined}
+      />
+      {error !== null && (
+        <p class="field-error" id="q-error">
+          {error}
+        </p>
+      )}
+    </div>
+    <div class="field">
+      <label for="folder">Folder</label>
+      <select id="folder" name="folder">
+        <option value="">All folders</option>
+        {folders.map((f) => (
+          <option value={f.id} selected={f.id === folderId}>
+            {f.name}
+          </option>
+        ))}
+      </select>
+    </div>
+    <div class="check">
+      <input id="archived" name="archived" type="checkbox" value="1" checked={includeArchived} />
+      <label for="archived">Include archived</label>
+    </div>
+    <button class="button" type="submit">
+      Search
+    </button>
+  </form>
+
+  {rawQuery === null && (
+    <section class="empty" aria-labelledby="hint-heading">
+      <h2 id="hint-heading">Find something you wrote or decided</h2>
+      <p>
+        Type a few words, for example a person, a project or a decision. Results show where the
+        words appear.
+      </p>
+    </section>
+  )}
+
+  {result?.ok && (
+    <section aria-labelledby="results-heading">
+      <h2 id="results-heading">Results</h2>
+      <p role="status" aria-live="polite">
+        {hits.length === 0
+          ? `No results for "${queryText}". Check the spelling, try fewer words, or include archived meetings.`
+          : `${String(hits.length)} ${hits.length === 1 ? "result" : "results"} for "${queryText}".`}
+      </p>
+      {hits.length > 0 && (
+        <ol class="rows">
+          {hits.map((hit) => (
+            <li class="row hit">
+              <h3 class="row-title">
+                <a href={hitHref(hit, queryText)}>{hit.meetingTitle}</a>
+              </h3>
+              <p class="row-meta">
+                {hitKindLabel(hit.kind)}
+                {hit.kind === "note_section" ? `: ${hit.label}` : ""}·{" "}
+                <time datetime={hit.scheduledStartAt}>
+                  {formatSchedule(hit.scheduledStartAt, hit.timezone)}
+                </time>
+                {hit.folderName !== null && <span> · Folder: {hit.folderName}</span>}
+              </p>
+              <p class="snippet">
+                {hit.segments.map((segment) =>
+                  segment.hit ? <mark>{segment.text}</mark> : segment.text,
+                )}
+              </p>
+              <div class="row-actions">
+                <a href={hitHref(hit, queryText)}>
+                  Open<span class="sr-only"> {hit.meetingTitle}</span>
+                </a>
+                <a href={`/meetings/${hit.meetingId}/export.md`} download>
+                  Export Markdown<span class="sr-only"> of {hit.meetingTitle}</span>
+                </a>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  )}
+</Base>

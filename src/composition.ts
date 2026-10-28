@@ -22,6 +22,8 @@ import { runMigrations } from "./adapters/sqlite/migrate";
 import { SqliteChunkRepository } from "./adapters/sqlite/chunk-repository";
 import { SqliteJobRepository } from "./adapters/sqlite/job-repository";
 import { SqliteMeetingCatalog } from "./adapters/sqlite/meeting-catalog";
+import { SqliteNoteReader } from "./adapters/sqlite/note-reader";
+import { SqliteSearchIndex } from "./adapters/sqlite/search-index";
 import { SqliteNoteRepository } from "./adapters/sqlite/note-repository";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
@@ -50,6 +52,8 @@ import type { MeetingDeps } from "./app/meetings/capture";
 import type { CreateMeetingDeps } from "./app/meetings/create-meeting";
 import type { HomeDeps } from "./app/meetings/home";
 import type { LiveNoteDeps } from "./app/meetings/live-note";
+import type { ExportDeps } from "./app/search/export";
+import type { SearchDeps } from "./app/search/search";
 import { providerError } from "./domain/platform/provider-error";
 import { err } from "./domain/platform/result";
 import type { CalendarSource } from "./ports/calendar-source";
@@ -79,6 +83,8 @@ export function getDatabase(): DatabaseSync {
     const db = openDatabase(join(dir, "willy.db"));
     // Idempotent and forward-only: an up-to-date database applies nothing.
     runMigrations(db, join(process.cwd(), "migrations"));
+    // The search index is derived data: bring it up to date for meetings that predate indexing.
+    new SqliteSearchIndex(db).rebuildMissingMeetingRows();
     database = db;
   }
   return database;
@@ -507,4 +513,12 @@ export function getDiagnosticsDeps(): DiagnosticsDeps {
       storage: "local",
     },
   };
+}
+
+export function getSearchDeps(): SearchDeps {
+  return { index: new SqliteSearchIndex(getDatabase()) };
+}
+
+export function getExportDeps(): ExportDeps {
+  return { reader: new SqliteNoteReader(getDatabase()) };
 }
