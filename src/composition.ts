@@ -35,6 +35,11 @@ import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
 import { SqliteDiagnosticsRepository } from "./adapters/sqlite/diagnostics-repository";
+import { SqliteDeletionStatusQuery } from "./adapters/sqlite/deletion-status-query";
+import { SqliteProviderIssueQuery } from "./adapters/sqlite/provider-issue-query";
+import type { DeletionDeps } from "./app/settings/deletion";
+import type { ProviderStatusDeps } from "./app/settings/provider-status";
+import type { RetentionDeps } from "./app/settings/retention";
 import { readCalendarConfig } from "./adapters/calendar/config";
 import type { DiagnosticsDeps } from "./app/ops/diagnostics";
 import type { ObserveDeps } from "./app/ops/request-observer";
@@ -521,4 +526,39 @@ export function getSearchDeps(): SearchDeps {
 
 export function getExportDeps(): ExportDeps {
   return { reader: new SqliteNoteReader(getDatabase()) };
+}
+
+/**
+ * Settings screen (#19). Deletion itself stays `requestMeetingDeletion(getMeetingDeps(), ...)`
+ * from #13: it is wired in as `meeting` and the settings use case only adds the typed
+ * confirmation and the status read model.
+ */
+export function getDeletionDeps(): DeletionDeps {
+  return {
+    meeting: getMeetingDeps(),
+    detail: getMeetingCatalog(),
+    deletions: new SqliteDeletionStatusQuery(getDatabase()),
+    jobs: getJobRepository(),
+    clock: new SystemClock(),
+  };
+}
+
+export function getRetentionDeps(): RetentionDeps {
+  return { settings: new SqliteSettingsRepository(getDatabase()), clock: new SystemClock() };
+}
+
+/** Same provider modes as diagnostics; the Google calendar mode is selected but has no connect flow yet. */
+export function getProviderStatusDeps(): ProviderStatusDeps {
+  const { providers } = getDiagnosticsDeps();
+  return {
+    issues: new SqliteProviderIssueQuery(getDatabase()),
+    modes: {
+      calendar: providers.calendar,
+      speech_to_text: providers.speechToText,
+      summaries: providers.summaries,
+      storage: providers.storage,
+    },
+    knownIssues:
+      providers.calendar === "google" ? [{ code: "calendar_not_connected", at: null }] : [],
+  };
 }

@@ -20,7 +20,8 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | Screen 1: meetings home, new note, calendar import (demo calendar; Google connect flow pending) | done |
 | Screen 2: live note (consent, capture, rough notes, recording state, failure recovery) | done |
 | Search and Markdown export | done |
-| Screens 3-4 (review, settings hub with deletion UI) | not started |
+| Screen 4: settings hub (provider status, retention, template/folder/export entry points, permanent deletion with typed confirmation and job status) | done |
+| Screen 3: review | not started |
 
 ## Prerequisites
 
@@ -121,7 +122,7 @@ Cloudflare D1 (once deployed): `wrangler d1 export <database> --output backup.sq
 - Permanent deletion is two steps: the meeting is marked `deleting` immediately (hidden everywhere, guessed URLs return 404), then a retryable job removes stored files, derived search index entries and rows. Only a content-free audit record remains. The job is idempotent and safe to retry.
 - A scheduled retention job applies the owner's retention settings.
 
-The deletion job and retention settings UI are in progress (#13, #19); the data model for them is in [docs/DATA_MODEL.md](docs/DATA_MODEL.md) section 5.
+Settings (`/settings`) lets the owner choose how long raw audio is kept (default: deleted right after transcription; up to 7 days) and optionally expire old meetings automatically (off by default; turning it on or shortening it needs an explicit tick). Permanent deletion lives at `/meetings/:id/delete`: it states what is destroyed, requires typing `DELETE`, and the settings screen then shows the deletion job (queued, deleting, retrying, failed with a retry button, deleted). The data model for them is in [docs/DATA_MODEL.md](docs/DATA_MODEL.md) section 5.
 
 ## Security decisions
 

@@ -82,9 +82,10 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | `POST /meetings/:id/publish` | Publish note to a private folder | Confirmation field; repeat publish of same note/folder is a no-op; requires folder owned by Owner |
 | `POST /settings/folders` (`intent=create|rename`), `POST /settings/folders/:id/delete` | Folder CRUD | Delete of a non-empty folder is **blocked** with a message (default; see open questions); unique name per owner, case-insensitive |
 | `POST /settings/templates/new`, `/settings/templates/:id`, `/settings/templates/:id/delete`, `POST /settings/templates` (`intent=set_default`) | Template CRUD | At most 12 sections, validated lengths, unique headings; deleting a template detaches the meetings that used it (they fall back to the default) |
-| `POST /settings/retention` | Retention controls | Validated enum |
+| `POST /settings` | Retention controls (the settings page handles its own form POST; 422 with field errors) | Validated against fixed choices; turning note expiry on or shortening it needs an acknowledgement tick |
+| `POST /settings/deletions/:meetingId/retry` | Retry a failed deletion job | Owner-scoped; 404 for others; requeues only a `failed` job |
 | `GET /meetings/:id/export.md` (names only, no emails, no transcript; ASCII filename; `nosniff`) | Markdown export | `GET` is safe (read-only); owner-scoped; sanitized filename; `Content-Disposition: attachment`; `X-Content-Type-Options: nosniff`; rate-limited |
-| `POST /meetings/:id/delete` | Permanent deletion | Typed confirmation; marks `deleting` and enqueues one deletion job; repeat is a no-op |
+| `GET/POST /meetings/:id/delete` | Permanent deletion (#19): GET shows the scope text and confirmation form, POST needs the typed word `DELETE` and calls `requestMeetingDeletion` | Typed confirmation; marks `deleting` and enqueues one deletion job; repeat is a no-op |
 | `POST /webhooks/calendar` | Inbound provider webhook | Signature verified (constant time, timestamp tolerance); dedupe by provider event id in `ProviderEvent`; no session, no CSRF (signature instead); rate-limited |
 | `GET /oauth/calendar/start`, `GET /oauth/calendar/callback` | Google OAuth connect | `state` bound to session, redirect URI checked against allowlist, tokens encrypted at rest. `start` mutates nothing durable beyond the state nonce |
 | `GET /api/files/:token` | Short-lived authorized file URL (audio while it exists) | Token minted only after owner check, TTL <= 5 min; 404 after deletion |
