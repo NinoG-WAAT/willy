@@ -1,0 +1,897 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { formatSchedule } from "../../../components/format-schedule";
+import { loadReviewPage } from "../../../app/notes/review";
+import { handleReviewForm, reviewNoticeText } from "../../../app/notes/review-http";
+import {
+  getProcessingStatus,
+  type JobStatusView,
+} from "../../../app/transcription/processing-status";
+import { getReviewDeps, getStatusDeps } from "../../../composition";
+import {
+  dueDateInputValue,
+  formatOffset,
+  isOverdue,
+  resolveHighlight,
+} from "../../../domain/notes/review";
+import type { HighlightableItem } from "../../../domain/notes/review";
+import { isValidStorageId } from "../../../domain/storage/object-key";
+
+export const prerender = false;
+
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const id = Astro.params.id ?? "";
+// An id that cannot exist looks exactly like another owner's: the same 404.
+if (!isValidStorageId(id)) return Astro.rewrite("/404");
+
+const deps = getReviewDeps();
+const base = `/meetings/${id}/review`;
+let problem: Extract<Awaited<ReturnType<typeof handleReviewForm>>, { kind: "problem" }> | null =
+  null;
+
+if (Astro.request.method === "POST") {
+  // A clone: a rewrite to the 404 page re-reads the request, whose body must still be unread.
+  const form = await Astro.request.clone().formData();
+  const result = await handleReviewForm(deps, owner.id, id, form);
+  switch (result.kind) {
+    case "redirect":
+      return Astro.redirect(
+        `${base}?notice=${result.notice}${result.anchor === null ? "" : `#${result.anchor}`}`,
+        303,
+      );
+    case "not_found":
+      return Astro.rewrite("/404");
+    case "bad_request":
+      return new Response("Bad request", { status: 400 });
+    case "problem":
+      problem = result;
+      Astro.response.status = result.status;
+  }
+}
+
+const loaded = await loadReviewPage(deps.review, owner.id, id);
+if (!loaded.ok) {
+  // Nothing to review yet: the live note is where this meeting lives.
+  return loaded.error.kind === "not_ready"
+    ? Astro.redirect(`/meetings/${id}`, 303)
+    : Astro.rewrite("/404");
+}
+const { view, segments, folders, editable } = loaded.value;
+const { meeting, note } = view;
+const status = await getProcessingStatus(getStatusDeps(), owner.id, id);
+const progress = status.ok ? status.value : null;
+const now = deps.review.clock.now();
+const csrf = Astro.locals.csrfToken ?? "";
+
+const items: HighlightableItem[] = [
+  ...view.sections.map((s) => ({
+    kind: "note_section" as const,
+    id: s.id,
+    sourceFrom: s.sourceFrom,
+    sourceTo: s.sourceTo,
+  })),
+  ...view.decisions.map((d) => ({
+    kind: "decision" as const,
+    id: d.id,
+    sourceFrom: d.sourceFrom,
+    sourceTo: d.sourceTo,
+  })),
+  ...view.actionItems.map((a) => ({
+    kind: "action_item" as const,
+    id: a.id,
+    sourceFrom: a.sourceFrom,
+    sourceTo: a.sourceTo,
+  })),
+];
+const highlight = resolveHighlight(
+  { src: Astro.url.searchParams.get("src"), hit: Astro.url.searchParams.get("hit") },
+  items,
+);
+const isHit = (kind: string, itemId: string) =>
+  highlight.hit?.kind === kind && highlight.hit.id === itemId;
+const inSource = (position: number) =>
+  highlight.range !== null && position >= highlight.range.from && position <= highlight.range.to;
+
+const startOf = new Map(segments.map((s) => [s.position, s.startMs]));
+const sourceLink = (from: number | null, to: number | null) => {
+  if (from === null || to === null) return null;
+  const a = startOf.get(from);
+  const b = startOf.get(to);
+  const label =
+    a === undefined || b === undefined
+      ? "Source in the transcript"
+      : `Source: transcript ${formatOffset(a)} to ${formatOffset(b)}`;
+  return { label, href: `${base}?src=${String(from)}-${String(to)}#seg-${String(from)}`, from, to };
+};
+
+const speakers = [...new Set(segments.map((s) => s.speaker))].map((name) => ({
+  name,
+  lines: segments.filter((s) => s.speaker === name).length,
+}));
+const attendeeName = new Map(view.attendees.map((a) => [a.id, a.name]));
+
+const echo = problem?.echo ?? null;
+const typed = (key: string, name: string, fallback: string): string =>
+  echo?.itemId === key ? (echo.values[name] ?? "") : fallback;
+const errorsFor = (key: string, field: string) =>
+  problem !== null && echo?.itemId === key ? problem.errors.filter((e) => e.field === field) : [];
+
+const notice = reviewNoticeText(Astro.url.searchParams.get("notice"));
+const draft = note?.status === "draft";
+
+function describeJob(job: JobStatusView | null): string {
+  if (job === null) return "Not started";
+  switch (job.status) {
+    case "pending":
+      return "Waiting to start";
+    case "running":
+      return "Running";
+    case "retrying":
+      return `Retrying (attempt ${String(job.attempts)} of ${String(job.maxAttempts)})`;
+    case "failed":
+      return `Failed after ${String(job.attempts)} attempts${job.lastErrorCode === null ? "" : ` (${job.lastErrorCode})`}`;
+    case "succeeded":
+      return "Done";
+  }
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  processing: "Preparing the transcript",
+  failed: "Processing needs attention",
+  archived: "Archived",
+};
+const statusLabel =
+  note?.status === "published"
+    ? "Published"
+    : draft && meeting.status === "review"
+      ? "Draft: not published"
+      : (STATUS_LABEL[meeting.status] ?? meeting.status);
+const regeneration = progress?.regeneration ?? null;
+---
+
+<Base title={`Review: ${meeting.title}`}>
+  <div class="page-head">
+    <div>
+      <h1>{meeting.title}</h1>
+      <p class="row-meta">
+        <time datetime={meeting.scheduledStartAt}>
+          {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
+        </time>
+        ·
+        <span class="badge" id="note-status">
+          {statusLabel}
+        </span>
+        {note?.status === "published" && note.folderName !== null && (
+          <span> in the folder {note.folderName}</span>
+        )}
+        ·
+        <a href={`/meetings/${meeting.id}/export.md`} download>
+          Export as Markdown<span class="sr-only"> ({meeting.title})</span>
+        </a>
+        ·<a href={`/meetings/${meeting.id}`}>Rough notes</a>
+      </p>
+    </div>
+  </div>
+
+  {notice !== null && (
+    <p class="notice" role="status">
+      {notice}
+    </p>
+  )}
+  {problem !== null && (
+    <div class="alert" role="alert">
+      <p>{problem.message}</p>
+    </div>
+  )}
+  <p id="source-status" class="sr-only" role="status" aria-live="polite"></p>
+
+  {meeting.status === "processing" && (
+    <section class="panel" aria-labelledby="pending-heading">
+      <h2 id="pending-heading">Your transcript and summary are being prepared</h2>
+      <ul class="plain">
+        <li>Transcript: {describeJob(progress?.job ?? null)}</li>
+        <li>Summary: {describeJob(progress?.summary ?? null)}</li>
+      </ul>
+      <p class="help">
+        This can take a few minutes. <a href={base}>Check again</a>. Your rough notes are kept
+        below.
+      </p>
+    </section>
+  )}
+
+  {meeting.status === "failed" && (
+    <section class="panel" aria-labelledby="failed-heading">
+      <h2 id="failed-heading">Transcription did not finish</h2>
+      <p class="alert" role="alert">
+        {describeJob(progress?.job ?? null)}. Nothing you wrote was lost.
+      </p>
+      <form method="post" action={base} class="form form-wide">
+        <input type="hidden" name="csrf_token" value={csrf} />
+        <input type="hidden" name="intent" value="retry_transcription" />
+        <p class="help">
+          Retrying redoes only the parts that failed and never duplicates transcript lines.
+        </p>
+        <div class="row-actions">
+          <button class="button" type="submit">
+            Retry transcription
+          </button>
+        </div>
+      </form>
+    </section>
+  )}
+
+  {note === null && (
+    <section class="panel" aria-labelledby="rough-heading">
+      <h2 id="rough-heading">Your rough notes</h2>
+      {meeting.roughNotes === "" ? (
+        <p>You did not take rough notes.</p>
+      ) : (
+        <p class="prewrap">{meeting.roughNotes}</p>
+      )}
+    </section>
+  )}
+
+  {note !== null && (
+    <div class="two-col review-grid">
+      <div id="summary">
+        <p>
+          <a class="jump-link" href="#transcript">
+            Jump to the transcript
+          </a>
+        </p>
+
+        <section class="panel" id="publish" aria-labelledby="publish-heading">
+          <h2 id="publish-heading">{note.status === "published" ? "Published" : "Publish"}</h2>
+          {note.status === "published" && (
+            <>
+              <p>
+                Published
+                {note.folderName !== null && (
+                  <span>
+                    {" "}
+                    to <strong>{note.folderName}</strong>
+                  </span>
+                )}
+                {note.publishedAt !== null && (
+                  <span>
+                    {" "}
+                    on{" "}
+                    <time datetime={note.publishedAt}>
+                      {formatSchedule(note.publishedAt, meeting.timezone)}
+                    </time>
+                  </span>
+                )}
+                . This version is read-only.
+              </p>
+              <form method="post" action={base} class="form form-wide">
+                <input type="hidden" name="csrf_token" value={csrf} />
+                <input type="hidden" name="intent" value="reopen" />
+                <p class="help">
+                  Reopening turns it back into a draft so you can edit it. It stays unpublished
+                  until you publish again.
+                </p>
+                <div class="row-actions">
+                  <button class="button button-quiet" type="submit">
+                    Reopen for editing
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+          {editable && folders.length === 0 && (
+            <p>
+              Publishing files the note in a private folder, and you have none yet.
+              <a href="/settings/folders">Create a folder</a>, then come back: your edits stay here.
+            </p>
+          )}
+          {editable && folders.length > 0 && (
+            <form method="post" action={base} class="form form-wide">
+              <input type="hidden" name="csrf_token" value={csrf} />
+              <input type="hidden" name="intent" value="publish" />
+              <p>
+                This is a <strong>draft</strong> generated from the transcript. It stays a draft
+                until you publish it.
+              </p>
+              <div class="field field-wide">
+                <label for="publish-folder">Private folder</label>
+                <select
+                  id="publish-folder"
+                  name="folder"
+                  required
+                  aria-describedby="publish-folder-error"
+                >
+                  {folders.map((f) => (
+                    <option
+                      value={f.id}
+                      selected={typed("publish", "folder", note.folderId ?? "") === f.id}
+                    >
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+                {errorsFor("publish", "folder").map((e) => (
+                  <p class="field-error" id="publish-folder-error">
+                    {e.message}
+                  </p>
+                ))}
+              </div>
+              <div class="check">
+                <input
+                  id="publish-confirm"
+                  name="confirm"
+                  type="checkbox"
+                  aria-describedby="publish-confirm-help"
+                />
+                <label for="publish-confirm">
+                  I have reviewed this note and want to publish it.
+                </label>
+              </div>
+              {errorsFor("publish", "confirm").map((e) => (
+                <p class="field-error">{e.message}</p>
+              ))}
+              <p id="publish-confirm-help" class="help">
+                Publishing locks the note until you reopen it. It is never shared outside your
+                folder.
+              </p>
+              <div class="row-actions">
+                <button class="button" type="submit">
+                  Publish to folder
+                </button>
+              </div>
+            </form>
+          )}
+          {note.status === "draft" && !editable && (
+            <p>
+              This note is {meeting.status === "archived" ? "archived" : "not ready to publish"}.
+            </p>
+          )}
+        </section>
+
+        <h2>Summary</h2>
+        {view.sections.length === 0 && <p class="empty">The summary has no sections.</p>}
+        {view.sections.map((s) => {
+          const source = sourceLink(s.sourceFrom, s.sourceTo);
+          const regen =
+            regeneration !== null && regeneration.sectionId === s.id ? regeneration : null;
+          return (
+            <section
+              class:list={["panel", "review-item", { "is-hit": isHit("note_section", s.id) }]}
+              id={`section-${s.id}`}
+              aria-labelledby={`heading-${s.id}`}
+            >
+              <h3 id={`heading-${s.id}`}>
+                {s.heading}
+                {s.edited && <span class="badge">Edited by you</span>}
+                {isHit("note_section", s.id) && <span class="badge">Search match</span>}
+              </h3>
+              {editable ? (
+                <form method="post" action={base} class="form form-wide">
+                  <input type="hidden" name="csrf_token" value={csrf} />
+                  <input type="hidden" name="intent" value="edit_section" />
+                  <input type="hidden" name="id" value={s.id} />
+                  <div class="field field-wide">
+                    <label for={`body-${s.id}`}>Text of “{s.heading}”</label>
+                    <textarea
+                      id={`body-${s.id}`}
+                      name="body"
+                      rows="5"
+                      maxlength="20000"
+                      aria-invalid={errorsFor(s.id, "body").length > 0 ? "true" : undefined}
+                      aria-describedby={`body-error-${s.id}`}
+                    >{`\n${typed(s.id, "body", s.body)}`}</textarea>
+                    {errorsFor(s.id, "body").map((e) => (
+                      <p class="field-error" id={`body-error-${s.id}`}>
+                        {e.message}
+                      </p>
+                    ))}
+                  </div>
+                  <div class="row-actions">
+                    <button class="button" type="submit">
+                      Save section<span class="sr-only"> {s.heading}</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p class="prewrap">{s.body}</p>
+              )}
+              {source !== null ? (
+                <p class="row-meta">
+                  <a href={source.href} data-source-from={source.from} data-source-to={source.to}>
+                    {source.label}
+                  </a>
+                </p>
+              ) : (
+                <p class="row-meta">Added by you: no transcript source.</p>
+              )}
+              {editable && (
+                <form
+                  method="post"
+                  action={`/meetings/${meeting.id}/note/regenerate`}
+                  class="inline-form"
+                >
+                  <input type="hidden" name="csrf_token" value={csrf} />
+                  <input type="hidden" name="section_id" value={s.id} />
+                  <button class="button button-quiet" type="submit">
+                    Regenerate this section<span class="sr-only">: {s.heading}</span>
+                  </button>
+                  <span class="help">
+                    Replaces only this section with a new draft from the transcript, including your
+                    edits to it.
+                  </span>
+                </form>
+              )}
+              {regen !== null && regen.status !== "succeeded" && (
+                <p class="help" role="status">
+                  Regeneration: {describeJob(regen)}.{" "}
+                  <a href={`${base}#section-${s.id}`}>Check again</a>
+                </p>
+              )}
+            </section>
+          );
+        })}
+
+        <section class="panel" id="decisions" aria-labelledby="decisions-heading">
+          <h2 id="decisions-heading">Decisions</h2>
+          {view.decisions.length === 0 && <p>No decisions were recorded.</p>}
+          <ul class="review-list">
+            {view.decisions.map((d) => {
+              const source = sourceLink(d.sourceFrom, d.sourceTo);
+              return (
+                <li id={`decision-${d.id}`} class:list={[{ "is-hit": isHit("decision", d.id) }]}>
+                  {isHit("decision", d.id) && <span class="badge">Search match</span>}
+                  {editable ? (
+                    <>
+                      <form method="post" action={base} class="form form-wide">
+                        <input type="hidden" name="csrf_token" value={csrf} />
+                        <input type="hidden" name="intent" value="edit_decision" />
+                        <input type="hidden" name="id" value={d.id} />
+                        <div class="field field-wide">
+                          <label for={`decision-text-${d.id}`}>Decision</label>
+                          <input
+                            id={`decision-text-${d.id}`}
+                            name="text"
+                            type="text"
+                            maxlength="2000"
+                            value={typed(d.id, "text", d.text)}
+                            aria-invalid={errorsFor(d.id, "text").length > 0 ? "true" : undefined}
+                            aria-describedby={`decision-error-${d.id}`}
+                          />
+                          {errorsFor(d.id, "text").map((e) => (
+                            <p class="field-error" id={`decision-error-${d.id}`}>
+                              {e.message}
+                            </p>
+                          ))}
+                        </div>
+                        <div class="row-actions">
+                          <button class="button" type="submit">
+                            Save decision<span class="sr-only">: {d.text}</span>
+                          </button>
+                        </div>
+                      </form>
+                      <details>
+                        <summary>Remove this decision</summary>
+                        <form method="post" action={base} class="form">
+                          <input type="hidden" name="csrf_token" value={csrf} />
+                          <input type="hidden" name="intent" value="delete_decision" />
+                          <input type="hidden" name="id" value={d.id} />
+                          <p class="help">
+                            Removes only this decision from the draft. The transcript is untouched.
+                          </p>
+                          <div class="row-actions">
+                            <button class="button button-danger" type="submit">
+                              Confirm: remove decision
+                            </button>
+                          </div>
+                        </form>
+                      </details>
+                    </>
+                  ) : (
+                    <p>{d.text}</p>
+                  )}
+                  {d.edited && <p class="row-meta">Edited by you</p>}
+                  {source !== null ? (
+                    <p class="row-meta">
+                      <a
+                        href={source.href}
+                        data-source-from={source.from}
+                        data-source-to={source.to}
+                      >
+                        {source.label}
+                      </a>
+                    </p>
+                  ) : (
+                    <p class="row-meta">Added by you: no transcript source.</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {editable && (
+            <form method="post" action={base} class="form form-wide">
+              <input type="hidden" name="csrf_token" value={csrf} />
+              <input type="hidden" name="intent" value="add_decision" />
+              <div class="field field-wide">
+                <label for="new-decision">Add a decision</label>
+                <input
+                  id="new-decision"
+                  name="text"
+                  type="text"
+                  maxlength="2000"
+                  value={typed("add_decision", "text", "")}
+                />
+                {errorsFor("add_decision", "text").map((e) => (
+                  <p class="field-error">{e.message}</p>
+                ))}
+              </div>
+              <div class="row-actions">
+                <button class="button button-quiet" type="submit">
+                  Add decision
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+
+        <section class="panel" id="action-items" aria-labelledby="actions-heading">
+          <h2 id="actions-heading">Action items</h2>
+          {view.actionItems.length === 0 && <p>No action items were recorded.</p>}
+          <ul class="review-list">
+            {view.actionItems.map((a) => {
+              const source = sourceLink(a.sourceFrom, a.sourceTo);
+              const zone = a.dueTimezone ?? meeting.timezone;
+              const overdue = isOverdue(a, now);
+              const key = a.id;
+              return (
+                <li id={`action-${a.id}`} class:list={[{ "is-hit": isHit("action_item", a.id) }]}>
+                  <p>
+                    {isHit("action_item", a.id) && <span class="badge">Search match</span>}
+                    <strong>{a.status === "done" ? "Done" : "Open"}</strong>
+                    {a.dueAt !== null && (
+                      <span>
+                        · Due <time datetime={a.dueAt}>{formatSchedule(a.dueAt, zone)}</time>
+                      </span>
+                    )}
+                    {overdue && (
+                      <span>
+                        {" "}
+                        <span class="overdue-flag">Overdue</span>
+                      </span>
+                    )}
+                  </p>
+                  {editable ? (
+                    <>
+                      <form method="post" action={base} class="form form-wide">
+                        <input type="hidden" name="csrf_token" value={csrf} />
+                        <input type="hidden" name="intent" value="edit_action_item" />
+                        <input type="hidden" name="id" value={a.id} />
+                        <div class="field field-wide">
+                          <label for={`act-text-${a.id}`}>Action</label>
+                          <input
+                            id={`act-text-${a.id}`}
+                            name="text"
+                            type="text"
+                            maxlength="2000"
+                            value={typed(key, "text", a.text)}
+                            aria-invalid={errorsFor(key, "text").length > 0 ? "true" : undefined}
+                            aria-describedby={`act-text-error-${a.id}`}
+                          />
+                          {errorsFor(key, "text").map((e) => (
+                            <p class="field-error" id={`act-text-error-${a.id}`}>
+                              {e.message}
+                            </p>
+                          ))}
+                        </div>
+                        <div class="field-group">
+                          <div class="field">
+                            <label for={`act-owner-${a.id}`}>Owner</label>
+                            <select
+                              id={`act-owner-${a.id}`}
+                              name="assignee"
+                              aria-describedby={`act-owner-error-${a.id}`}
+                            >
+                              <option
+                                value=""
+                                selected={typed(key, "assignee", a.assigneeId ?? "") === ""}
+                              >
+                                No owner
+                              </option>
+                              {view.attendees.map((p) => (
+                                <option
+                                  value={p.id}
+                                  selected={typed(key, "assignee", a.assigneeId ?? "") === p.id}
+                                >
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                            {errorsFor(key, "assignee").map((e) => (
+                              <p class="field-error" id={`act-owner-error-${a.id}`}>
+                                {e.message}
+                              </p>
+                            ))}
+                          </div>
+                          <div class="field">
+                            <label for={`act-due-${a.id}`}>Due date ({meeting.timezone})</label>
+                            <input
+                              id={`act-due-${a.id}`}
+                              name="due"
+                              type="date"
+                              value={typed(key, "due", dueDateInputValue(a.dueAt, zone))}
+                              aria-describedby={`act-due-error-${a.id}`}
+                            />
+                            {errorsFor(key, "due").map((e) => (
+                              <p class="field-error" id={`act-due-error-${a.id}`}>
+                                {e.message}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                        <div class="check">
+                          <input
+                            id={`act-done-${a.id}`}
+                            name="done"
+                            type="checkbox"
+                            checked={
+                              echo?.itemId === key ? "done" in echo.values : a.status === "done"
+                            }
+                          />
+                          <label for={`act-done-${a.id}`}>Done</label>
+                        </div>
+                        <div class="row-actions">
+                          <button class="button" type="submit">
+                            Save action item<span class="sr-only">: {a.text}</span>
+                          </button>
+                        </div>
+                      </form>
+                      <details>
+                        <summary>Remove this action item</summary>
+                        <form method="post" action={base} class="form">
+                          <input type="hidden" name="csrf_token" value={csrf} />
+                          <input type="hidden" name="intent" value="delete_action_item" />
+                          <input type="hidden" name="id" value={a.id} />
+                          <p class="help">
+                            Removes only this action item from the draft. The transcript is
+                            untouched.
+                          </p>
+                          <div class="row-actions">
+                            <button class="button button-danger" type="submit">
+                              Confirm: remove action item
+                            </button>
+                          </div>
+                        </form>
+                      </details>
+                    </>
+                  ) : (
+                    <p>
+                      {a.text}
+                      <span class="row-meta">
+                        {" "}
+                        · Owner:{" "}
+                        {a.assigneeId !== null
+                          ? (attendeeName.get(a.assigneeId) ?? "Unknown")
+                          : "none"}
+                      </span>
+                    </p>
+                  )}
+                  {a.edited && <p class="row-meta">Edited by you</p>}
+                  {source !== null ? (
+                    <p class="row-meta">
+                      <a
+                        href={source.href}
+                        data-source-from={source.from}
+                        data-source-to={source.to}
+                      >
+                        {source.label}
+                      </a>
+                    </p>
+                  ) : (
+                    <p class="row-meta">Added by you: no transcript source.</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {editable && (
+            <form method="post" action={base} class="form form-wide">
+              <input type="hidden" name="csrf_token" value={csrf} />
+              <input type="hidden" name="intent" value="add_action_item" />
+              <div class="field field-wide">
+                <label for="new-action">Add an action item</label>
+                <input
+                  id="new-action"
+                  name="text"
+                  type="text"
+                  maxlength="2000"
+                  value={typed("add_action_item", "text", "")}
+                />
+                {errorsFor("add_action_item", "text").map((e) => (
+                  <p class="field-error">{e.message}</p>
+                ))}
+              </div>
+              <div class="field-group">
+                <div class="field">
+                  <label for="new-action-owner">Owner</label>
+                  <select id="new-action-owner" name="assignee">
+                    <option value="">No owner</option>
+                    {view.attendees.map((p) => (
+                      <option
+                        value={p.id}
+                        selected={typed("add_action_item", "assignee", "") === p.id}
+                      >
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errorsFor("add_action_item", "assignee").map((e) => (
+                    <p class="field-error">{e.message}</p>
+                  ))}
+                </div>
+                <div class="field">
+                  <label for="new-action-due">Due date ({meeting.timezone})</label>
+                  <input
+                    id="new-action-due"
+                    name="due"
+                    type="date"
+                    value={typed("add_action_item", "due", "")}
+                  />
+                  {errorsFor("add_action_item", "due").map((e) => (
+                    <p class="field-error">{e.message}</p>
+                  ))}
+                </div>
+              </div>
+              <div class="row-actions">
+                <button class="button button-quiet" type="submit">
+                  Add action item
+                </button>
+              </div>
+            </form>
+          )}
+          {view.attendees.length === 0 && editable && (
+            <p class="help">This meeting has no attendees, so action items cannot have an owner.</p>
+          )}
+        </section>
+      </div>
+
+      <aside class="review-transcript" id="transcript" aria-labelledby="transcript-heading">
+        <section class="panel" id="speakers" aria-labelledby="speakers-heading">
+          <h2 id="transcript-heading">Transcript</h2>
+          <p>
+            <a href="#summary">Back to the summary</a>
+          </p>
+          <h3 id="speakers-heading">Speakers</h3>
+          <ul class="plain">
+            {speakers.map((sp) => (
+              <li>
+                {sp.name} ({sp.lines} {sp.lines === 1 ? "line" : "lines"})
+              </li>
+            ))}
+          </ul>
+          {editable && speakers.length > 0 && (
+            <>
+              <form method="post" action={base} class="form">
+                <input type="hidden" name="csrf_token" value={csrf} />
+                <input type="hidden" name="intent" value="rename_speaker" />
+                <div class="field">
+                  <label for="rename-from">Speaker to rename</label>
+                  <select id="rename-from" name="from">
+                    {speakers.map((sp) => (
+                      <option
+                        value={sp.name}
+                        selected={typed("rename_speaker", "from", "") === sp.name}
+                      >
+                        {sp.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errorsFor("rename_speaker", "from").map((e) => (
+                    <p class="field-error">{e.message}</p>
+                  ))}
+                </div>
+                <div class="field">
+                  <label for="rename-to">New name</label>
+                  <input
+                    id="rename-to"
+                    name="to"
+                    type="text"
+                    maxlength="100"
+                    value={typed("rename_speaker", "to", "")}
+                    autocomplete="off"
+                  />
+                  {errorsFor("rename_speaker", "to").map((e) => (
+                    <p class="field-error">{e.message}</p>
+                  ))}
+                </div>
+                <p class="help">Applies to every line of this transcript.</p>
+                <div class="row-actions">
+                  <button class="button button-quiet" type="submit">
+                    Rename speaker
+                  </button>
+                </div>
+              </form>
+              {speakers.length > 1 && (
+                <form method="post" action={base} class="form">
+                  <input type="hidden" name="csrf_token" value={csrf} />
+                  <input type="hidden" name="intent" value="merge_speaker" />
+                  <div class="field">
+                    <label for="merge-from">Merge this speaker</label>
+                    <select id="merge-from" name="from">
+                      {speakers.map((sp) => (
+                        <option value={sp.name}>{sp.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="merge-to">into</label>
+                    <select id="merge-to" name="to">
+                      {speakers.map((sp, index) => (
+                        <option value={sp.name} selected={index === 1}>
+                          {sp.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p class="help">
+                    Their lines are relabelled to the second speaker. This applies to every line of
+                    this transcript.
+                  </p>
+                  <div class="row-actions">
+                    <button class="button button-quiet" type="submit">
+                      Merge speakers
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
+          )}
+        </section>
+        <section class="panel" aria-labelledby="lines-heading">
+          <h3 id="lines-heading">Lines</h3>
+          {segments.length === 0 ? (
+            <p>No transcript lines were produced for this meeting.</p>
+          ) : (
+            <ol class="transcript" aria-label="Transcript lines">
+              {segments.map((s) => (
+                <li
+                  id={`seg-${s.position}`}
+                  data-pos={s.position}
+                  tabindex="-1"
+                  class:list={[{ "is-source": inSource(s.position) }]}
+                >
+                  <span class="seg-time">{formatOffset(s.startMs)}</span>
+                  <strong>{s.speaker}</strong>
+                  <span class="seg-flag" hidden={!inSource(s.position)}>
+                    Cited
+                  </span>
+                  <span class="sr-only">:</span>
+                  {s.text === null ? <em>This line could not be read.</em> : s.text}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </aside>
+    </div>
+  )}
+
+  {note === null && segments.length > 0 && (
+    <section class="panel" aria-labelledby="lines-heading-alone">
+      <h2 id="lines-heading-alone">Transcript so far</h2>
+      <ol class="transcript">
+        {segments.map((s) => (
+          <li id={`seg-${s.position}`}>
+            <span class="seg-time">{formatOffset(s.startMs)}</span> <strong>{s.speaker}</strong>
+            <span class="sr-only">:</span>
+            {s.text === null ? <em>This line could not be read.</em> : s.text}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+
+  <script>
+    import "../../../scripts/review";
+  </script>
+</Base>

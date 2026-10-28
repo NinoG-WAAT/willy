@@ -580,3 +580,106 @@ a {
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
+
+/* Review screen: summary beside the transcript on wide screens, stacked on phones. */
+.review-grid {
+  align-items: start;
+}
+
+.review-transcript {
+  min-width: 0;
+}
+
+.jump-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
+@media (min-width: 56rem) {
+  .jump-link {
+    display: none;
+  }
+
+  .review-transcript {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+.transcript {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transcript li {
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  border-left: 4px solid transparent;
+  overflow-wrap: anywhere;
+}
+
+/* Marked by a thick edge and a "Cited" tag as well as the background, never colour alone. */
+.transcript li.is-source {
+  border-left-color: var(--accent);
+  background: #fff3bf;
+}
+
+.seg-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.seg-flag,
+.overdue-flag {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border: 2px solid currentcolor;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.overdue-flag {
+  color: #7a1212;
+}
+
+.review-item.is-hit {
+  border-left: 6px solid var(--accent);
+}
+
+.review-item h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.review-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.review-list > li {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+}
+
+.field-wide input,
+.field-wide select,
+.field-wide textarea {
+  width: 100%;
+}
+
+details > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  cursor: pointer;
+}
