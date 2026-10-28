@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { pageTitle } from "../components/page-title";
+import { NAV_LINKS, currentNavHref } from "../components/nav-current";
 
 interface Props {
   title?: string;
@@ -9,6 +10,7 @@ interface Props {
 const { title } = Astro.props;
 const owner = Astro.locals.owner;
 const csrfToken = Astro.locals.csrfToken ?? "";
+const current = currentNavHref(Astro.url.pathname);
 ---
 
 <!doctype html>
@@ -28,16 +30,16 @@ const csrfToken = Astro.locals.csrfToken ?? "";
       </a>
       {owner && (
         <nav class="site-nav" aria-label="Main">
-          <a href="/">Meetings</a>
-          <a href="/search">Search</a>
-          <a href="/settings/templates">Templates</a>
-          <a href="/settings/folders">Folders</a>
-          <a href="/settings">Settings</a>
+          {NAV_LINKS.map((link) => (
+            <a href={link.href} aria-current={link.href === current ? "page" : undefined}>
+              {link.label}
+            </a>
+          ))}
         </nav>
       )}
       {owner && (
         <div class="session">
-          <span>Signed in as {owner.displayName}</span>
+          <span class="session-name">Signed in as {owner.displayName}</span>
           <form method="post" action="/sign-out">
             <input type="hidden" name="csrf_token" value={csrfToken} />
             <button class="button button-quiet" type="submit">

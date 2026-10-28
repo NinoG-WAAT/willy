@@ -677,9 +677,131 @@ a {
   width: 100%;
 }
 
+/* A disclosure reads as a control: link colour and underline, plus the browser's marker. */
 details > summary {
   display: flex;
   align-items: center;
   min-height: var(--tap);
+  color: var(--accent);
+  text-decoration: underline;
   cursor: pointer;
+}
+
+details > summary::before {
+  content: "\25B8";
+  margin-inline-end: 0.5rem;
+  text-decoration: none;
+}
+
+details[open] > summary::before {
+  content: "\25BE";
+}
+
+/* Standalone action links (row actions, "Cancel" beside a submit button) are touch targets too. */
+.row-actions > a:not(.button),
+form > a:not(.button) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 0.25rem;
+}
+
+/* The current page is marked by weight and a thick underline as well as the aria-current state. */
+.site-nav a[aria-current="page"] {
+  font-weight: 700;
+  text-decoration-thickness: 0.2em;
+  text-underline-offset: 0.2em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-shape {
+    animation: none;
+  }
+}
+
+/*
+ * Phone layout (designed, not the desktop stacked): one compact bar with the brand and Sign out,
+ * a single row of navigation under it that never wraps to a third line, full-width fields and
+ * primary actions, and a screen that opens on its content instead of on chrome.
+ */
+@media (max-width: 40rem) {
+  .site-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand session"
+      "nav nav";
+    gap: 0 0.5rem;
+    padding-block: 0.25rem 0;
+  }
+
+  .brand {
+    grid-area: brand;
+  }
+
+  .session {
+    grid-area: session;
+  }
+
+  /* Who is signed in stays available to screen readers; the bar keeps the room for Sign out. */
+  .session-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .site-nav {
+    grid-area: nav;
+    gap: 0;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .site-nav a {
+    flex: none;
+    padding-inline: 0.25rem;
+    font-size: 0.9375rem;
+  }
+
+  main {
+    padding-block: 1rem;
+  }
+
+  .field input:not([type="checkbox"], [type="radio"]),
+  .field select,
+  .field textarea,
+  .form .button,
+  .inline-form .button,
+  .toolbar .button {
+    width: 100%;
+  }
+
+  .toolbar > form,
+  .inline-form .field,
+  .toolbar .field {
+    flex: 1 1 100%;
+  }
+
+  .toolbar,
+  .toolbar .inline-form {
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .row-actions > .button,
+  .row-actions > form {
+    flex: 1 1 100%;
+  }
+
+  .row-actions form .button {
+    width: 100%;
+  }
 }

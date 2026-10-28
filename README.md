@@ -138,6 +138,12 @@ Settings (`/settings`) lets the owner choose how long raw audio is kept (default
 
 Full checklist: CLAUDE.md section 8.
 
+## Accessibility
+
+Every screen is built to WCAG 2.2 AA as far as automation can show: semantic landmarks (one banner, main, contentinfo, a labelled main navigation that marks the current page with `aria-current`, and search forms as `search` landmarks), a skip link, explicit labels, one `h1` and a page title per screen, a visible focus ring everywhere, state that is always also text or shape (never colour alone), controls at least 44px high, `aria-live`/`role="status"` for capture state, upload status, autosave, notices and job results, `role="alert"` for errors, and `prefers-reduced-motion` support (the recording indicator stops pulsing but keeps its label). The phone layout is its own design: a compact header with one navigation row, full-width fields and primary actions, and no horizontal scroll down to 320px.
+
+Checks that run in `npm test`: `tests/e2e/a11y.spec.ts` scans every screen and state with axe-core (WCAG 2 A/AA, 2.1, 2.2 and best-practice rules, nothing disabled) at desktop and 390x844; `tests/e2e/a11y-behaviour.spec.ts` covers keyboard-only journeys, focus rings, motion, reflow and the phone layout. These do not replace a manual screen reader pass: none has been run yet (see Known limitations).
+
 ## Known limitations
 
 - **Search does not cover transcripts.** The index holds titles, agendas, rough notes, summary sections, decisions and action items. Transcripts are encrypted at rest and an index would store their text in plaintext; indexing them needs an encrypted-index decision (docs/DATA_MODEL.md section 5). Search hits can still open the review screen at the cited source range.
@@ -148,6 +154,7 @@ Full checklist: CLAUDE.md section 8.
 - Live updates use polling, not server-sent events.
 - Diarization depends on the speech-to-text provider; owner corrections are the source of truth.
 - Single role (Owner); no sharing or teams by design.
+- Accessibility is verified with axe-core, Playwright keyboard tests and manual visual review only. It has not been tested with a real screen reader (VoiceOver, NVDA, TalkBack) and live-region announcements are asserted in the DOM, not heard. Job progress (transcription, deletion) is shown on reload, not announced as it changes.
 
 ## Contributing
 

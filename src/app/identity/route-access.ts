@@ -1,4 +1,5 @@
 import { requiresCsrf } from "../../domain/identity/csrf";
+import { standalonePage } from "../platform/standalone-page";
 
 export type RouteAccess = "public" | "signature" | "owner";
 
@@ -49,8 +50,10 @@ export function unauthenticatedResponse(
 export function forbiddenResponse(url: URL): Response {
   if (isApiPath(url.pathname)) return json(403, { error: "csrf_failed" });
   return new Response(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Request refused - Willycrumbs</title></head>` +
-      `<body><main><h1>Request refused</h1><p>Your request could not be verified. Go back, reload the page and try again.</p></main></body></html>`,
+    standalonePage(
+      "Request refused",
+      "<p>Your request could not be verified. Go back, reload the page and try again.</p>",
+    ),
     { status: 403, headers: { "Content-Type": "text/html; charset=utf-8", ...NO_STORE } },
   );
 }

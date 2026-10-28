@@ -28,12 +28,10 @@ const attendees = `${String(item.attendeeCount)} ${item.attendeeCount === 1 ? "a
       <span class="marker" aria-hidden="true">
         {description.marker}
       </span>
-      <span class="fact-label">Status:</span>
-      {description.label}
+      <span class="fact-label">Status:</span> {description.label}
     </li>
     <li>
-      <span class="fact-label">Consent:</span>
-      {consentLabel(item)}
+      <span class="fact-label">Consent:</span> {consentLabel(item)}
     </li>
   </ul>
   <div class="row-actions">

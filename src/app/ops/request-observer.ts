@@ -1,4 +1,5 @@
 import type { Logger } from "../../ports/logger";
+import { standalonePage } from "../platform/standalone-page";
 
 export interface ObserveDeps {
   logger: Logger;
@@ -32,8 +33,10 @@ export function routeForLog(pathname: string): string {
 
 function failurePage(requestId: string): Response {
   return new Response(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Something went wrong - Willycrumbs</title></head>` +
-      `<body><main><h1>Something went wrong</h1><p>Your notes are safe. Try again in a moment. If it keeps happening, quote this reference: <code>${requestId}</code>.</p></main></body></html>`,
+    standalonePage(
+      "Something went wrong",
+      `<p>Your notes are safe. Try again in a moment. If it keeps happening, quote this reference: <code>${requestId}</code>.</p>`,
+    ),
     {
       status: 500,
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
