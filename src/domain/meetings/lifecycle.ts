@@ -116,6 +116,7 @@ interface Extras {
   detail?: AuditEventDraft["detail"];
   eventKind?: string;
   effects?: Effect[];
+  actor?: Actor;
 }
 
 const unchanged = (meeting: Meeting): Result<TransitionOutcome, never> =>
@@ -145,7 +146,7 @@ function transition(
     events: [
       {
         kind: extras.eventKind ?? "meeting.status_changed",
-        actor: rule.actor,
+        actor: extras.actor ?? rule.actor,
         detail: { from: meeting.status, to, ...extras.detail },
       },
     ],
@@ -281,13 +282,18 @@ export function unarchiveMeeting(
   return transition(meeting, "unarchive");
 }
 
-/** Irreversible. Hides the meeting everywhere and queues exactly one deletion job. */
+/**
+ * Irreversible. Hides the meeting everywhere and queues exactly one deletion job. `retention`
+ * is the sweeper acting on the owner's retention period: recorded as the system, with the reason.
+ */
 export function requestDeletion(
   meeting: Meeting,
   _now: Date,
+  trigger: "owner" | "retention" = "owner",
 ): Result<TransitionOutcome, MeetingError> {
   if (meeting.status === "deleting") return unchanged(meeting);
   return transition(meeting, "request_deletion", {
+    ...(trigger === "retention" ? { actor: "system" as const, detail: { trigger } } : {}),
     effects: [
       {
         kind: "enqueue_job",

@@ -400,3 +400,26 @@ describe("publish, reopen, archive, deletion", () => {
     expect(done.ok && done.value.meeting.status).toBe("deleted");
   });
 });
+
+describe("requestDeletion trigger", () => {
+  it("records the owner as the actor by default", () => {
+    const result = requestDeletion(meeting("published"), NOW);
+    expect(result.ok && result.value.events[0]).toEqual({
+      kind: "meeting.status_changed",
+      actor: "owner",
+      detail: { from: "published", to: "deleting" },
+    });
+  });
+
+  it("records the system and the reason when the retention sweeper asks", () => {
+    const result = requestDeletion(meeting("published"), NOW, "retention");
+    expect(result.ok && result.value.events[0]).toEqual({
+      kind: "meeting.status_changed",
+      actor: "system",
+      detail: { from: "published", to: "deleting", trigger: "retention" },
+    });
+    expect(result.ok && result.value.effects).toEqual([
+      { kind: "enqueue_job", jobKind: "delete", jobKey: "delete:m1", requeueIfFailed: true },
+    ]);
+  });
+});

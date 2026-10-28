@@ -31,7 +31,7 @@ type Transition = (meeting: Meeting, now: Date) => Result<TransitionOutcome, Mee
  * change is retried once against the fresh state, so a racing double submit settles into the
  * harmless "already done" repeat instead of an error.
  */
-async function run(
+export async function runTransition(
   deps: MeetingDeps,
   ownerId: string,
   meetingId: string,
@@ -57,26 +57,26 @@ export const confirmMeetingConsent = (
   ownerId: string,
   meetingId: string,
   input: { accepted: boolean },
-) => run(deps, ownerId, meetingId, (m, now) => confirmConsent(m, input, now));
+) => runTransition(deps, ownerId, meetingId, (m, now) => confirmConsent(m, input, now));
 
 export const startMeetingCapture = (deps: MeetingDeps, ownerId: string, meetingId: string) =>
-  run(deps, ownerId, meetingId, startCapture);
+  runTransition(deps, ownerId, meetingId, startCapture);
 
 export const pauseMeetingCapture = (deps: MeetingDeps, ownerId: string, meetingId: string) =>
-  run(deps, ownerId, meetingId, pauseCapture);
+  runTransition(deps, ownerId, meetingId, pauseCapture);
 
 export const resumeMeetingCapture = (deps: MeetingDeps, ownerId: string, meetingId: string) =>
-  run(deps, ownerId, meetingId, resumeCapture);
+  runTransition(deps, ownerId, meetingId, resumeCapture);
 
 /** Queues exactly one transcription job (unique per meeting). */
 export const stopMeetingCapture = (deps: MeetingDeps, ownerId: string, meetingId: string) =>
-  run(deps, ownerId, meetingId, stopCapture);
+  runTransition(deps, ownerId, meetingId, stopCapture);
 
 export const retryMeetingProcessing = (deps: MeetingDeps, ownerId: string, meetingId: string) =>
-  run(deps, ownerId, meetingId, retryProcessing);
+  runTransition(deps, ownerId, meetingId, retryProcessing);
 
 export const archiveMeetingCommand = (deps: MeetingDeps, ownerId: string, meetingId: string) =>
-  run(deps, ownerId, meetingId, archiveMeeting);
+  runTransition(deps, ownerId, meetingId, archiveMeeting);
 
 export const unarchiveMeetingCommand = (deps: MeetingDeps, ownerId: string, meetingId: string) =>
-  run(deps, ownerId, meetingId, unarchiveMeeting);
+  runTransition(deps, ownerId, meetingId, unarchiveMeeting);
