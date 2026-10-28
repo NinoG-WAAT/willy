@@ -20,6 +20,7 @@ import type {
   MeetingListItem,
   MeetingListQuery,
 } from "../../ports/meeting-list";
+import { reindexMeetingRow } from "./search-rows";
 import { inTransaction, settle } from "./transaction";
 
 const LIST_LIMIT = 200;
@@ -126,6 +127,7 @@ export class SqliteMeetingCatalog
         for (const attendee of record.attendees)
           this.insertAttendee(ownerId, meetingId, attendee, now);
         this.audit(ownerId, meetingId, "owner", { source: "manual" }, now);
+        reindexMeetingRow(this.db, ownerId, meetingId);
         this.db
           .prepare(
             `INSERT INTO idempotency_key (owner_id, scope, key, resource_id, created_at, expires_at)
@@ -174,6 +176,7 @@ export class SqliteMeetingCatalog
               meetingId,
             );
           this.mergeAttendees(ownerId, meetingId, event.attendees, now);
+          reindexMeetingRow(this.db, ownerId, meetingId);
           return { meetingId, created: false };
         }
 
@@ -198,6 +201,7 @@ export class SqliteMeetingCatalog
           );
         this.mergeAttendees(ownerId, meetingId, event.attendees, now);
         this.audit(ownerId, meetingId, "owner", { source: "calendar" }, now);
+        reindexMeetingRow(this.db, ownerId, meetingId);
         return { meetingId, created: true };
       }),
     );
@@ -243,13 +247,19 @@ export class SqliteMeetingCatalog
   ): Promise<Result<{ savedAt: string }, "not_found">> {
     const savedAt = now.toISOString();
     // Only rough_notes and updated_at: consent, status and capture state are never touched here.
-    const result = this.db
-      .prepare(
-        `UPDATE meeting SET rough_notes = ?, updated_at = ?
-          WHERE owner_id = ? AND id = ? AND status NOT IN ('deleting', 'deleted')`,
-      )
-      .run(notes, savedAt, ownerId, meetingId);
-    return Promise.resolve(Number(result.changes) === 1 ? ok({ savedAt }) : err("not_found"));
+    return settle(() =>
+      inTransaction(this.db, () => {
+        const result = this.db
+          .prepare(
+            `UPDATE meeting SET rough_notes = ?, updated_at = ?
+              WHERE owner_id = ? AND id = ? AND status NOT IN ('deleting', 'deleted')`,
+          )
+          .run(notes, savedAt, ownerId, meetingId);
+        if (Number(result.changes) !== 1) return err("not_found" as const);
+        reindexMeetingRow(this.db, ownerId, meetingId);
+        return ok({ savedAt });
+      }),
+    );
   }
 
   /** Adds attendees that are not on the meeting yet; never removes or duplicates any. */

@@ -121,7 +121,10 @@ const STATUS_TEXT: Record<string, string> = {
     <time datetime={detail.scheduledStartAt}>
       {formatSchedule(detail.scheduledStartAt, detail.timezone)}
     </time>
-    · {STATUS_TEXT[detail.status] ?? detail.status}
+    · {STATUS_TEXT[detail.status] ?? detail.status}·
+    <a href={`/meetings/${detail.id}/export.md`} download>
+      Export as Markdown<span class="sr-only"> ({detail.title})</span>
+    </a>
   </p>
 
   {notice !== null && (
