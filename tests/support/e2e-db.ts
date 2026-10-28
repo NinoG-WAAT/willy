@@ -144,7 +144,7 @@ export function createDeletionInState(
 
 /**
  * A fresh meeting in review for the owner, with a draft note, two speakers and encrypted
- * transcript lines (see seedReviewMeeting), so a test can edit and publish it without touching
+ * transcript lines (see seedReviewMeeting) and its own folder, so a test can edit and publish it without touching
  * shared seed data. Ids are `<id>-a1` (attendee), `<id>-sec-0`, `<id>-dec-0`, `<id>-act-0`.
  */
 export async function createReviewMeeting(ownerId: string): Promise<string> {
@@ -154,8 +154,17 @@ export async function createReviewMeeting(ownerId: string): Promise<string> {
   const db = openDatabase(join(dir, "willy.db"));
   try {
     await seedReviewMeeting(db, ownerId, id);
+    // A private folder of its own, so publishing in one test never changes what other tests see
+    // in the shared seeded folders.
+    const now = new Date().toISOString();
+    db.prepare(
+      "INSERT INTO folder (id, owner_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(`folder-${id}`, ownerId, reviewFolderName(id), now, now);
   } finally {
     db.close();
   }
   return id;
 }
+
+/** The name of the private folder `createReviewMeeting` creates for a meeting. */
+export const reviewFolderName = (meetingId: string): string => `Folder for ${meetingId}`;

@@ -4,6 +4,7 @@ import {
   createCapturingMeeting,
   createReviewMeeting,
   meetingStatus,
+  reviewFolderName,
 } from "../support/e2e-db";
 
 const PASSWORD = "willy-dev-password";
@@ -74,13 +75,13 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
   await expect(page.locator(".transcript li", { hasText: "Ada Lovelace" })).toHaveCount(2);
 
   // Publishing is explicit: without the confirmation nothing is published.
-  await page.getByLabel("Private folder").selectOption({ label: "Board updates" });
+  await page.getByLabel("Private folder").selectOption({ label: reviewFolderName(id) });
   await page.getByRole("button", { name: "Publish to folder" }).click();
   await expect(page.getByRole("alert")).toContainText("not saved");
   await expect(page.getByText("Tick the box to confirm")).toBeVisible();
   expect(meetingStatus(id)).toBe("review");
 
-  await page.getByLabel("Private folder").selectOption({ label: "Board updates" });
+  await page.getByLabel("Private folder").selectOption({ label: reviewFolderName(id) });
   await page.getByLabel("I have reviewed this note and want to publish it.").check();
   await page.getByRole("button", { name: "Publish to folder" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
@@ -92,7 +93,7 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
   // And the published state survives a refresh.
   await page.reload();
   await expect(page.locator("#note-status")).toHaveText("Published");
-  await expect(page.locator("#publish")).toContainText("Board updates");
+  await expect(page.locator("#publish")).toContainText(reviewFolderName(id));
   await expect(page.getByText("Ship the beta in December")).toBeVisible();
 });
 
@@ -153,7 +154,7 @@ test.describe("without JavaScript", () => {
     await expect(page).toHaveURL(/review\?src=\d+-\d+#seg-/);
     await expect(page.locator(".transcript li.is-source .seg-flag")).toBeVisible();
 
-    await page.getByLabel("Private folder").selectOption({ label: "Board updates" });
+    await page.getByLabel("Private folder").selectOption({ label: reviewFolderName(id) });
     await page.getByLabel("I have reviewed this note and want to publish it.").check();
     await page.getByRole("button", { name: "Publish to folder" }).click();
     await expect(page.locator("#note-status")).toHaveText("Published");
