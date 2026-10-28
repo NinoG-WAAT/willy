@@ -45,7 +45,12 @@ export class SqliteJobRepository implements JobRepository {
     private readonly ids: IdGenerator,
   ) {}
 
-  claimNext(now: Date, kinds: readonly JobKind[], leaseMs: number): Promise<JobRow | null> {
+  claimNext(
+    now: Date,
+    kinds: readonly JobKind[],
+    leaseMs: number,
+    ownerId?: string,
+  ): Promise<JobRow | null> {
     if (kinds.length === 0) return Promise.resolve(null);
     const nowIso = now.toISOString();
     const staleBefore = new Date(now.getTime() - leaseMs).toISOString();
@@ -59,6 +64,7 @@ export class SqliteJobRepository implements JobRepository {
          WHERE id = (
            SELECT id FROM job
            WHERE kind IN (${marks})
+             AND (? IS NULL OR owner_id = ?)
              AND ((status IN ('pending', 'retrying') AND attempts < max_attempts
                    AND (next_run_at IS NULL OR next_run_at <= ?))
                OR (status = 'running' AND updated_at <= ?))
@@ -66,7 +72,7 @@ export class SqliteJobRepository implements JobRepository {
            LIMIT 1)
          RETURNING *`,
       )
-      .get(nowIso, ...kinds, nowIso, staleBefore);
+      .get(nowIso, ...kinds, ownerId ?? null, ownerId ?? null, nowIso, staleBefore);
     return Promise.resolve(row ? toJobRow(row) : null);
   }
 

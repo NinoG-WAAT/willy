@@ -90,7 +90,7 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | `POST /webhooks/calendar` | Inbound provider webhook | Signature verified (constant time, timestamp tolerance); dedupe by provider event id in `ProviderEvent`; no session, no CSRF (signature instead); rate-limited |
 | `GET /oauth/calendar/start`, `GET /oauth/calendar/callback` | Google OAuth connect | `state` bound to session, redirect URI checked against allowlist, tokens encrypted at rest. `start` mutates nothing durable beyond the state nonce |
 | `GET /api/files/:token` | Short-lived authorized file URL (audio while it exists) | Token minted only after owner check, TTL <= 5 min; 404 after deletion |
-| `POST /internal/jobs/run` (dev/Node only) | In-process job runner trigger | Disabled in production builds; not exposed on Workers |
+| `POST /internal/jobs/run` (dev/Node only) | Runs the signed-in owner's due jobs once (never another owner's) | Disabled in production builds; not exposed on Workers |
 
 ## 4. Data tables (summary; detail in `docs/DATA_MODEL.md`, #4)
 

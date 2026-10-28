@@ -363,8 +363,11 @@ function getJobHandlers(): JobHandler[] {
   ];
 }
 
-/** Runs every due job once (the interval runner's tick; also the dev/test endpoint). */
-export async function runJobsNow(): Promise<{ ran: number }> {
+/**
+ * Runs due jobs once: every owner's for the interval runner's tick, or only `ownerId`'s for the
+ * dev/test endpoint (so one owner's run never advances another owner's jobs).
+ */
+export async function runJobsNow(ownerId?: string): Promise<{ ran: number }> {
   const deps = getTranscribeDeps();
   const settings = new SqliteSettingsRepository(getDatabase());
   await scheduleRetentionJobs({
@@ -376,7 +379,10 @@ export async function runJobsNow(): Promise<{ ran: number }> {
       ...(await deps.jobs.ownersWithFailed("delete")),
     ],
   });
-  return runDueJobs(getRunnerDeps(), getJobHandlers());
+  return runDueJobs(
+    ownerId === undefined ? getRunnerDeps() : { ...getRunnerDeps(), ownerId },
+    getJobHandlers(),
+  );
 }
 
 const JOB_TICK_MS = 2_000;
