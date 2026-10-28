@@ -25,8 +25,9 @@ const LIMITS: { method: string; path: RegExp; limit: RouteLimit }[] = [
   },
   {
     method: "POST",
-    path: new RegExp(`^/meetings/${ID}/delete$`),
-    limit: { name: "delete", policy: { limit: 10, windowMs: TEN_MINUTES }, scope: "owner" },
+    // Retrying a failed deletion (#19) counts against the same class as requesting one.
+    path: new RegExp(`^/(meetings/${ID}/delete|settings/deletions/${ID}/retry)$`),
+    limit: { name: "delete", policy: { limit: 30, windowMs: TEN_MINUTES }, scope: "owner" },
   },
   {
     method: "POST",

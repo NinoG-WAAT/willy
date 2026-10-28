@@ -1,0 +1,330 @@
+---
+import Base from "../../layouts/Base.astro";
+import ErrorSummary from "../../components/ErrorSummary.astro";
+import { formatInstant } from "../../components/format-instant";
+import { formatSchedule } from "../../components/format-schedule";
+import { requireOwner } from "../../app/identity/require-owner";
+import { readFormFields, single } from "../../app/platform/form";
+import { listDeletableMeetings } from "../../app/settings/deletable-meetings";
+import { listDeletions } from "../../app/settings/deletion";
+import { settingsNotice } from "../../app/settings/notices";
+import { loadProviderStatus } from "../../app/settings/provider-status";
+import { loadRetention, saveRetention } from "../../app/settings/retention";
+import {
+  getDeletionDeps,
+  getHomeDeps,
+  getProviderStatusDeps,
+  getRetentionDeps,
+} from "../../composition";
+import { describeMeeting } from "../../domain/meetings/home";
+import type { FieldError } from "../../domain/platform/text";
+import {
+  describeNoteRetention,
+  describeRawAudioRetention,
+  noteRetentionChoices,
+  rawAudioChoices,
+} from "../../domain/settings/retention";
+import type { ProviderState } from "../../domain/settings/provider-status";
+
+export const prerender = false;
+
+// Owner route: the middleware has verified session, Origin and CSRF. The owner id comes from the
+// session only; nothing on this page reads an id from the request.
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const retentionDeps = getRetentionDeps();
+let errors: FieldError[] = [];
+let submitted: { hours: string; days: string; acknowledged: boolean } | null = null;
+
+if (Astro.request.method === "POST") {
+  const fields = readFormFields(await Astro.request.formData(), [
+    "csrf_token",
+    "raw_audio_retention_hours",
+    "note_retention_days",
+    "acknowledge_note_retention",
+  ]);
+  if (!fields) return new Response("Bad request", { status: 400 });
+  const acknowledgement = single(fields, "acknowledge_note_retention");
+  if (acknowledgement !== undefined && acknowledgement !== "yes") {
+    return new Response("Bad request", { status: 400 });
+  }
+  const input = {
+    rawAudioRetentionHours: single(fields, "raw_audio_retention_hours"),
+    noteRetentionDays: single(fields, "note_retention_days"),
+    acknowledged: acknowledgement === "yes",
+  };
+  const result = await saveRetention(retentionDeps, owner.id, input);
+  if (result.ok) return Astro.redirect("/settings?notice=retention_saved", 303);
+  errors = result.error;
+  submitted = {
+    hours: input.rawAudioRetentionHours ?? "",
+    days: input.noteRetentionDays ?? "",
+    acknowledged: input.acknowledged,
+  };
+  Astro.response.status = 422;
+}
+
+const [providers, retention, meetings, deletions] = await Promise.all([
+  loadProviderStatus(getProviderStatusDeps(), owner.id),
+  loadRetention(retentionDeps, owner.id),
+  listDeletableMeetings(getHomeDeps(), owner.id),
+  listDeletions(getDeletionDeps(), owner.id),
+]);
+
+const notice = settingsNotice(Astro.url.searchParams.get("notice"));
+const selectedHours = submitted?.hours ?? String(retention.rawAudioRetentionHours);
+const selectedDays =
+  submitted?.days ??
+  (retention.noteRetentionDays === null ? "off" : String(retention.noteRetentionDays));
+const fieldError = (name: string) => errors.find((e) => e.field === name);
+const markers: Record<ProviderState, string> = {
+  configured: "✓",
+  degraded: "!",
+  fake: "◌",
+  misconfigured: "✕",
+};
+const csrf = Astro.locals.csrfToken ?? "";
+---
+
+<Base title="Settings">
+  <div class="page-head">
+    <h1>Settings</h1>
+  </div>
+
+  {notice !== null && (
+    <p class="notice" role="status">
+      {notice}
+    </p>
+  )}
+  <ErrorSummary errors={errors} />
+
+  <section class="panel" aria-labelledby="providers-heading">
+    <h2 id="providers-heading">Provider status</h2>
+    <p class="help">
+      What Willycrumbs talks to, and whether it is working for you right now. Fake mode means a
+      built-in stand-in is used and nothing leaves this server.
+    </p>
+    <ul class="rows">
+      {providers.map((provider) => (
+        <li class="row">
+          <h3 class="row-title">{provider.label}</h3>
+          <p class="row-meta">
+            <span class="badge">
+              <span aria-hidden="true">{markers[provider.state]}</span>
+              {provider.stateText}
+            </span>
+          </p>
+          <p class="row-meta">{provider.modeText}</p>
+          {provider.lastError !== null && (
+            <p>
+              Last error: <code>{provider.lastError.code}</code>. {provider.lastError.summary}
+              {provider.lastError.at !== null && (
+                <span> ({formatInstant(provider.lastError.at)})</span>
+              )}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="retention-heading">
+    <h2 id="retention-heading">Retention</h2>
+    <p class="help">
+      Currently: {describeRawAudioRetention(retention.rawAudioRetentionHours).toLowerCase()}.{" "}
+      {describeNoteRetention(retention.noteRetentionDays)}.
+    </p>
+    <form class="form form-wide" method="post" action="/settings">
+      <input type="hidden" name="csrf_token" value={csrf} />
+      <div class="field">
+        <label for="raw_audio_retention_hours">Raw audio</label>
+        <select
+          id="raw_audio_retention_hours"
+          name="raw_audio_retention_hours"
+          aria-invalid={fieldError("raw_audio_retention_hours") ? "true" : undefined}
+          aria-describedby="raw-audio-help"
+        >
+          {rawAudioChoices(retention.rawAudioRetentionHours).map((hours) => (
+            <option value={String(hours)} selected={String(hours) === selectedHours}>
+              {describeRawAudioRetention(hours)}
+            </option>
+          ))}
+        </select>
+        <p class="help" id="raw-audio-help">
+          Raw audio is only needed to transcribe it. Keeping it longer stores more sensitive data.
+        </p>
+      </div>
+      <div class="field">
+        <label for="note_retention_days">Notes and transcripts</label>
+        <select
+          id="note_retention_days"
+          name="note_retention_days"
+          aria-invalid={fieldError("note_retention_days") ? "true" : undefined}
+          aria-describedby="notes-help"
+        >
+          <option value="off" selected={selectedDays === "off"}>
+            {describeNoteRetention(null)}
+          </option>
+          {noteRetentionChoices(retention.noteRetentionDays).map((days) => (
+            <option value={String(days)} selected={String(days) === selectedDays}>
+              {describeNoteRetention(days)}
+            </option>
+          ))}
+        </select>
+        <p class="help" id="notes-help">
+          When a period is set, meetings that are finished, published, archived or failed and older
+          than it are deleted permanently and automatically, with their transcript and audio.
+        </p>
+      </div>
+      <div class="field">
+        <div class="check consent">
+          <input
+            id="acknowledge_note_retention"
+            name="acknowledge_note_retention"
+            type="checkbox"
+            value="yes"
+            checked={submitted?.acknowledged === true}
+            aria-invalid={fieldError("acknowledge_note_retention") ? "true" : undefined}
+          />
+          <label for="acknowledge_note_retention">
+            I understand that meetings older than the period I choose are deleted permanently and
+            automatically. Needed when you turn this on or make the period shorter.
+          </label>
+        </div>
+        {fieldError("acknowledge_note_retention") && (
+          <p class="field-error">{fieldError("acknowledge_note_retention")?.message}</p>
+        )}
+      </div>
+      <button class="button" type="submit">
+        Save retention
+      </button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="templates-heading">
+    <h2 id="templates-heading">Templates and folders</h2>
+    <p>
+      Templates set the sections of the note generated after a meeting. Folders are private places
+      to publish finished notes.
+    </p>
+    <p class="row-actions">
+      <a class="button button-quiet" href="/settings/templates">
+        Edit templates
+      </a>
+      <a class="button button-quiet" href="/settings/folders">
+        Manage folders
+      </a>
+    </p>
+  </section>
+
+  <section class="panel" aria-labelledby="export-heading">
+    <h2 id="export-heading">Export</h2>
+    <p>
+      Every note can be exported to a Markdown file from its search result or from the list below.
+      The export has the title, agenda, notes, decisions and action items. It never includes the
+      transcript, audio or email addresses.
+    </p>
+    <p class="row-actions">
+      <a class="button button-quiet" href="/search">
+        Find a note to export
+      </a>
+    </p>
+  </section>
+
+  <section class="panel" aria-labelledby="deletion-heading">
+    <h2 id="deletion-heading">Permanent deletion</h2>
+    <p>
+      Deleting a meeting destroys its note, transcript, audio and search entries, and cannot be
+      undone. You confirm by typing a word on the next page. The meeting disappears at once; the
+      files and records are then removed by a background job whose progress is shown here.
+    </p>
+
+    <h3 id="deletions">Deletions</h3>
+    {deletions.length === 0 ? (
+      <p>No deletions yet.</p>
+    ) : (
+      <ul class="rows">
+        {deletions.map((entry) => (
+          <li class="row">
+            <p class="row-title">
+              <span class="badge">{entry.view.label}</span>
+            </p>
+            <p class="row-meta">
+              Requested {formatInstant(entry.requestedAt)} · Reference{" "}
+              <code>{entry.meetingId}</code>
+            </p>
+            <p>{entry.view.detail}</p>
+            {entry.view.state === "retrying" && entry.nextRunAt !== null && (
+              <p class="row-meta">Next attempt: {formatInstant(entry.nextRunAt)}</p>
+            )}
+            {entry.view.state === "succeeded" && (
+              <p class="row-meta">Finished {formatInstant(entry.updatedAt)}</p>
+            )}
+            {entry.view.canRetry && (
+              <form
+                class="inline-form"
+                method="post"
+                action={`/settings/deletions/${entry.meetingId}/retry`}
+              >
+                <input type="hidden" name="csrf_token" value={csrf} />
+                <button class="button button-quiet" type="submit">
+                  Retry deletion<span class="sr-only"> for reference {entry.meetingId}</span>
+                </button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
+    )}
+    {deletions.some((entry) => entry.view.inProgress) && (
+      <p class="help">
+        A deletion is still running. <a href="/settings#deletions">Check again</a> in a moment.
+      </p>
+    )}
+
+    <h3>Delete a meeting</h3>
+    {meetings.length === 0 ? (
+      <p>You have no meetings to delete.</p>
+    ) : (
+      <ul class="rows">
+        {meetings.map((item) => (
+          <li class="row">
+            <h4 class="row-title">{item.title}</h4>
+            <p class="row-meta">
+              <time datetime={item.scheduledStartAt}>
+                {formatSchedule(item.scheduledStartAt, item.timezone)}
+              </time>
+              {" · "}
+              {describeMeeting(item).label}
+            </p>
+            <div class="row-actions">
+              <a href={`/meetings/${item.id}/export.md`}>
+                Export Markdown<span class="sr-only"> of {item.title}</span>
+              </a>
+              <a class="button button-danger" href={`/meetings/${item.id}/delete`}>
+                Delete permanently<span class="sr-only"> {item.title}</span>
+              </a>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+</Base>
+
+<style>
+  /* A select is as wide as its longest option unless told otherwise, which overflows a phone. */
+  .form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .field select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  code {
+    overflow-wrap: anywhere;
+  }
+</style>

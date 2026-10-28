@@ -103,9 +103,9 @@ describe("parseRetention", () => {
     expect(
       parseRetention(form({ rawAudioRetentionHours: "5", noteRetentionDays: "45" }), custom),
     ).toEqual({ ok: true, value: custom });
-    expect(parseRetention(form({ rawAudioRetentionHours: "6", noteRetentionDays: "45" }), custom).ok).toBe(
-      false,
-    );
+    expect(
+      parseRetention(form({ rawAudioRetentionHours: "6", noteRetentionDays: "45" }), custom).ok,
+    ).toBe(false);
   });
 
   it("reports every problem at once", () => {

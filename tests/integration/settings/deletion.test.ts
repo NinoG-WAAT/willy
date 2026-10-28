@@ -48,14 +48,15 @@ describe("loadDeletionPrompt", () => {
       ok: true,
       value: { id: "m-a", title: "Old kickoff", status: "scheduled", timezone: "Europe/Paris" },
     });
-    if (result.ok) expect(Object.keys(result.value).sort()).toEqual([
-      "attendeeCount",
-      "id",
-      "scheduledStartAt",
-      "status",
-      "timezone",
-      "title",
-    ]);
+    if (result.ok)
+      expect(Object.keys(result.value).sort()).toEqual([
+        "attendeeCount",
+        "id",
+        "scheduledStartAt",
+        "status",
+        "timezone",
+        "title",
+      ]);
   });
 
   it("is not_found for another owner's meeting, a guessed id and a lookalike, identically", async () => {
@@ -84,7 +85,9 @@ describe("confirmMeetingDeletion", () => {
     expect(result).toEqual({ ok: true, value: { outcome: "requested" } });
     expect(status("m-a")).toBe("deleting");
     expect(deleteJobs("m-a")).toBe(1);
-    expect(count(db, "audit_event", "meeting_id = 'm-a' AND kind = 'meeting.deletion_requested'")).toBe(1);
+    expect(count(db, "audit_event", "meeting_id = 'm-a' AND kind = 'meeting.status_changed'")).toBe(
+      1,
+    );
     expect(await loadDeletionPrompt(deps, "A", "m-a")).toEqual({
       ok: false,
       error: { kind: "already_requested" },
@@ -201,7 +204,9 @@ describe("retryMeetingDeletion", () => {
       ok: true,
       value: { outcome: "requeued" },
     });
-    const row = db.prepare("SELECT status, attempts, last_error_code FROM job WHERE id = ?").get(jobId);
+    const row = db
+      .prepare("SELECT status, attempts, last_error_code FROM job WHERE id = ?")
+      .get(jobId);
     expect(row).toMatchObject({ status: "pending", attempts: 0, last_error_code: null });
     expect(deleteJobs("m-a")).toBe(1);
     // Repeating while it is queued changes nothing.

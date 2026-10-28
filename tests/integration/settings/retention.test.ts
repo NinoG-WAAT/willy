@@ -45,7 +45,10 @@ describe("saveRetention", () => {
       "A",
       form({ rawAudioRetentionHours: "72", noteRetentionDays: "90", acknowledged: true }),
     );
-    expect(result).toEqual({ ok: true, value: { rawAudioRetentionHours: 72, noteRetentionDays: 90 } });
+    expect(result).toEqual({
+      ok: true,
+      value: { rawAudioRetentionHours: 72, noteRetentionDays: 90 },
+    });
     expect(await loadRetention(deps, "A")).toEqual({
       rawAudioRetentionHours: 72,
       noteRetentionDays: 90,

@@ -1,0 +1,134 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { formatSchedule } from "../../../components/format-schedule";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { readFormFields, single } from "../../../app/platform/form";
+import { confirmMeetingDeletion, loadDeletionPrompt } from "../../../app/settings/deletion";
+import { getDeletionDeps } from "../../../composition";
+import { DELETION_CONFIRMATION_WORD } from "../../../domain/settings/deletion-confirmation";
+
+export const prerender = false;
+
+// Owner route: the middleware has verified session, Origin and CSRF. The owner id comes from the
+// session only. Another owner's meeting and an unknown id give the same 404.
+const owner = requireOwner(Astro.locals);
+const deps = getDeletionDeps();
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const id = Astro.params.id ?? "";
+let problem: "confirmation" | "busy" | null = null;
+
+// Look the meeting up before the body is read (a rewrite is not possible afterwards). Another
+// owner's id and an unknown id both stop here with the same 404, whether or not a word was typed.
+const prompt = await loadDeletionPrompt(deps, owner.id, id);
+if (!prompt.ok) {
+  // Already queued: point at the one job instead of showing a 404 (a double submit is harmless).
+  return prompt.error.kind === "already_requested"
+    ? Astro.redirect("/settings?notice=deletion_repeated#deletions", 303)
+    : Astro.rewrite("/404");
+}
+
+if (Astro.request.method === "POST") {
+  const fields = readFormFields(await Astro.request.formData(), ["csrf_token", "confirmation"]);
+  if (!fields) return new Response("Bad request", { status: 400 });
+  // The use case calls requestMeetingDeletion (#13); the route holds no deletion logic.
+  const result = await confirmMeetingDeletion(deps, owner.id, id, single(fields, "confirmation"));
+  if (result.ok) {
+    const code = result.value.outcome === "requested" ? "deletion_requested" : "deletion_repeated";
+    return Astro.redirect(`/settings?notice=${code}#deletions`, 303);
+  }
+  // Only reachable when the meeting vanished between the lookup and here.
+  if (result.error.kind === "not_found") return new Response("Not found", { status: 404 });
+  problem = result.error.kind === "confirmation_required" ? "confirmation" : "busy";
+  Astro.response.status = problem === "confirmation" ? 422 : 409;
+}
+
+const meeting = prompt.value;
+const recording = meeting.status === "capturing" || meeting.status === "paused";
+---
+
+<Base title="Delete meeting permanently">
+  <h1>Delete meeting permanently</h1>
+  <p>
+    You are about to delete <strong>{meeting.title}</strong>, scheduled for
+    <time datetime={meeting.scheduledStartAt}>
+      {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
+    </time>
+    .
+  </p>
+
+  {recording && (
+    <p class="alert" role="alert">
+      This meeting is recording right now. Deleting it stops the capture and discards what was
+      recorded.
+    </p>
+  )}
+  {problem === "busy" && (
+    <p class="alert" role="alert">
+      Something changed at the same moment, so nothing was deleted. Check the settings page, then
+      try again.
+    </p>
+  )}
+
+  <section class="panel" aria-labelledby="scope-heading">
+    <h2 id="scope-heading">What will be destroyed</h2>
+    <ul class="plain">
+      <li>The note: its summary sections, decisions and action items, as a draft or published.</li>
+      <li>The transcript, including speaker corrections.</li>
+      <li>The audio: any raw audio chunks that are still stored.</li>
+      <li>The search entries for this meeting, so it no longer appears in any result.</li>
+      <li>Your rough notes, the agenda and the attendee list.</li>
+    </ul>
+    <p>
+      Only a short record that a deletion happened stays, with no title or text. Files you already
+      exported or downloaded, and the event in your calendar, are not touched.
+    </p>
+    <p>
+      <strong>This cannot be undone.</strong> The meeting disappears at once. A background job then
+      removes the files and records, and you can follow it on the settings page.
+    </p>
+    <p>
+      Want a copy first?
+      <a href={`/meetings/${meeting.id}/export.md`}>Export this note to Markdown</a>. The export has
+      no transcript or audio.
+    </p>
+  </section>
+
+  <form
+    class="form"
+    method="post"
+    action={`/meetings/${meeting.id}/delete`}
+    data-pending-text="Deleting…"
+  >
+    <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+    <div class="field">
+      <label for="confirmation">Type {DELETION_CONFIRMATION_WORD} to confirm</label>
+      <input
+        id="confirmation"
+        name="confirmation"
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-invalid={problem === "confirmation" ? "true" : undefined}
+        aria-describedby={problem === "confirmation" ? "confirmation-error" : undefined}
+      />
+      {problem === "confirmation" && (
+        <p class="field-error" id="confirmation-error">
+          Type {DELETION_CONFIRMATION_WORD} in capital letters to confirm. Nothing was deleted.
+        </p>
+      )}
+    </div>
+    <div class="row-actions">
+      <button class="button button-danger" type="submit">
+        Delete permanently
+      </button>
+      <a href="/settings">Cancel</a>
+    </div>
+  </form>
+  <p id="pending-status" class="sr-only" role="status"></p>
+
+  <script>
+    import "../../../scripts/pending-submit";
+  </script>
+</Base>
