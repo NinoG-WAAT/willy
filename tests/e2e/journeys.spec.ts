@@ -538,3 +538,21 @@ test.describe("permission boundaries: another owner gets the same answer as for 
     await pageA.close();
   });
 });
+
+test.describe("owner-supplied text on a small screen", () => {
+  test("one very long word in a title wraps instead of scrolling the page sideways", async ({
+    page,
+  }) => {
+    // A pasted URL or token is one unbreakable word; Linux fonts are wider than a developer's, so
+    // this once overflowed only in CI (the unique words of the search tests had grown longer).
+    const owner = createFreshOwner();
+    createCapturingMeeting(owner.id, "scheduled", `Strategy ${"x".repeat(70)}`);
+    await signIn(page, owner);
+    await page.setViewportSize({ width: 320, height: 640 });
+    for (const path of ["/", "/settings", "/search?q=strategy"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await noHorizontalScroll(page);
+    }
+  });
+});
