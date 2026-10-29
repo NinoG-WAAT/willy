@@ -94,10 +94,15 @@ describe("confirmIcsImport", () => {
     const changed = FIXTURE.replace(
       "SUMMARY;LANGUAGE=en-us:Product sync",
       "SUMMARY;LANGUAGE=en-us:Product sync (renamed)",
-    ).replace(
-      "DTSTART;TZID=W. Europe Standard Time:20261103T100000",
-      "DTSTART;TZID=W. Europe Standard Time:20261103T110000",
-    );
+    )
+      .replace(
+        "DTSTART;TZID=W. Europe Standard Time:20261103T100000",
+        "DTSTART;TZID=W. Europe Standard Time:20261103T110000",
+      )
+      .replace(
+        "DTEND;TZID=W. Europe Standard Time:20261103T103000",
+        "DTEND;TZID=W. Europe Standard Time:20261103T113000",
+      );
     const second = await run("owner-a", importable(changed), changed);
     expect(second.ok && second.value.created).toBe(0);
     const meetings = ctx.repo.meetingsOf("owner-a");

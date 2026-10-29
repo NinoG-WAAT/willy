@@ -30,6 +30,12 @@ export function noticeMessage(params: URLSearchParams): string | null {
     if (created === 0 && existing === 0) return "Your calendar has no upcoming events to import.";
     return `Imported ${plural(created, "new meeting", "new meetings")}. ${plural(existing, "event was", "events were")} already in your list.`;
   }
+  if (code === "ics_imported") {
+    const created = count(params.get("new"));
+    const existing = count(params.get("existing"));
+    if (created === null || existing === null) return "Calendar file import finished.";
+    return `Imported ${plural(created, "new meeting", "new meetings")} from the calendar file. ${plural(existing, "event was", "events were")} already in your list.`;
+  }
   return code !== null && Object.hasOwn(NOTICES, code) ? (NOTICES[code] ?? null) : null;
 }
 

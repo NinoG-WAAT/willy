@@ -105,7 +105,7 @@ describe("parseIcs: events", () => {
         "UID:g",
         "SUMMARY:G",
         "DTSTART;TZID=Romance Standard Time:20260329T023000",
-        "DTEND;TZID=Romance Standard Time:20260329T033000",
+        "DTEND;TZID=Romance Standard Time:20260329T043000",
       ),
     );
     expect(gap.event.startsAt).toBe("2026-03-29T01:30:00.000Z");

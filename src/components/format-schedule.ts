@@ -16,3 +16,14 @@ export function formatSchedule(startsAtUtc: string, timeZone: string): string {
     return new Intl.DateTimeFormat("en-GB", { ...options, timeZone: "UTC" }).format(date);
   }
 }
+
+/** "Fri 6 Nov": the calendar day in the event's own zone, for all-day events that have no time. */
+export function formatDay(startsAtUtc: string, timeZone: string): string {
+  const date = new Date(startsAtUtc);
+  const options: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" };
+  try {
+    return new Intl.DateTimeFormat("en-GB", { ...options, timeZone }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat("en-GB", { ...options, timeZone: "UTC" }).format(date);
+  }
+}

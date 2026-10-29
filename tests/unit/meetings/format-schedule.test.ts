@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSchedule } from "../../../src/components/format-schedule";
+import { formatDay, formatSchedule } from "../../../src/components/format-schedule";
 
 describe("formatSchedule", () => {
   it("shows the wall time in the meeting's own time zone with its abbreviation", () => {
@@ -15,5 +15,16 @@ describe("formatSchedule", () => {
 
   it("falls back to UTC text for an unknown zone instead of throwing", () => {
     expect(formatSchedule("2026-11-03T08:00:00.000Z", "Mars/Olympus")).toMatch(/08:00/);
+  });
+});
+
+describe("formatDay", () => {
+  it("shows the calendar day in the event's zone with no time, for all-day events", () => {
+    // Local midnight in Paris is 23:00 UTC the evening before: the day must still read 6 Nov.
+    expect(formatDay("2026-11-05T23:00:00.000Z", "Europe/Paris")).toBe("Fri 6 Nov");
+  });
+
+  it("falls back to UTC for an unknown zone instead of throwing", () => {
+    expect(formatDay("2026-11-05T23:00:00.000Z", "Mars/Olympus")).toBe("Thu 5 Nov");
   });
 });
