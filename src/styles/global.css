@@ -406,6 +406,15 @@ a {
   font-size: 1.1rem;
 }
 
+/* Invitation text from a calendar file: plain text, line breaks kept, long links wrapped. */
+.excerpt {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .facts {
   display: grid;
   gap: 0.25rem;

@@ -162,6 +162,52 @@ test.describe("owner screens", () => {
     await context.close();
   });
 
+  test("ICS import: form, refusal, preview and notice", async ({ page }) => {
+    await page.goto("/meetings/import/ics");
+    await audit(page);
+    // Refusal state: an announced error next to the file field.
+    await page.getByRole("button", { name: "Preview events" }).click();
+    await expect(page.getByRole("alert")).toBeVisible();
+    await audit(page);
+    // Preview state: events to tick, a series notice, a cancelled event without a checkbox.
+    await page
+      .getByLabel("Calendar file (.ics, up to 1 MB)")
+      .setInputFiles("tests/fixtures/ics/outlook-week.ics");
+    await page.getByRole("button", { name: "Preview events" }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "Preview" })).toBeVisible();
+    await expect(page.getByRole("checkbox")).toHaveCount(5);
+    await audit(page);
+    // Success state: the home screen with the import notice.
+    await page.getByRole("button", { name: "Import selected events" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "from the calendar file" }),
+    ).toBeVisible();
+    await audit(page);
+  });
+
+  test("ICS import: nothing importable", async ({ page }) => {
+    await page.goto("/meetings/import/ics");
+    const cancelledOnly = [
+      "BEGIN:VCALENDAR",
+      "BEGIN:VEVENT",
+      "UID:a11y-1",
+      "STATUS:CANCELLED",
+      "SUMMARY:Called off",
+      "DTSTART:20261103T080000Z",
+      "DTEND:20261103T090000Z",
+      "END:VEVENT",
+      "BEGIN:VEVENT",
+      "UID:a11y-2",
+      "SUMMARY:No start",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    await page.getByLabel("Or paste the calendar text").fill(cancelledOnly);
+    await page.getByRole("button", { name: "Preview events" }).click();
+    await expect(page.getByText("Every event in this file was cancelled")).toBeVisible();
+    await audit(page);
+  });
+
   test("new note and its validation errors", async ({ page }) => {
     await page.goto("/meetings/new");
     await audit(page);

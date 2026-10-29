@@ -48,8 +48,8 @@ describe("localToUtc", () => {
     });
 
     it("a meeting that spans the change keeps its real length", () => {
-      const start = Date.parse(at("Europe/Paris", 2026, 10, 24, 23));
-      const end = Date.parse(at("Europe/Paris", 2026, 10, 25, 3));
+      const start = Date.parse(at("Europe/Paris", 2026, 10, 24, 23) ?? "");
+      const end = Date.parse(at("Europe/Paris", 2026, 10, 25, 3) ?? "");
       expect((end - start) / 3_600_000).toBe(5);
     });
   });

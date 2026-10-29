@@ -14,10 +14,16 @@ export interface LineLimits {
   maxLineLength: number;
 }
 
-// Everything but TAB, CR and LF below U+0020, plus DEL: binary data, not calendar text.
-// A single character class, so there is no backtracking to attack.
-const FORBIDDEN_CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
 const LINE_BREAK = /\r\n|\n|\r/;
+
+/** Everything below U+0020 except TAB, CR and LF, plus DEL: binary data, not calendar text. */
+function hasForbiddenControl(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if ((c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) || c === 0x7f) return true;
+  }
+  return false;
+}
 
 /**
  * Splits text into logical lines: handles CRLF, LF and CR endings, and unfolds continuation lines
@@ -25,7 +31,7 @@ const LINE_BREAK = /\r\n|\n|\r/;
  * and stops as soon as a limit is exceeded, so a hostile file never costs more than its size.
  */
 export function unfoldLines(text: string, limits: LineLimits): Result<string[], LineLimitCode> {
-  if (FORBIDDEN_CONTROL.test(text)) return err("invalid_characters");
+  if (hasForbiddenControl(text)) return err("invalid_characters");
   const physical = text.split(LINE_BREAK);
   if (physical.length > limits.maxLines) return err("too_many_lines");
 
