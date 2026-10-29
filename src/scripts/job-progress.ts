@@ -83,7 +83,10 @@ function show(el: HTMLElement, view: ProgressView): { settled: boolean } {
 const renderers: Record<string, Render> = {
   processing: (el, body) => {
     const payload = parseProcessingPayload(body);
-    return payload ? show(el, processingProgress(payload)) : null;
+    // Only the live note has a link to the review (its href is in the page, built from the
+    // meeting id it renders); the review page itself does not.
+    const withLink = fieldNode(el, "link", el.id) !== null;
+    return payload ? show(el, processingProgress(payload, withLink)) : null;
   },
   regeneration: (el, body) => {
     const payload = parseProcessingPayload(body);
