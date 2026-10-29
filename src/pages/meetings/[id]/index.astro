@@ -26,7 +26,8 @@ let problem: string | null = null;
 let notesDraft: string | null = null;
 
 if (Astro.request.method === "POST") {
-  const fields = readFormFields(await Astro.request.formData(), [
+  // A clone: a rewrite to the 404 page re-reads the request, whose body must still be unread.
+  const fields = readFormFields(await Astro.request.clone().formData(), [
     "csrf_token",
     "intent",
     "consent",

@@ -18,7 +18,7 @@ if (!found.ok) return Astro.rewrite("/404");
 
 let blockedMessage: string | null = null;
 if (Astro.request.method === "POST") {
-  if (!readFormFields(await Astro.request.formData(), ["csrf_token", "confirm"])) {
+  if (!readFormFields(await Astro.request.clone().formData(), ["csrf_token", "confirm"])) {
     return new Response("Bad request", { status: 400 });
   }
   const result = await deleteFolder(deps, owner.id, id);

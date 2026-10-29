@@ -21,7 +21,7 @@ let failedRenameId: string | null = null;
 let failedRenameValue = "";
 
 if (Astro.request.method === "POST") {
-  const fields = readFormFields(await Astro.request.formData(), [
+  const fields = readFormFields(await Astro.request.clone().formData(), [
     "csrf_token",
     "intent",
     "id",

@@ -14,7 +14,11 @@ const deps = getNotesDeps();
 Astro.response.headers.set("Cache-Control", "no-store");
 
 if (Astro.request.method === "POST") {
-  const fields = readFormFields(await Astro.request.formData(), ["csrf_token", "intent", "id"]);
+  const fields = readFormFields(await Astro.request.clone().formData(), [
+    "csrf_token",
+    "intent",
+    "id",
+  ]);
   if (!fields || single(fields, "intent") !== "set_default") {
     return new Response("Bad request", { status: 400 });
   }
