@@ -199,7 +199,7 @@ const STATUS_TEXT: Record<string, string> = {
             </p>
           )}
           <div class="row-actions">
-            <button class="button" type="submit" id="start-button">
+            <button class="button button-primary" type="submit" id="start-button">
               Start capture
             </button>
           </div>
@@ -226,7 +226,7 @@ const STATUS_TEXT: Record<string, string> = {
             <form method="post" action={action} data-capture-action="resume">
               <input type="hidden" name="csrf_token" value={csrf} />
               <input type="hidden" name="intent" value="resume" />
-              <button class="button" type="submit">
+              <button class="button button-primary" type="submit">
                 Resume
               </button>
             </form>
