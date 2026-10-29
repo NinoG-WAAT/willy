@@ -68,6 +68,11 @@
   cursor: not-allowed;
 }
 
+/* A button that is a direct child of a form grid keeps its own width on a wide screen. */
+.form > .button {
+  justify-self: start;
+}
+
 /* Standalone action links (row actions, "Cancel" beside a submit button) are touch targets too. */
 .row-actions > a:not(.button),
 form > a:not(.button),
