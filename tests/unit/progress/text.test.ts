@@ -7,6 +7,8 @@ import {
   parseProcessingPayload,
   processingProgress,
   regenerationProgress,
+  reviewLinkLabel,
+  reviewPath,
   stoppedMessage,
   type JobProgress,
   type ProcessingPayload,
@@ -83,6 +85,68 @@ describe("processingProgress", () => {
   it("settles for any status that is no longer processing", () => {
     expect(processingProgress(payload({ meetingStatus: "published" })).settled).toBe(true);
     expect(processingProgress(payload({ meetingStatus: "capturing" })).settled).toBe(true);
+  });
+});
+
+describe("processingProgress on a page that has a link to the review (#63)", () => {
+  it("offers the link instead of telling the owner to check again once the draft is ready", () => {
+    const view = processingProgress(
+      payload({ meetingStatus: "review", job: job({ status: "succeeded" }) }),
+      true,
+    );
+    expect(view.settled).toBe(true);
+    expect(view.fields["link"]).toBe("Open the draft");
+    expect(view.fields["outcome"]).toBe("Your draft is ready.");
+    expect(view.fields["badge"]).toBe("Draft: not published");
+  });
+
+  it("offers the link on failure too, because the review page is where the retry is", () => {
+    const view = processingProgress(
+      payload({ meetingStatus: "failed", job: job({ status: "failed", attempts: 5 }) }),
+      true,
+    );
+    expect(view.fields["link"]).toBe("See what happened and retry");
+    expect(view.fields["outcome"]).toMatch(/did not finish/i);
+    expect(view.fields["outcome"]).toMatch(/rough notes are kept/i);
+    expect(view.fields["outcome"]).not.toMatch(/check again/i);
+  });
+
+  it("keeps the link hidden (empty) while still processing and for states with nothing to review", () => {
+    expect(processingProgress(payload(), true).fields["link"]).toBe("");
+    const moved = processingProgress(payload({ meetingStatus: "published" }), true);
+    expect(moved.fields["link"]).toBe("");
+    expect(moved.fields["outcome"]).toMatch(/check again/i);
+  });
+
+  it("says nothing about a link where the page has none (the review page itself)", () => {
+    const view = processingProgress(payload({ meetingStatus: "review" }));
+    expect(view.fields).not.toHaveProperty("link");
+    expect(view.fields["outcome"]).toMatch(/check again/i);
+  });
+});
+
+describe("reviewLinkLabel and reviewPath", () => {
+  it.each([
+    ["review", "Open the draft"],
+    ["failed", "See what happened and retry"],
+  ] as const)("%s has a link labelled %s", (status, label) => {
+    expect(reviewLinkLabel(status)).toBe(label);
+  });
+
+  it.each([
+    "scheduled",
+    "capturing",
+    "paused",
+    "processing",
+    "published",
+    "archived",
+    "deleting",
+  ] as const)("%s has no link to the review", (status) => {
+    expect(reviewLinkLabel(status)).toBeNull();
+  });
+
+  it("builds the path from the meeting id it is given, nothing else", () => {
+    expect(reviewPath("abc-123")).toBe("/meetings/abc-123/review");
   });
 });
 

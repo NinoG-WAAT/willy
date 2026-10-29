@@ -13,7 +13,7 @@ import {
 } from "../../../composition";
 import { CONSENT_STATEMENT } from "../../../domain/meetings/lifecycle";
 import { MAX_ROUGH_NOTES_CHARS } from "../../../domain/meetings/rough-notes";
-import { describeJob } from "../../../domain/progress/text";
+import { describeJob, reviewLinkLabel, reviewPath } from "../../../domain/progress/text";
 import { isValidStorageId } from "../../../domain/storage/object-key";
 
 export const prerender = false;
@@ -92,6 +92,8 @@ const processing =
   detail.status === "processing" ? await getProcessingStatus(getStatusDeps(), owner.id, id) : null;
 const progress = processing?.ok ? processing.value : null;
 const action = `/meetings/${detail.id}`;
+// Where the review page has something to do (the draft, or the retry), the note links to it.
+const reviewLabel = reviewLinkLabel(detail.status);
 const STATUS_TEXT: Record<string, string> = {
   scheduled: "Not started",
   capturing: "Recording",
@@ -286,6 +288,13 @@ const STATUS_TEXT: Record<string, string> = {
       {controls.phase === "after" && detail.status !== "processing" && (
         <p role="status">{STATUS_TEXT[detail.status]}</p>
       )}
+      {controls.phase === "after" && detail.status !== "processing" && reviewLabel !== null && (
+        <p class="row-actions">
+          <a class="button button-primary" href={reviewPath(detail.id)}>
+            {reviewLabel}
+          </a>
+        </p>
+      )}
       {controls.phase === "after" && detail.status === "processing" && (
         <div
           id="processing-progress"
@@ -301,6 +310,13 @@ const STATUS_TEXT: Record<string, string> = {
             <li data-field="summary">Summary: {describeJob(progress?.summary ?? null)}</li>
           </ul>
           <p data-field="outcome" data-optional hidden></p>
+          <a
+            class="button button-primary"
+            data-field="link"
+            data-optional
+            hidden
+            href={reviewPath(detail.id)}
+          ></a>
         </div>
       )}
       {controls.phase === "after" && detail.status === "processing" && (

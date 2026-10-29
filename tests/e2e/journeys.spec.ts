@@ -253,6 +253,37 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
   });
 });
 
+test.describe("live note to review (#63)", () => {
+  test("after Stop the page offers the draft by itself, with no reload, and the link opens the review", async ({
+    page,
+  }) => {
+    const owner = createFreshOwner();
+    const token = await signIn(page, owner);
+    const id = await createAndOpenNote(page, "Link to the draft");
+    await startCaptureAndWaitForAudio(page, id);
+    await stopCapture(page);
+    // A marker a reload would remove: the link has to show up in this very document.
+    await page.evaluate(() => {
+      (window as unknown as { sameDocument: boolean }).sameDocument = true;
+    });
+    const link = page.getByRole("link", { name: "Open the draft" });
+    await expect(link).toBeHidden();
+
+    // The pipeline (fake speech-to-text and summary) runs; the page is only polling.
+    await runJobsUntil(page, token, id, "review");
+    await expect(link).toBeVisible({ timeout: 45_000 });
+    await expect(link).toHaveAttribute("href", `/meetings/${id}/review`);
+    expect(
+      await page.evaluate(() => (window as unknown as { sameDocument?: boolean }).sameDocument),
+    ).toBe(true);
+    await noHorizontalScroll(page);
+
+    await link.click();
+    await expect(page).toHaveURL(`/meetings/${id}/review`);
+    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+  });
+});
+
 test.describe("journey 3: search, open with context, export, permanently delete", () => {
   test("finds an old meeting, exports it, deletes it, and nothing of it is left", async ({
     page,

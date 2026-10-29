@@ -69,21 +69,49 @@ export function describeJob(job: JobProgress | null): string {
   }
 }
 
-/** The transcript and summary lines of a meeting that is still being prepared. */
-export function processingProgress(payload: ProcessingPayload): ProgressView {
+/** The review page of a meeting. Built from the id the page already holds, never from a response. */
+export const reviewPath = (meetingId: string): string => `/meetings/${meetingId}/review`;
+
+/**
+ * Label of the link from the live note to the review page, for the statuses where the review page
+ * has something to do: open the draft, or see why processing failed and retry. Null elsewhere.
+ */
+export function reviewLinkLabel(status: MeetingStatus): string | null {
+  switch (status) {
+    case "review":
+      return "Open the draft";
+    case "failed":
+      return "See what happened and retry";
+    default:
+      return null;
+  }
+}
+
+/**
+ * The transcript and summary lines of a meeting that is still being prepared. `withLink` is true
+ * on the live note, which has a (hidden until needed) link to the review page: the outcome then
+ * leaves the next step to that link. The review page itself has no such link and keeps pointing
+ * at "Check again", which reloads it.
+ */
+export function processingProgress(payload: ProcessingPayload, withLink = false): ProgressView {
   const fields: Record<string, string> = {
     transcript: `Transcript: ${describeJob(payload.job)}`,
     summary: `Summary: ${describeJob(payload.summary)}`,
     outcome: "",
   };
   const settled = payload.meetingStatus !== "processing";
+  const link = reviewLinkLabel(payload.meetingStatus);
+  if (withLink) fields["link"] = link ?? "";
   if (settled) {
     if (payload.meetingStatus === "review") {
-      fields["outcome"] = "Your draft is ready. Use Check again to open it.";
+      fields["outcome"] = withLink
+        ? "Your draft is ready."
+        : "Your draft is ready. Use Check again to open it.";
       fields["badge"] = "Draft: not published";
     } else if (payload.meetingStatus === "failed") {
-      fields["outcome"] =
-        "Processing did not finish. Use Check again to see what happened and retry. Your rough notes are kept.";
+      fields["outcome"] = withLink
+        ? "Processing did not finish. Your rough notes are kept."
+        : "Processing did not finish. Use Check again to see what happened and retry. Your rough notes are kept.";
       fields["badge"] = "Processing needs attention";
     } else {
       fields["outcome"] = "This note has moved on. Use Check again to see where it is now.";
