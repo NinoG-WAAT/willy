@@ -168,3 +168,112 @@ export async function createReviewMeeting(ownerId: string): Promise<string> {
 
 /** The name of the private folder `createReviewMeeting` creates for a meeting. */
 export const reviewFolderName = (meetingId: string): string => `Folder for ${meetingId}`;
+
+/** Opens the e2e server's database for a test that plays the part of the background worker. */
+function writable<T>(run: (db: ReturnType<typeof openDatabase>) => T): T {
+  const dir = process.env["E2E_DATA_DIR"];
+  if (!dir) throw new Error("E2E_DATA_DIR is not set (set by playwright.config.ts)");
+  const db = openDatabase(join(dir, "willy.db"));
+  try {
+    return run(db);
+  } finally {
+    db.close();
+  }
+}
+
+export type JobState = "pending" | "running" | "retrying" | "succeeded" | "failed";
+
+/**
+ * Plays the background worker for the progress tests (the in-process runner is off in e2e): moves
+ * a meeting's status and sets its transcription job, creating the job on first use. Due times are
+ * a day away so no concurrently running test's job run can pick the job up and change it.
+ */
+export function advanceProcessing(
+  meetingId: string,
+  to: {
+    meeting: "processing" | "review" | "failed";
+    transcription: JobState;
+    summary?: JobState;
+    errorCode?: string;
+  },
+): void {
+  writable((db) => {
+    const row = db.prepare("SELECT owner_id FROM meeting WHERE id = ?").get(meetingId);
+    const ownerId = String(row?.["owner_id"]);
+    const now = new Date();
+    const iso = now.toISOString();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    db.prepare("UPDATE meeting SET status = ?, updated_at = ? WHERE id = ?").run(
+      to.meeting,
+      iso,
+      meetingId,
+    );
+    const jobs: [string, JobState][] = [[`transcribe:${meetingId}`, to.transcription]];
+    if (to.summary !== undefined) jobs.push([`summarize:${meetingId}:1`, to.summary]);
+    for (const [key, state] of jobs) {
+      const kind = key.startsWith("transcribe") ? "transcribe" : "summarize";
+      db.prepare(
+        `INSERT INTO job (id, owner_id, meeting_id, kind, job_key, status, attempts, max_attempts,
+                          next_run_at, last_error_code, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 5, ?, ?, ?, ?)
+         ON CONFLICT (job_key) DO UPDATE SET status = excluded.status, attempts = excluded.attempts,
+           next_run_at = excluded.next_run_at, last_error_code = excluded.last_error_code,
+           updated_at = excluded.updated_at`,
+      ).run(
+        `job-${key}`,
+        ownerId,
+        meetingId,
+        kind,
+        key,
+        state,
+        state === "pending" ? 0 : state === "failed" ? 5 : state === "retrying" ? 2 : 1,
+        state === "pending" || state === "retrying" ? tomorrow : null,
+        state === "failed" || state === "retrying" ? (to.errorCode ?? "stt_unavailable") : null,
+        iso,
+        iso,
+      );
+    }
+  });
+}
+
+/**
+ * Moves a deletion job (created by `createDeletionInState`) to another state. Jobs that are not
+ * finished stay due a day away, and a failed one gets the same "sweeper already ran" markers as in
+ * `createDeletionInState`, so nothing else in the suite re-queues it.
+ */
+export function advanceDeletion(
+  meetingId: string,
+  state: "running" | "retrying" | "succeeded" | "failed",
+): void {
+  writable((db) => {
+    const now = new Date();
+    const iso = now.toISOString();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    db.prepare(
+      `UPDATE job SET status = ?, attempts = ?, next_run_at = ?, last_error_code = ?, updated_at = ?
+        WHERE meeting_id = ? AND kind = 'delete'`,
+    ).run(
+      state,
+      state === "failed" ? 5 : 1,
+      state === "succeeded" || state === "failed" ? null : tomorrow,
+      state === "failed" || state === "retrying" ? "storage_unavailable" : null,
+      iso,
+      meetingId,
+    );
+    if (state === "failed") {
+      const ownerId = String(
+        db
+          .prepare("SELECT owner_id FROM job WHERE meeting_id = ? AND kind = 'delete'")
+          .get(meetingId)?.["owner_id"],
+      );
+      for (const hour of [now, new Date(now.getTime() + 60 * 60 * 1000)]) {
+        const key = `retention:${ownerId}:${hour.toISOString().slice(0, 13)}`;
+        db.prepare(
+          `INSERT OR IGNORE INTO job (id, owner_id, meeting_id, kind, job_key, status, attempts,
+                                      max_attempts, created_at, updated_at)
+           VALUES (?, ?, NULL, 'retention', ?, 'succeeded', 1, 5, ?, ?)`,
+        ).run(`job-${key}`, ownerId, key, iso, iso);
+      }
+    }
+  });
+}

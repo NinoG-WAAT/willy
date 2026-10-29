@@ -48,6 +48,7 @@ const nothingToShow = home.total === 0;
   </div>
 
   <p id="pending-status" class="sr-only" role="status"></p>
+  <p id="progress-announce" class="sr-only" role="status" aria-live="polite"></p>
   {notice !== null && (
     <p class="notice" role="status">
       {notice}
@@ -159,5 +160,6 @@ const nothingToShow = home.total === 0;
 
   <script>
     import "../scripts/pending-submit";
+    import "../scripts/job-progress";
   </script>
 </Base>

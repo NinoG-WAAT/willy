@@ -1,7 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { createCapturingMeeting, createReviewMeeting } from "../support/e2e-db";
+import {
+  advanceDeletion,
+  advanceProcessing,
+  createCapturingMeeting,
+  createDeletionInState,
+  createReviewMeeting,
+} from "../support/e2e-db";
 import { installFakeMicrophone } from "../support/fake-microphone";
+import { createFreshOwner } from "../support/journey-db";
 
 /**
  * Accessibility pass (issue #21): every screen is scanned with axe-core at the desktop viewport
@@ -192,6 +199,63 @@ test.describe("owner screens", () => {
     const id = await createReviewMeeting("owner-ada");
     await page.goto(`/meetings/${id}/review`);
     await audit(page);
+  });
+
+  // Job progress (#51): the live regions are scanned in the state the page loads with and again
+  // after a live update has rewritten them.
+  test("review while processing, before and after a live update", async ({ page }) => {
+    const id = await createReviewMeeting("owner-ada");
+    advanceProcessing(id, { meeting: "processing", transcription: "running", summary: "pending" });
+    await page.goto(`/meetings/${id}/review`);
+    const region = page.locator("#processing-progress");
+    await expect(region).toContainText("Transcript: Running");
+    await audit(page);
+    advanceProcessing(id, { meeting: "failed", transcription: "failed" });
+    await expect(region).toContainText("Processing did not finish", { timeout: 20_000 });
+    await audit(page);
+  });
+
+  test("live note while processing, after a live update", async ({ page }) => {
+    const id = createCapturingMeeting("owner-ada", "processing", "A11y progress");
+    advanceProcessing(id, { meeting: "processing", transcription: "running" });
+    await page.goto(`/meetings/${id}`);
+    await audit(page);
+    advanceProcessing(id, { meeting: "review", transcription: "succeeded", summary: "succeeded" });
+    await expect(page.getByText("Your draft is ready")).toBeVisible({ timeout: 20_000 });
+    await audit(page);
+  });
+
+  test("home with a processing meeting, after a live update", async ({ browser }) => {
+    // A fresh owner: only the first few processing meetings on a page are watched.
+    const owner = createFreshOwner();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await signIn(page, owner.email);
+    const id = createCapturingMeeting(owner.id, "processing", "A11y progress card");
+    advanceProcessing(id, { meeting: "processing", transcription: "running" });
+    await page.goto("/");
+    await audit(page);
+    advanceProcessing(id, { meeting: "failed", transcription: "failed" });
+    await expect(page.locator(`[data-meeting-id="${id}"]`)).toContainText("Needs attention", {
+      timeout: 20_000,
+    });
+    await audit(page);
+    await context.close();
+  });
+
+  test("settings with a running deletion, before and after it fails", async ({ browser }) => {
+    const owner = createFreshOwner();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await signIn(page, owner.email);
+    const id = createDeletionInState(owner.id, "pending");
+    await page.goto("/settings");
+    await audit(page);
+    advanceDeletion(id, "failed");
+    const row = page.locator(`[data-deletion-id="${id}"]`);
+    await expect(row).toContainText("Failed", { timeout: 20_000 });
+    await audit(page);
+    await context.close();
   });
 
   // Seeded states of owner Ada (seeds/seed.ts) and read-only screens. One test per screen keeps

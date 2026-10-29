@@ -9,10 +9,19 @@ interface Props {
 
 const { item } = Astro.props;
 const description = describeMeeting(item);
+// A meeting still being processed is watched for progress (src/scripts/job-progress.ts).
+const watching = item.status === "processing";
 const attendees = `${String(item.attendeeCount)} ${item.attendeeCount === 1 ? "attendee" : "attendees"}`;
 ---
 
-<li class="row meeting">
+<li
+  class="row meeting"
+  data-progress={watching ? "card" : undefined}
+  data-progress-url={watching ? `/api/meetings/${item.id}/status` : undefined}
+  data-announce-to={watching ? "progress-announce" : undefined}
+  data-meeting-id={watching ? item.id : undefined}
+  data-title={watching ? item.title : undefined}
+>
   <h3 class="row-title">
     <a href={description.href}>{item.title}</a>
   </h3>
@@ -25,10 +34,10 @@ const attendees = `${String(item.attendeeCount)} ${item.attendeeCount === 1 ? "a
   </p>
   <ul class="facts">
     <li>
-      <span class="marker" aria-hidden="true">
+      <span class="marker" aria-hidden="true" data-field="marker">
         {description.marker}
       </span>
-      <span class="fact-label">Status:</span> {description.label}
+      <span class="fact-label">Status:</span> <span data-field="label">{description.label}</span>
     </li>
     <li>
       <span class="fact-label">Consent:</span> {consentLabel(item)}
@@ -36,7 +45,7 @@ const attendees = `${String(item.attendeeCount)} ${item.attendeeCount === 1 ? "a
   </ul>
   <div class="row-actions">
     <a class="button" href={description.href}>
-      {description.actionLabel}
+      <span data-field="action">{description.actionLabel}</span>
       <span class="sr-only"> for {item.title}</span>
     </a>
   </div>

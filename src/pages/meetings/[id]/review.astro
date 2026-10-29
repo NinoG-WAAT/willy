@@ -4,10 +4,7 @@ import { requireOwner } from "../../../app/identity/require-owner";
 import { formatSchedule } from "../../../components/format-schedule";
 import { loadReviewPage } from "../../../app/notes/review";
 import { handleReviewForm, reviewNoticeText } from "../../../app/notes/review-http";
-import {
-  getProcessingStatus,
-  type JobStatusView,
-} from "../../../app/transcription/processing-status";
+import { getProcessingStatus } from "../../../app/transcription/processing-status";
 import { getReviewDeps, getStatusDeps } from "../../../composition";
 import {
   dueDateInputValue,
@@ -16,6 +13,7 @@ import {
   resolveHighlight,
 } from "../../../domain/notes/review";
 import type { HighlightableItem } from "../../../domain/notes/review";
+import { describeJob } from "../../../domain/progress/text";
 import { isValidStorageId } from "../../../domain/storage/object-key";
 
 export const prerender = false;
@@ -122,22 +120,6 @@ const errorsFor = (key: string, field: string) =>
 const notice = reviewNoticeText(Astro.url.searchParams.get("notice"));
 const draft = note?.status === "draft";
 
-function describeJob(job: JobStatusView | null): string {
-  if (job === null) return "Not started";
-  switch (job.status) {
-    case "pending":
-      return "Waiting to start";
-    case "running":
-      return "Running";
-    case "retrying":
-      return `Retrying (attempt ${String(job.attempts)} of ${String(job.maxAttempts)})`;
-    case "failed":
-      return `Failed after ${String(job.attempts)} attempts${job.lastErrorCode === null ? "" : ` (${job.lastErrorCode})`}`;
-    case "succeeded":
-      return "Done";
-  }
-}
-
 const STATUS_LABEL: Record<string, string> = {
   processing: "Preparing the transcript",
   failed: "Processing needs attention",
@@ -161,7 +143,12 @@ const regeneration = progress?.regeneration ?? null;
           {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
         </time>
         {" · "}
-        <span class="badge" id="note-status">
+        <span
+          class="badge"
+          id="note-status"
+          data-progress-for="processing-progress"
+          data-field="badge"
+        >
           {statusLabel}
         </span>
         {note?.status === "published" && note.folderName !== null && (
@@ -192,10 +179,20 @@ const regeneration = progress?.regeneration ?? null;
   {meeting.status === "processing" && (
     <section class="panel" aria-labelledby="pending-heading">
       <h2 id="pending-heading">Your transcript and summary are being prepared</h2>
-      <ul class="plain">
-        <li>Transcript: {describeJob(progress?.job ?? null)}</li>
-        <li>Summary: {describeJob(progress?.summary ?? null)}</li>
-      </ul>
+      <div
+        id="processing-progress"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-progress="processing"
+        data-progress-url={`/api/meetings/${id}/status`}
+      >
+        <ul class="plain">
+          <li data-field="transcript">Transcript: {describeJob(progress?.job ?? null)}</li>
+          <li data-field="summary">Summary: {describeJob(progress?.summary ?? null)}</li>
+        </ul>
+        <p data-field="outcome" data-optional hidden></p>
+      </div>
       <p class="help">
         This can take a few minutes. <a href={base}>Check again</a>. Your rough notes are kept
         below.
@@ -425,9 +422,15 @@ const regeneration = progress?.regeneration ?? null;
                 </form>
               )}
               {regen !== null && regen.status !== "succeeded" && (
-                <p class="help" role="status">
-                  Regeneration: {describeJob(regen)}.{" "}
-                  <a href={`${base}#section-${s.id}`}>Check again</a>
+                <p
+                  class="help"
+                  role="status"
+                  data-progress="regeneration"
+                  data-progress-url={`/api/meetings/${meeting.id}/status`}
+                  data-section-id={s.id}
+                >
+                  <span data-field="text">Regeneration: {describeJob(regen)}.</span>{" "}
+                  <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
                 </p>
               )}
             </section>
@@ -894,5 +897,6 @@ const regeneration = progress?.regeneration ?? null;
 
   <script>
     import "../../../scripts/review";
+    import "../../../scripts/job-progress";
   </script>
 </Base>

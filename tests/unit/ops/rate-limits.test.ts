@@ -11,6 +11,8 @@ describe("rateLimitFor (abuse-prone endpoints)", () => {
     ["POST", "/settings/deletions/abc123/retry", "delete", "owner"],
     ["POST", "/meetings/abc123/note/regenerate", "regenerate", "owner"],
     ["GET", "/search", "search", "owner"],
+    ["GET", "/api/meetings/abc123/status", "status", "owner"],
+    ["GET", "/api/deletions/status", "status", "owner"],
     ["POST", "/webhooks/calendar", "webhook", "client"],
   ] as const)("limits %s %s as %s per %s", (method, path, name, scope) => {
     expect(rateLimitFor(method, path)).toMatchObject({ name, scope });
@@ -23,6 +25,8 @@ describe("rateLimitFor (abuse-prone endpoints)", () => {
     ["GET", "/meetings/abc/export.md/extra"],
     ["GET", "/meetings/abc/review"],
     ["POST", "/api/meetings/abc/chunks"],
+    ["POST", "/api/meetings/abc/status"],
+    ["GET", "/api/meetings/a/b/status"],
     ["POST", "/sign-in"],
   ])("leaves %s %s to its own handling", (method, path) => {
     expect(rateLimitFor(method, path)).toBeNull();
@@ -86,6 +90,21 @@ describe("enforceRateLimit", () => {
     expect(
       await enforceRateLimit(limiter, { ...exportReq, ownerId: "A", clientAddress: "x" }),
     ).toBeNull();
+  });
+
+  it("lets several polling tabs through but stops a runaway loop, with a retry delay", async () => {
+    const { limiter } = build();
+    const poll = () =>
+      enforceRateLimit(limiter, {
+        method: "GET",
+        pathname: "/api/meetings/m1/status",
+        ownerId: "A",
+        clientAddress: "x",
+      });
+    for (let i = 0; i < 120; i++) expect(await poll()).toBeNull();
+    const blocked = await poll();
+    expect(blocked?.limit).toBe("status");
+    expect(blocked?.retryAfterSeconds).toBeGreaterThan(0);
   });
 
   it("limits webhooks per client address, since they carry no session", async () => {
