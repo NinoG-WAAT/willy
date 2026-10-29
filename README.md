@@ -75,8 +75,12 @@ All names live in [.env.example](.env.example) with placeholders. Never commit `
 | `OAUTH_STATE_SECRET` | HMAC secret binding the OAuth `state` to the signed-in owner |
 | `WILLY_CAPTURE_SEGMENT_MS` | length of each uploaded audio chunk (default 10000; tests shorten it) |
 | `FAKE_CALENDAR_DOWN_OWNERS` | fake mode only: owner ids whose demo calendar simulates an outage (tests) |
-
-Speech-to-text, LLM and object-storage variables are added to `.env.example` by their own adapter PRs (#8, #9, #10); until then those providers are not wired.
+| `STT_PROVIDER` | `fake` (default), `deepgram` (paid cloud) or `whisper` (local and free, see [Using real providers](#using-real-providers)) |
+| `STT_API_KEY`, `STT_API_BASE_URL` | Deepgram only |
+| `STT_WHISPER_MODEL` | whisper only, required: absolute path of a ggml model file |
+| `STT_WHISPER_BIN`, `STT_FFMPEG_BIN`, `STT_WHISPER_LANGUAGE`, `STT_WHISPER_MAX_CONCURRENCY` | whisper only, optional (defaults: `whisper-cli`, `ffmpeg`, `auto`, `1`) |
+| `STT_TIMEOUT_MS` | per-request timeout (defaults: 30000 deepgram, 60000 whisper) |
+| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_API_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_MS` | summaries: `fake` (default) or `anthropic` |
 
 ## Migrations and safe rollback
 
@@ -97,9 +101,70 @@ Rollback procedure (details and a per-migration table are in [docs/DATA_MODEL.md
 Each integration is a small adapter behind a port with a deterministic fake; the fake is the default so a fresh checkout runs without secrets. Real providers are selected by environment variables only.
 
 - **Calendar** (done): set `CALENDAR_PROVIDER=google` and the Google variables above. Create an OAuth client in Google Cloud with the read-only scope `calendar.events.readonly`, add each redirect URI to both Google and `GOOGLE_OAUTH_REDIRECT_URIS`. Tokens are encrypted at rest and never logged. Inbound webhooks must be signed: `X-Willy-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">` with `CALENDAR_WEBHOOK_SECRET`, five minute tolerance; deliveries are deduplicated by id.
-- **Speech-to-text, LLM, object storage**: to come with #8, #9, #10. Setup notes are added here by those PRs.
+- **Speech-to-text, LLM**: see [Using real providers](#using-real-providers). Object storage is local disk until #10 lands.
 
-All outbound calls go to allowlisted https hosts only, with fixed timeouts, no redirect following and normalized errors.
+All outbound calls go to allowlisted https hosts only, with fixed timeouts, no redirect following and normalized errors. The one exception to "outbound" is the local Whisper adapter, which makes no network calls at all: it runs two local programs.
+
+## Using real providers
+
+The fake providers are the default and need nothing. Real ones are chosen in `.env` only (never commit `.env`; secrets never get a `PUBLIC_` prefix). Whatever you choose, check it with `GET /diagnostics` while signed in (or the Settings screen): `speechToText` shows `fake`, `deepgram` or `whisper`, and `misconfigured` means a variable is missing or invalid (errors name the variable, never its value; compare your `.env` with the variables above).
+
+**Honest status of the real adapters.** Deepgram and Anthropic were developed against stub servers that imitate their documented responses. They have **not** been run against the real services by this project (that needs paid accounts and keys). The Whisper adapter was tested against stubbed processes and fake `ffmpeg` / `whisper-cli` scripts; see the Whisper section for what a real run still needs to prove.
+
+### Free and private speech-to-text: local Whisper (`STT_PROVIDER=whisper`)
+
+Audio never leaves your machine, nothing is paid, and Claude/Anthropic cannot do this job (their APIs do not accept audio). The server runs two local programs for each 10-second chunk:
+
+1. `ffmpeg` converts what the browser recorded (webm/opus in Chrome and Firefox, mp4/aac in Safari, ogg/opus in Firefox) into 16 kHz mono WAV. This is required: whisper.cpp cannot read webm or mp4 audio.
+2. `whisper-cli` (from [whisper.cpp](https://github.com/ggml-org/whisper.cpp)) transcribes the WAV with a model file you download once. Nothing is bundled in this repository.
+
+Install on macOS (Homebrew):
+
+```bash
+brew install whisper-cpp ffmpeg        # provides whisper-cli and ffmpeg
+which whisper-cli ffmpeg               # both must print a path
+mkdir -p ~/whisper-models
+curl -L -o ~/whisper-models/ggml-base.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+```
+
+Model size trade-off (approximate download sizes; the speed column is a rule of thumb from whisper.cpp reports, **not measured by this project**): `ggml-tiny.bin` ~75 MB, fastest, rough accuracy; `ggml-base.bin` ~140 MB, a good first choice; `ggml-small.bin` ~460 MB, noticeably better; `ggml-medium.bin` ~1.5 GB, slow on a laptop. Files ending `.en` are English-only and a little more accurate for English. Each chunk loads the model again, so bigger models add a fixed delay per chunk, and chunks are processed one at a time by default.
+
+`.env` (use absolute paths; `~` is not expanded):
+
+```bash
+STT_PROVIDER=whisper
+STT_WHISPER_MODEL=/Users/you/whisper-models/ggml-base.bin
+# optional: STT_WHISPER_LANGUAGE=en   (default auto-detects per chunk; a fixed language is typically faster and steadier)
+# optional: STT_TIMEOUT_MS=60000, STT_WHISPER_MAX_CONCURRENCY=1, STT_WHISPER_BIN=/opt/homebrew/bin/whisper-cli, STT_FFMPEG_BIN=/opt/homebrew/bin/ffmpeg
+```
+
+Run it with the `.env` loaded, then confirm:
+
+```bash
+npm run build && npm run db:migrate && npm run db:seed
+node --env-file=.env dist/server/entry.mjs        # sign in as ada@example.test / willy-dev-password
+# GET /diagnostics must show "speechToText":"whisper" (not "misconfigured").
+```
+
+Record a short note on the live-note screen (use Chrome or Safari, allow the microphone) and check that the transcript appears. To test the programs without the app, run the manual smoke test with a short recording of your own: `STT_PROVIDER=whisper STT_WHISPER_MODEL=... WHISPER_SMOKE_AUDIO=/path/clip.webm npx vitest run tests/integration/stt/whisper-cpp-smoke`.
+
+Limits and behavior to know:
+
+- **Node only.** Cloudflare Workers cannot start programs, so this adapter is for local development and self-hosted Node. A Workers deployment keeps using a network provider (Deepgram).
+- **No speaker labels.** Whisper does not diarize; every segment is "Speaker 1" until the owner corrects speakers on the review screen.
+- Silence and noise markers such as `[BLANK_AUDIO]` or `(silence)` are dropped, so a silent chunk gives no segments. Whisper can still invent text on very quiet audio; that is a property of the model.
+- Errors: a missing program or model file is `unavailable` (retried with backoff), undecodable audio is `rejected` (not retried), a run that exceeds `STT_TIMEOUT_MS` is `timeout`. Local Whisper is never `rate_limited`.
+- Privacy: each chunk is written to a private temp directory (mode 0700) and deleted right after, even on failure; the programs receive a minimal environment (no keys) and their output is discarded; audio and transcript text are never logged.
+- Resource use: at most `STT_WHISPER_MAX_CONCURRENCY` (default 1, maximum 4) Whisper runs at once; further chunks wait in line, and waiting does not count against the timeout.
+
+### Deepgram speech-to-text (`STT_PROVIDER=deepgram`)
+
+Paid cloud service: **audio is sent to Deepgram.** Set `STT_PROVIDER=deepgram` and `STT_API_KEY` (server-side secret). The host is fixed to `https://api.deepgram.com` unless you set an https `STT_API_BASE_URL`; the model is `nova-2` with diarization. Untested against the real service (stub server only).
+
+### Anthropic summaries (`LLM_PROVIDER=anthropic`)
+
+Set `LLM_PROVIDER=anthropic` and `LLM_API_KEY`; optionally `LLM_MODEL` (default `claude-sonnet-5-5`) and `LLM_TIMEOUT_MS`. Transcript text is sent to Anthropic to write the draft summary; it is treated as untrusted input and the result stays a draft until you publish it. Untested against the real service (stub server only).
 
 ## Deployment (Cloudflare)
 

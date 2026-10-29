@@ -82,16 +82,19 @@ export function transcriberContract(
       expect(second).toEqual(first);
     });
 
-    it.each(failures)("reports %s as a normalized error (retryable: %s)", async (kind, retryable) => {
-      const h = create();
-      h.failNext(kind);
-      const result = await h.transcriber.transcribe(request());
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.error.kind).toBe(kind);
-      expect(result.error.retryable).toBe(retryable);
-      expect(result.error.message).not.toMatch(/secret|token|key/i);
-    });
+    it.each(failures)(
+      "reports %s as a normalized error (retryable: %s)",
+      async (kind, retryable) => {
+        const h = create();
+        h.failNext(kind);
+        const result = await h.transcriber.transcribe(request());
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.error.kind).toBe(kind);
+        expect(result.error.retryable).toBe(retryable);
+        expect(result.error.message).not.toMatch(/secret|token|key/i);
+      },
+    );
 
     it("recovers on the next call after a failure", async () => {
       const h = create();

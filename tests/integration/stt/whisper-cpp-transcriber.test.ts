@@ -67,6 +67,8 @@ function createStubRunner() {
   const calls: Call[] = [];
   const dirsSeen: string[] = [];
   const modes: { dir: number; input: number }[] = [];
+  /** What ffmpeg was given to read, to prove the uploaded bytes arrive intact. */
+  const inputs: Uint8Array[] = [];
   let utterances: Utterance[] = [];
   let rawJson: string | null = null;
   let whisperOutcome: CommandOutcome | null = null;
@@ -89,7 +91,7 @@ function createStubRunner() {
         dir: (await stat(join(input, ".."))).mode & 0o777,
         input: (await stat(input)).mode & 0o777,
       });
-      expect(new Uint8Array(await readFile(input))).toEqual(SECRET_AUDIO);
+      inputs.push(new Uint8Array(await readFile(input)));
       await writeFile(output, "RIFFwav");
       return { kind: "exited", code: 0 };
     }
@@ -117,6 +119,7 @@ function createStubRunner() {
     run,
     calls,
     modes,
+    inputs,
     get peak() {
       return peak;
     },
@@ -230,15 +233,31 @@ describe("whisper.cpp transcriber specifics", () => {
     stub.respondWith([{ startMs: 0, endMs: 1, speaker: null, text: "x" }]);
     await transcriber.transcribe(request());
     expect(stub.modes).toEqual([{ dir: 0o700, input: 0o600 }]);
+    expect(stub.inputs).toEqual([SECRET_AUDIO]);
     expect(await readdir(root)).toEqual(["ggml-test.bin"]);
   });
 
   it.each([
-    ["ffmpeg rejects the audio", (s: ReturnType<typeof createStubRunner>) => s.failFfmpeg({ kind: "exited", code: 1 })],
-    ["whisper-cli fails", (s: ReturnType<typeof createStubRunner>) => s.failWhisper({ kind: "exited", code: 3 })],
-    ["whisper-cli times out", (s: ReturnType<typeof createStubRunner>) => s.failWhisper({ kind: "timeout" })],
-    ["whisper-cli writes no output", (s: ReturnType<typeof createStubRunner>) => s.withholdOutput()],
-    ["whisper-cli writes garbage", (s: ReturnType<typeof createStubRunner>) => s.respondRawJson("{nope")],
+    [
+      "ffmpeg rejects the audio",
+      (s: ReturnType<typeof createStubRunner>) => s.failFfmpeg({ kind: "exited", code: 1 }),
+    ],
+    [
+      "whisper-cli fails",
+      (s: ReturnType<typeof createStubRunner>) => s.failWhisper({ kind: "exited", code: 3 }),
+    ],
+    [
+      "whisper-cli times out",
+      (s: ReturnType<typeof createStubRunner>) => s.failWhisper({ kind: "timeout" }),
+    ],
+    [
+      "whisper-cli writes no output",
+      (s: ReturnType<typeof createStubRunner>) => s.withholdOutput(),
+    ],
+    [
+      "whisper-cli writes garbage",
+      (s: ReturnType<typeof createStubRunner>) => s.respondRawJson("{nope"),
+    ],
   ])("removes the temp directory when %s", async (_name, arrange) => {
     const { stub, transcriber } = build();
     arrange(stub);
@@ -248,7 +267,12 @@ describe("whisper.cpp transcriber specifics", () => {
   });
 
   it("maps failures to normalized, non-leaking errors", async () => {
-    const cases: [string, (s: ReturnType<typeof createStubRunner>) => void, ProviderErrorKind, boolean][] = [
+    const cases: [
+      string,
+      (s: ReturnType<typeof createStubRunner>) => void,
+      ProviderErrorKind,
+      boolean,
+    ][] = [
       ["ffmpeg exit 1", (s) => s.failFfmpeg({ kind: "exited", code: 1 }), "rejected", false],
       ["ffmpeg missing", (s) => s.failFfmpeg({ kind: "not_found" }), "unavailable", true],
       ["ffmpeg timeout", (s) => s.failFfmpeg({ kind: "timeout" }), "timeout", true],
@@ -310,7 +334,9 @@ describe("whisper.cpp transcriber specifics", () => {
     ]);
     expect(await transcriber.transcribe(request())).toEqual({
       ok: true,
-      value: [{ startMs: 3000, endMs: 4000, speaker: "Speaker 1", text: "Real words [laughs] here." }],
+      value: [
+        { startMs: 3000, endMs: 4000, speaker: "Speaker 1", text: "Real words [laughs] here." },
+      ],
     });
   });
 
