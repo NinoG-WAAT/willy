@@ -33,7 +33,7 @@ Over the limit: `429` with `Retry-After` (JSON for `/api/*` and webhooks, a shor
 ## Health and diagnostics
 
 - `GET /healthz`: liveness, `{"status":"ok"}`, no data.
-- `GET /diagnostics` (signed-in owners only): latest applied migration, the **owner's own** job counts by status (`pending`, `running`, `retrying`, `succeeded`, `failed`) and the provider modes (`speechToText`, `summaries`, `calendar`, `storage`; `fake` is reported honestly and a broken configuration shows `misconfigured`). Counts and mode names only: no content, hosts, secrets, error text or other owners' data.
+- `GET /diagnostics` (signed-in owners only): latest applied migration, the **owner's own** job counts by status (`pending`, `running`, `retrying`, `succeeded`, `failed`) and the provider modes (`speechToText`, `summaries`, `calendar`, `storage`; `fake` is reported honestly and a broken configuration shows `misconfigured`). `speechToText` is `fake`, `deepgram` or `whisper` (#56); `whisper` means the configuration is valid, not that `whisper-cli`, `ffmpeg` or the model file exist: diagnostics reads configuration and never runs a program. A missing program or model shows up as failed transcription jobs with the redacted code `stt_unavailable` (retried with backoff), and as a degraded speech-to-text status on the settings screen. Counts and mode names only: no content, hosts, secrets, error text or other owners' data.
 
 ## When something fails
 
