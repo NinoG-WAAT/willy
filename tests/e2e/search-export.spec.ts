@@ -1,4 +1,5 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { uniqueWord } from "../support/unique-word";
 
 const PASSWORD = "willy-dev-password";
 
@@ -8,12 +9,6 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByText("Signed in as")).toBeVisible();
-}
-
-/** A letters-only word that is unique per test run, so searches find only this test's note. */
-function uniqueWord(info: TestInfo): string {
-  const letters = (Date.now() + info.workerIndex).toString(36).replace(/[0-9]/g, "q");
-  return `zork${info.project.name}${letters}`;
 }
 
 async function createNote(page: Page, title: string, agenda: string): Promise<void> {
@@ -43,7 +38,7 @@ test.describe("search", () => {
   test("finds notes with highlighted matches, opens a result, and survives a refresh", async ({
     page,
   }, info) => {
-    const word = uniqueWord(info);
+    const word = uniqueWord(info.project.name);
     await signIn(page, "ada@example.test");
     await createNote(page, `Strategy ${word}`, `We should discuss ${word} pricing`);
 
@@ -69,7 +64,7 @@ test.describe("search", () => {
   test("finds words from rough notes saved after the meeting was created", async ({
     page,
   }, info) => {
-    const word = uniqueWord(info);
+    const word = uniqueWord(info.project.name);
     await signIn(page, "ada@example.test");
     await createNote(page, `Notes ${word}`, "plain agenda");
     await page.getByRole("link", { name: new RegExp(`Start note for Notes ${word}`) }).click();
@@ -160,7 +155,7 @@ test.describe("Markdown export", () => {
   test("the search result and the live note both offer a working download", async ({
     page,
   }, info) => {
-    const word = uniqueWord(info);
+    const word = uniqueWord(info.project.name);
     await signIn(page, "ada@example.test");
     await createNote(page, `Download ${word}`, `agenda ${word}`);
     await search(page, word);
@@ -177,7 +172,7 @@ test.describe("Markdown export", () => {
   });
 
   test("hostile text in a note is exported as inert text", async ({ page }, info) => {
-    const word = uniqueWord(info);
+    const word = uniqueWord(info.project.name);
     await signIn(page, "ada@example.test");
     await createNote(
       page,

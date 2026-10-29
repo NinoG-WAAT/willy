@@ -1,5 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { createCapturingMeeting, createDeletionInState, meetingStatus } from "../support/e2e-db";
+import { createFreshOwner } from "../support/journey-db";
 
 const PASSWORD = "willy-dev-password";
 
@@ -102,13 +103,21 @@ test.describe("overview and retention", () => {
     await signIn(page, "ben@example.test");
     await page.goto("/settings");
     const retention = page.getByRole("region", { name: "Retention" });
+    const saved = page.getByRole("status").filter({ hasText: "Retention settings saved." });
+
+    // A saved form redirects to /settings?notice=..., so a reload keeps that URL and its "saved"
+    // message even before the next save has happened. Every check of what was stored therefore
+    // opens the plain /settings URL, and every save waits for the message on that fresh page
+    // before anything else navigates (reloading mid-redirect aborts the page: #49).
+    const reopen = async (): Promise<void> => {
+      await page.goto("/settings");
+      await expect(saved).toHaveCount(0);
+    };
 
     await retention.getByLabel("Raw audio").selectOption("72");
     await retention.getByRole("button", { name: "Save retention" }).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: "Retention settings saved." }),
-    ).toBeVisible();
-    await page.reload();
+    await expect(saved).toBeVisible();
+    await reopen();
     await expect(retention.getByLabel("Raw audio")).toHaveValue("72");
 
     // Making notes expire deletes meetings automatically: it needs the explicit tick.
@@ -118,17 +127,16 @@ test.describe("overview and retention", () => {
     await expect(retention.getByLabel("Notes and transcripts")).toHaveValue("365");
     await retention.getByLabel(/I understand/).check();
     await retention.getByRole("button", { name: "Save retention" }).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: "Retention settings saved." }),
-    ).toBeVisible();
-    await page.reload();
+    await expect(saved).toBeVisible();
+    await reopen();
     await expect(retention.getByLabel("Notes and transcripts")).toHaveValue("365");
 
     // Back to the defaults (turning expiry off never needs the tick).
     await retention.getByLabel("Raw audio").selectOption("0");
     await retention.getByLabel("Notes and transcripts").selectOption("off");
     await retention.getByRole("button", { name: "Save retention" }).click();
-    await page.reload();
+    await expect(saved).toBeVisible();
+    await reopen();
     await expect(retention.getByLabel("Raw audio")).toHaveValue("0");
     await expect(retention.getByLabel("Notes and transcripts")).toHaveValue("off");
   });
@@ -139,8 +147,10 @@ test.describe("permanent deletion (journey 3)", () => {
     page,
   }, info) => {
     const title = unique("Old board prep", info);
-    const meetingId = createCapturingMeeting("owner-ada", "scheduled", title);
-    const token = await signIn(page, "ada@example.test");
+    // A fresh owner: this test runs jobs, and a job run must never advance another test's meeting.
+    const fresh = createFreshOwner();
+    const meetingId = createCapturingMeeting(fresh.id, "scheduled", title);
+    const token = await signIn(page, fresh.email);
 
     // Settings lists the meeting with its deletion entry point.
     await page.goto("/settings");

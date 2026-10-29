@@ -806,3 +806,18 @@ a[data-source-from] {
     width: 100%;
   }
 }
+
+/* Titles and folder names are the owner's own words (a pasted URL, one long word): wrap them and
+   never let a select grow wider than its column, instead of scrolling the page sideways. */
+h1,
+h2,
+h3,
+h4,
+.row-title,
+.row-meta {
+  overflow-wrap: anywhere;
+}
+
+.field select {
+  max-width: 100%;
+}

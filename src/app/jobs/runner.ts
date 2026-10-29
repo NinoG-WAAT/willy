@@ -23,6 +23,8 @@ export interface RunnerDeps {
   random: () => number;
   /** A `running` job untouched for this long is assumed orphaned and is taken over. */
   leaseMs: number;
+  /** When set, only this owner's jobs run (the dev/test endpoint); the real runner leaves it unset. */
+  ownerId?: string;
 }
 
 export const RETRY_BASE_MS = 5_000;
@@ -45,7 +47,7 @@ export async function runDueJobs(
   const kinds = handlers.map((h) => h.kind);
   let ran = 0;
   while (ran < limit) {
-    const job = await deps.jobs.claimNext(deps.clock.now(), kinds, deps.leaseMs);
+    const job = await deps.jobs.claimNext(deps.clock.now(), kinds, deps.leaseMs, deps.ownerId);
     if (!job) break;
     ran += 1;
     const handler = handlers.find((h) => h.kind === job.kind);

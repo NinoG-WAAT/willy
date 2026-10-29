@@ -37,9 +37,15 @@ export interface JobRepository {
   /**
    * Atomically claims one due job of the given kinds: `pending` or `retrying` jobs whose
    * `next_run_at` has passed, or `running` jobs whose lease (last update) is older than
-   * `leaseMs` (the runner crashed). The claim increments `attempts`.
+   * `leaseMs` (the runner crashed). The claim increments `attempts`. With `ownerId` only that
+   * owner's jobs are considered (the dev/test "run my jobs" endpoint); without it, every owner's.
    */
-  claimNext(now: Date, kinds: readonly JobKind[], leaseMs: number): Promise<JobRow | null>;
+  claimNext(
+    now: Date,
+    kinds: readonly JobKind[],
+    leaseMs: number,
+    ownerId?: string,
+  ): Promise<JobRow | null>;
   markSucceeded(id: string, now: Date): Promise<void>;
   markRetrying(id: string, now: Date, nextRunAt: string, errorCode: string): Promise<void>;
   markFailed(id: string, now: Date, errorCode: string): Promise<void>;
