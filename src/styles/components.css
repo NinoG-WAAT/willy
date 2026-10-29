@@ -1,0 +1,444 @@
+/*
+ * Components from the DESIGN.md recipes: buttons, inputs, cards, badges, pills, alerts, lists.
+ * Hit areas are at least var(--hit) (44px) even where the reference's compact paddings are
+ * smaller; the look is kept, the target is enlarged.
+ */
+
+/* Buttons: ghost by default; acid lime (.button-primary) is the one primary action in a view. */
+.button,
+.button-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--hit);
+  padding: var(--spacing-8) var(--spacing-16);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-buttons);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-w510);
+  letter-spacing: var(--tracking-body-sm);
+  line-height: var(--leading-caption);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.button:hover,
+.button-quiet:hover {
+  border-color: var(--text-muted);
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+.button-primary {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--action-text);
+}
+
+.button-primary:hover {
+  border-color: var(--action);
+  background: color-mix(in srgb, var(--action) 88%, var(--text-strong));
+  color: var(--action-text);
+}
+
+/* Destructive actions keep their words; the coral edge is a second cue, never the only one. */
+.button-danger {
+  border-color: var(--line-danger);
+  color: var(--text-danger);
+}
+
+.button-danger:hover {
+  border-color: var(--line-danger);
+  background: var(--fill-danger);
+  color: var(--text-danger);
+}
+
+.button:disabled,
+.button-quiet:disabled {
+  border-color: var(--line);
+  background: var(--surface-obsidian);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* Standalone action links (row actions, "Cancel" beside a submit button) are touch targets too. */
+.row-actions > a:not(.button),
+form > a:not(.button),
+a[data-source-from] {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding-inline: var(--spacing-4);
+}
+
+/* Forms */
+.form {
+  display: grid;
+  /* A select is as wide as its longest option unless the column may shrink, which overflows a phone. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-16);
+  max-width: var(--measure-form);
+}
+
+.form-wide {
+  max-width: var(--measure-form-wide);
+}
+
+.field {
+  display: grid;
+  gap: var(--spacing-8);
+}
+
+.field label,
+.level label,
+.consent label,
+legend {
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w510);
+}
+
+.field input:not([type="checkbox"], [type="radio"]),
+.field select,
+.field textarea {
+  min-height: var(--hit);
+  padding: var(--spacing-8) var(--spacing-12);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-inputs);
+  background: var(--fill-faint);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-body);
+  transition: border-color 120ms ease;
+}
+
+.field input:not([type="checkbox"], [type="radio"]):hover,
+.field select:hover,
+.field textarea:hover {
+  border-color: var(--text-muted);
+}
+
+.field input:not([type="checkbox"], [type="radio"]):focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--line-control-active);
+}
+
+.field textarea {
+  min-height: calc(var(--hit) * 2);
+}
+
+.field select {
+  width: 100%;
+  max-width: 100%;
+}
+
+.field ::placeholder {
+  color: var(--text-muted);
+}
+
+.field input[aria-invalid="true"],
+.field select[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
+  border: 2px solid var(--line-danger);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--text-danger);
+  font-weight: var(--font-weight-w510);
+}
+
+.field-error::before {
+  content: "Error: ";
+}
+
+.field-wide input,
+.field-wide select,
+.field-wide textarea {
+  width: 100%;
+}
+
+.field-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--spacing-16);
+}
+
+.help {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-body-sm);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  min-height: var(--hit);
+}
+
+.check input {
+  width: 1.5rem;
+  height: 1.5rem;
+  accent-color: var(--color-mist);
+}
+
+.consent {
+  align-items: flex-start;
+  max-width: var(--measure-form-wide);
+}
+
+.consent input {
+  flex: none;
+  margin-top: var(--spacing-4);
+}
+
+fieldset {
+  min-width: 0;
+}
+
+/* Cards: carbon surface, 1px hairline, 12px radius, no shadow. Real borders (not inset shadows) so
+   forced-colors mode still draws the edge. */
+.panel,
+.row,
+.empty {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-cards);
+  background: var(--surface-carbon);
+}
+
+.panel {
+  max-width: var(--measure-list);
+  margin: 0 0 var(--spacing-24);
+  padding: var(--spacing-20) var(--card-padding) var(--spacing-24);
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.rows {
+  display: grid;
+  gap: var(--spacing-12);
+  max-width: var(--measure-list);
+  margin: var(--spacing-16) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  gap: var(--spacing-8);
+  padding: var(--spacing-16) var(--spacing-20);
+}
+
+/* A list inside a panel is already framed: its rows are the "subtle" card (6px, faint fill). */
+.panel .row,
+.section-row,
+.review-list > li {
+  border-radius: var(--radius-md);
+  background: var(--fill-faint);
+}
+
+.row-title {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.row-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-8) var(--spacing-12);
+}
+
+.row-actions form,
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-8);
+  margin: 0;
+}
+
+.inline-form .field {
+  flex: 1 1 12rem;
+}
+
+.section-row {
+  display: grid;
+  gap: var(--spacing-12);
+  margin: 0 0 var(--spacing-16);
+  padding: var(--spacing-12) var(--spacing-16);
+  border: 1px solid var(--line);
+}
+
+.section-row legend {
+  padding: 0 var(--spacing-4);
+}
+
+.empty {
+  max-width: var(--measure-form-wide);
+  margin: var(--spacing-24) 0;
+  padding: var(--spacing-16) var(--spacing-20);
+  border-style: dashed;
+  border-color: var(--line-strong);
+  background: transparent;
+}
+
+.empty h2 {
+  margin-top: 0;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Status and consent read as pills: a marker and words, never a colour on its own. */
+.facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-12);
+  border-radius: var(--radius-pills);
+  background: var(--fill-soft);
+  color: var(--text);
+  font-size: var(--text-caption);
+  line-height: var(--leading-label);
+}
+
+.fact-label {
+  color: var(--text-muted);
+}
+
+.marker {
+  display: inline-block;
+  min-width: 1.25rem;
+  text-align: center;
+}
+
+/* Badges (4px) and flags: words with a hairline edge, readable without colour. */
+.badge,
+.seg-flag,
+.overdue-flag {
+  display: inline-block;
+  padding: 0 var(--spacing-8);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-badges);
+  background: var(--fill-soft);
+  color: var(--text);
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-w510);
+  line-height: var(--leading-body);
+}
+
+.overdue-flag {
+  border-color: var(--line-danger);
+  color: var(--text-danger);
+}
+
+/* Alerts and notices: a left bar, a shape marker and the words carry the state, not the colour. */
+.alert,
+.notice {
+  position: relative;
+  max-width: var(--measure-form-wide);
+  margin: 0 0 var(--spacing-16);
+  padding: var(--spacing-12) var(--spacing-16) var(--spacing-12) 2.75rem;
+  border: 1px solid var(--line-strong);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+.alert {
+  border-color: var(--line-danger);
+  background: var(--fill-danger);
+}
+
+.alert::before,
+.notice::before {
+  content: "!";
+  content: "!" / "";
+  position: absolute;
+  top: var(--spacing-12);
+  left: var(--spacing-12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-w590);
+  line-height: 1;
+}
+
+.notice::before {
+  content: "i";
+  content: "i" / "";
+}
+
+.alert p {
+  margin: 0;
+}
+
+.alert ul {
+  margin: var(--spacing-4) 0 0;
+  padding-left: var(--spacing-20);
+}
+
+.alert .row-actions {
+  margin-top: var(--spacing-12);
+}
+
+.plain {
+  margin: 0 0 var(--spacing-12);
+  padding-left: var(--spacing-20);
+}
+
+.prewrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A disclosure reads as a control: bright text and underline, plus a triangle marker. */
+details > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--hit);
+  color: var(--text-strong);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+details > summary::before {
+  content: "\25B8";
+  margin-inline-end: var(--spacing-8);
+  text-decoration: none;
+}
+
+details[open] > summary::before {
+  content: "\25BE";
+}

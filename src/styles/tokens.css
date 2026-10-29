@@ -1,0 +1,177 @@
+/*
+ * Design tokens: the single source of every colour, type step, spacing, radius, shadow and surface
+ * in the client. Values come from DESIGN.md (the owner's visual reference, a dark "midnight
+ * precision instrument"); a unit test (tests/unit/styles/design-tokens.test.ts) checks the colour,
+ * spacing and radius tokens against it and fails on a colour literal or hard-coded radius in any
+ * other stylesheet, <style> block or style attribute.
+ *
+ * Where DESIGN.md gives way to our rules (CLAUDE.md sec 9, issue #59) the semantic tokens at the
+ * bottom say so. The short list: hit areas are at least 44px, Ash is never used for text, status is
+ * always words plus a marker, hairlines are 1px, inputs use a border that reaches 3:1, type is in
+ * rem so a larger browser font still scales, and the tool UI stays on the smaller type steps.
+ */
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Colours (DESIGN.md, verbatim) */
+  --color-void: #08090a;
+  --color-carbon: #0f1011;
+  --color-obsidian: #161718;
+  --color-graphite: #23252a;
+  --color-smoke: #383b3f;
+  --color-ash: #62666d;
+  --color-fog: #8a8f98;
+  --color-mist: #d0d6e0;
+  --color-bone: #e5e5e6;
+  --color-paper: #ffffff;
+  --color-acid-lime: #e4f222;
+  --color-pulse-green: #27a644;
+  --color-coral-red: #eb5757;
+  --color-signal-teal: #02b8cc;
+  --color-iris-violet: #6366f1;
+  --color-lavender: #8b5cf6;
+
+  /* Spacing, base unit 4px (DESIGN.md, verbatim) */
+  --spacing-unit: 4px;
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-28: 28px;
+  --spacing-32: 32px;
+  --spacing-36: 36px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-56: 56px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
+  --spacing-96: 96px;
+  --spacing-128: 128px;
+
+  /* Layout (DESIGN.md) */
+  --page-max-width: 1200px;
+  --section-gap: 96px;
+  --card-padding: 24px;
+  --element-gap: 8px;
+
+  /* Radii (DESIGN.md, verbatim): cards 12, pills full, badges 4, inputs and buttons 6 */
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-2xl-2: 22px;
+  --radius-full: 400px;
+  --radius-full-2: 9999px;
+  --radius-cards: 12px;
+  --radius-pills: 9999px;
+  --radius-small: 2px;
+  --radius-badges: 4px;
+  --radius-inputs: 6px;
+  --radius-buttons: 6px;
+
+  /* Shadows (DESIGN.md). Elevation comes from borders; these are the only ones allowed. */
+  --shadow-sm: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
+  --shadow-md: rgba(0, 0, 0, 0.2) 0px 0px 12px 0px inset;
+  --shadow-subtle: rgb(35, 37, 42) 0px 0px 0px 1px inset;
+  --shadow-xl: rgba(8, 9, 10, 0.6) 0px 4px 32px 0px;
+
+  /* Typography. Sizes are DESIGN.md pixels divided by 16, in rem, so the browser's font size applies. */
+  --font-inter-variable:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-berkeley-mono:
+    "Berkeley Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+  --font-features: "cv01" on, "ss03" on, "zero" on;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-w510: 510;
+  --font-weight-w590: 590;
+
+  --text-micro: 0.625rem;
+  --text-label: 0.75rem;
+  --text-caption: 0.8125rem;
+  --text-body-sm: 0.9375rem;
+  --text-body: 1rem;
+  --text-body-lg: 1.25rem;
+  --text-subheading: 1.5rem;
+  --text-heading-sm: 2rem;
+  --text-heading: 3rem;
+  --text-heading-lg: 4rem;
+  --text-display: 4.5rem;
+
+  --leading-label: 1.4;
+  --leading-caption: 1.2;
+  --leading-body: 1.5;
+  --leading-body-sm: 1.6;
+  --leading-body-lg: 1.33;
+  --leading-subheading: 1.33;
+  --leading-heading-sm: 1.13;
+  --leading-heading: 1;
+
+  --tracking-body-sm: -0.011em;
+  --tracking-body: -0.01em;
+  --tracking-body-lg: -0.012em;
+  --tracking-subheading: -0.012em;
+  --tracking-heading-sm: -0.022em;
+  --tracking-heading: -0.022em;
+
+  /*
+   * Semantic roles. Components use these, never the raw palette, so a role can change in one place.
+   */
+
+  /* Surfaces, from the canvas up (DESIGN.md "Surfaces") */
+  --surface-void: var(--color-void);
+  --surface-carbon: var(--color-carbon);
+  --surface-obsidian: var(--color-obsidian);
+  --surface-slate: var(--color-graphite);
+  --fill-faint: rgb(255 255 255 / 0.02);
+  --fill-soft: rgb(255 255 255 / 0.05);
+  --fill-hover: rgb(255 255 255 / 0.09);
+  --fill-mark: rgb(255 255 255 / 0.16);
+
+  /* Text. Ash is deliberately absent: it is 3.4:1 on Void, below AA for text. */
+  --text: var(--color-mist);
+  --text-strong: var(--color-paper);
+  --text-muted: var(--color-fog);
+  --text-on-accent: var(--color-void);
+  --text-danger: var(--color-coral-red);
+
+  /* Edges: hairlines are 1px borders, never 0.5px, so they survive every pixel ratio. */
+  --line: var(--color-graphite);
+  --line-strong: var(--color-smoke);
+  /* A control's own edge must reach 3:1 against the page (WCAG 1.4.11): Ash does, Smoke does not. */
+  --line-control: var(--color-ash);
+  --line-control-active: var(--color-mist);
+  --line-danger: var(--color-coral-red);
+  --fill-danger: rgb(235 87 87 / 0.07);
+
+  /* Action. Acid lime is the one primary action per view and nothing else. */
+  --action: var(--color-acid-lime);
+  --action-text: var(--text-on-accent);
+
+  /* Focus: a 3px ring in Paper, visible on every surface including the lime button. */
+  --focus: var(--color-paper);
+  --focus-width: 3px;
+  --focus-offset: 2px;
+
+  /* Touch targets: the reference's compact paddings stay, the hit area is enlarged to this. */
+  --hit: 2.75rem;
+
+  /* Layout measures */
+  --measure-form: 24rem;
+  --measure-form-wide: 40rem;
+  --measure-list: 48rem;
+  --gutter: var(--spacing-16);
+}

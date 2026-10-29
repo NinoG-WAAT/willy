@@ -1,0 +1,299 @@
+/*
+ * Base layer: reset, type, page frame (header, nav, main, footer), focus, skip link, motion.
+ * Every value comes from tokens.css. Media queries cannot read custom properties, so the three
+ * breakpoints (30rem, 40rem, 56rem) are the only literal lengths that repeat across the layers.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-void);
+  color: var(--text);
+  font-family: var(--font-inter-variable);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-regular);
+  font-feature-settings: var(--font-features);
+  letter-spacing: var(--tracking-body);
+  line-height: var(--leading-body);
+}
+
+/* Headings: weights stay at 510 (the reference never goes bold); the tool UI uses the small steps. */
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 var(--spacing-12);
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w510);
+}
+
+h1 {
+  margin-bottom: var(--spacing-16);
+  font-size: var(--text-heading-sm);
+  letter-spacing: var(--tracking-heading-sm);
+  line-height: var(--leading-heading-sm);
+}
+
+h2 {
+  font-size: var(--text-body-lg);
+  letter-spacing: var(--tracking-body-lg);
+  line-height: var(--leading-body-lg);
+}
+
+h3 {
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+h4 {
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-body);
+}
+
+p {
+  margin: 0 0 var(--spacing-12);
+}
+
+/* Titles and folder names are the owner's own words (a pasted URL, one long word): wrap them. */
+h1,
+h2,
+h3,
+h4 {
+  overflow-wrap: anywhere;
+}
+
+/* Inline links are underlined as well as bright, so they never depend on colour. */
+a {
+  color: var(--text-strong);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+code {
+  font-family: var(--font-berkeley-mono);
+  font-size: var(--text-caption);
+  overflow-wrap: anywhere;
+}
+
+/* Mono is reserved for ids and technical metadata, never for headings (DESIGN.md). */
+
+/* Visible focus for every interactive element; never remove outlines without a replacement. */
+:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
+}
+
+main:focus {
+  outline: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: 0;
+  transform: translateY(-120%);
+  padding: var(--spacing-12) var(--spacing-16);
+  border-radius: var(--radius-buttons);
+  background: var(--text-strong);
+  color: var(--surface-void);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  transform: translateY(var(--spacing-8));
+}
+
+/* Page frame: header, main and footer share one 1200px column. */
+.site-header,
+.site-footer {
+  padding-block: var(--spacing-8);
+  padding-inline: max(var(--gutter), calc((100% - var(--page-max-width)) / 2));
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--spacing-16);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-void);
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+main {
+  flex: 1;
+  width: min(100%, calc(var(--page-max-width) + 2 * var(--gutter)));
+  margin-inline: auto;
+  padding: var(--spacing-32) var(--gutter) var(--spacing-48);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  color: var(--text-strong);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-w510);
+  letter-spacing: var(--tracking-body-sm);
+  text-decoration: none;
+}
+
+/* Left-aligned wordmark, links and session on the right (DESIGN.md nav bar). */
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--spacing-4);
+  margin-inline-start: auto;
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding-inline: var(--spacing-12);
+  color: var(--text);
+  font-size: var(--text-caption);
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+}
+
+/* The current page is marked by weight and a thick underline as well as the aria-current state. */
+.site-nav a[aria-current="page"] {
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w590);
+  text-decoration: underline;
+  text-decoration-thickness: 0.2em;
+  text-underline-offset: 0.35em;
+}
+
+.session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--spacing-12);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+.session form {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Phone layout (designed, not the desktop stacked): one compact bar with the brand and Sign out,
+ * a single row of navigation under it that never wraps to a third line, full-width fields and
+ * primary actions, and a screen that opens on its content instead of on chrome.
+ */
+@media (max-width: 40rem) {
+  .site-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand session"
+      "nav nav";
+    gap: 0 var(--spacing-8);
+    padding-block: var(--spacing-4) 0;
+  }
+
+  .brand {
+    grid-area: brand;
+  }
+
+  .session {
+    grid-area: session;
+  }
+
+  /* Who is signed in stays available to screen readers; the bar keeps the room for Sign out. */
+  .session-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .site-nav {
+    grid-area: nav;
+    gap: 0;
+    /* One row in normal fonts; a wider font wraps to a second row instead of hiding a link. */
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    border-top: 1px solid var(--line);
+  }
+
+  .site-nav a {
+    flex: none;
+    padding-inline: var(--spacing-4);
+    font-size: var(--text-body-sm);
+  }
+
+  main {
+    padding-block: var(--spacing-16) var(--spacing-32);
+  }
+
+  h1 {
+    font-size: var(--text-subheading);
+    letter-spacing: var(--tracking-subheading);
+    line-height: var(--leading-subheading);
+  }
+}
