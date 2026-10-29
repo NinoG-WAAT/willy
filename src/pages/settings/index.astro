@@ -197,7 +197,7 @@ const csrf = Astro.locals.csrfToken ?? "";
           <p class="field-error">{fieldError("acknowledge_note_retention")?.message}</p>
         )}
       </div>
-      <button class="button" type="submit">
+      <button class="button button-primary" type="submit">
         Save retention
       </button>
     </form>
@@ -338,19 +338,3 @@ const csrf = Astro.locals.csrfToken ?? "";
     import "../../scripts/job-progress";
   </script>
 </Base>
-
-<style>
-  /* A select is as wide as its longest option unless told otherwise, which overflows a phone. */
-  .form {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .field select {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  code {
-    overflow-wrap: anywhere;
-  }
-</style>

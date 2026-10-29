@@ -1,0 +1,335 @@
+/*
+ * Screen layouts: page heads, toolbars, the two-column notes, the recording banner, search hits,
+ * the review screen and its transcript. Tokens only; see tokens.css.
+ */
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-8) var(--spacing-16);
+}
+
+.page-head h1 {
+  margin-bottom: var(--spacing-8);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--spacing-16) var(--spacing-32);
+  margin: var(--spacing-16) 0;
+}
+
+.toolbar .inline-form {
+  align-items: flex-end;
+}
+
+.toolbar .field {
+  flex: 0 1 16rem;
+}
+
+.two-col {
+  display: grid;
+  gap: 0 var(--spacing-24);
+}
+
+.two-col .panel {
+  max-width: none;
+}
+
+#rough-notes {
+  width: 100%;
+  font-family: inherit;
+}
+
+/* Meeting cards: the action sits beside the details once there is room for it. */
+@media (min-width: 40rem) {
+  .meeting {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--spacing-16);
+    align-items: center;
+  }
+
+  .meeting > * {
+    grid-column: 1;
+  }
+
+  .meeting > .row-actions {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+}
+
+@media (min-width: 56rem) {
+  .two-col {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+/* Recording state: a pill-shaped bar with a shape, a word and a timer, sticky while you take notes. */
+.rec-banner {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-4) var(--spacing-12);
+  margin: 0 0 var(--spacing-16);
+  padding: var(--spacing-12) var(--spacing-20);
+  border: 2px solid var(--line-danger);
+  border-radius: var(--radius-pills);
+  background: var(--surface-obsidian);
+  color: var(--text-strong);
+  font-size: var(--text-body);
+}
+
+.rec-banner[data-state="paused"] {
+  border-style: dashed;
+  border-color: var(--text-muted);
+}
+
+.rec-banner #rec-detail {
+  flex: 1 1 12rem;
+  color: var(--text);
+  font-weight: var(--font-weight-regular);
+}
+
+.rec-banner time {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-w590);
+}
+
+/* The shape differs by state as well as the text: a solid disc while recording, two bars when paused. */
+.rec-shape {
+  display: inline-block;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--line-danger);
+  animation: rec-pulse 1.6s ease-in-out infinite;
+}
+
+.rec-banner[data-state="paused"] .rec-shape {
+  width: 1rem;
+  border-radius: 0;
+  border-right: 0.35rem solid currentcolor;
+  border-left: 0.35rem solid currentcolor;
+  background: none;
+  animation: none;
+}
+
+@keyframes rec-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-shape {
+    animation: none;
+  }
+}
+
+.level meter {
+  width: 100%;
+  max-width: var(--measure-form);
+  height: 1.25rem;
+}
+
+.level meter::-webkit-meter-bar {
+  border: 0;
+  border-radius: var(--radius-pills);
+  background: var(--surface-slate);
+}
+
+.level meter::-webkit-meter-optimum-value,
+.level meter::-webkit-meter-suboptimum-value,
+.level meter::-webkit-meter-even-less-good-value {
+  border-radius: var(--radius-pills);
+  background: var(--color-mist);
+}
+
+.level meter::-moz-meter-bar {
+  border-radius: var(--radius-pills);
+  background: var(--color-mist);
+}
+
+.level label {
+  display: block;
+}
+
+/* Search hits */
+.snippet {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A match is marked by weight and underline as well as the background, never colour alone. */
+.snippet mark {
+  background: var(--fill-mark);
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w590);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* Review screen: summary beside the transcript on wide screens, stacked on phones. */
+.review-grid {
+  align-items: start;
+}
+
+.review-transcript {
+  min-width: 0;
+}
+
+.jump-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+}
+
+@media (min-width: 56rem) {
+  .jump-link {
+    display: none;
+  }
+
+  .review-transcript {
+    position: sticky;
+    top: var(--spacing-16);
+    max-height: calc(100vh - 2 * var(--spacing-16));
+    overflow-y: auto;
+  }
+}
+
+.transcript {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transcript li {
+  padding: var(--spacing-8) var(--spacing-8) var(--spacing-8) var(--spacing-12);
+  border-left: 4px solid transparent;
+  overflow-wrap: anywhere;
+}
+
+/* Marked by a thick edge and a "Cited" tag as well as the background, never colour alone. */
+.transcript li.is-source {
+  border-left-color: var(--text-strong);
+  background: var(--fill-mark);
+}
+
+.seg-time {
+  color: var(--text-muted);
+  font-family: var(--font-berkeley-mono);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-item.is-hit {
+  border-left: 6px solid var(--text-strong);
+}
+
+.review-item h3 {
+  margin: 0 0 var(--spacing-8);
+}
+
+.review-list {
+  display: grid;
+  gap: var(--spacing-16);
+  margin: 0 0 var(--spacing-16);
+  padding: 0;
+  list-style: none;
+}
+
+.review-list > li {
+  display: grid;
+  gap: var(--spacing-8);
+  padding: var(--spacing-12);
+  border: 1px solid var(--line);
+}
+
+/* Deletion confirmations and settings lists keep long words inside their column. */
+.row-title,
+.row-meta {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 30rem) {
+  .page-head .row-actions {
+    width: 100%;
+  }
+
+  .page-head .row-actions .button,
+  .page-head .row-actions form,
+  .page-head .row-actions form .button {
+    width: 100%;
+  }
+}
+
+/* Phone: full-width fields and actions, one column. */
+@media (max-width: 40rem) {
+  /* A capsule cannot hold wrapped text gracefully: use the card radius on a narrow screen. */
+  .rec-banner {
+    border-radius: var(--radius-cards);
+  }
+
+  .field input:not([type="checkbox"], [type="radio"]),
+  .field select,
+  .field textarea,
+  .form .button,
+  .inline-form .button,
+  .toolbar .button {
+    width: 100%;
+  }
+
+  .toolbar > form,
+  .inline-form .field,
+  .toolbar .field {
+    flex: 1 1 100%;
+  }
+
+  .toolbar,
+  .toolbar .inline-form {
+    align-items: stretch;
+    gap: var(--spacing-12);
+  }
+
+  .row-actions > .button,
+  .row-actions > form {
+    flex: 1 1 100%;
+  }
+
+  .row-actions form .button {
+    width: 100%;
+  }
+}
+
+/* Invitation text from a calendar file: plain text, line breaks kept, long links wrapped. */
+.excerpt {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* High-contrast (forced colours) mode: system colours replace ours, so shapes must opt back in. */
+@media (forced-colors: active) {
+  .rec-shape {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .rec-banner[data-state="paused"] .rec-shape {
+    background: none;
+  }
+
+  .button-primary {
+    border-color: ButtonText;
+  }
+}
