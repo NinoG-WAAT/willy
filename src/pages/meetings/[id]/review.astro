@@ -430,8 +430,7 @@ const regeneration = progress?.regeneration ?? null;
                   data-section-id={s.id}
                 >
                   <span data-field="text">Regeneration: {describeJob(regen)}.</span>{" "}
-                  <span data-field="outcome" data-optional hidden />{" "}
-                  <a href={`${base}#section-${s.id}`}>Check again</a>
+                  <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
                 </p>
               )}
             </section>
