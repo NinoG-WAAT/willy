@@ -12,6 +12,20 @@ export interface TranscriberHarness {
   failNext(kind: ProviderErrorKind): void;
 }
 
+export interface ContractOptions {
+  /** False when the provider has no speaker diarization: every segment is "Speaker 1". */
+  diarization?: boolean;
+  /** Failure kinds this provider can produce at all (a local engine is never rate limited). */
+  failureKinds?: readonly ProviderErrorKind[];
+}
+
+const ALL_FAILURES = [
+  ["timeout", true],
+  ["rate_limited", true],
+  ["unavailable", true],
+  ["rejected", false],
+] as const;
+
 const AUDIO = new Uint8Array([1, 2, 3, 4]);
 const request = (chunkId = "chunk-1") => ({ chunkId, audio: AUDIO, contentType: "audio/webm" });
 
@@ -19,7 +33,14 @@ const request = (chunkId = "chunk-1") => ({ chunkId, audio: AUDIO, contentType: 
  * Shared contract (CLAUDE.md section 5, Liskov): the fake and the real adapter must look the
  * same to callers, including how they fail. Run against both.
  */
-export function transcriberContract(name: string, create: () => TranscriberHarness): void {
+export function transcriberContract(
+  name: string,
+  create: () => TranscriberHarness,
+  options: ContractOptions = {},
+): void {
+  const failures = ALL_FAILURES.filter(
+    ([kind]) => options.failureKinds === undefined || options.failureKinds.includes(kind),
+  );
   describe(`Transcriber contract: ${name}`, () => {
     it("returns ordered segments with times, speaker labels and text", async () => {
       const h = create();
@@ -28,11 +49,12 @@ export function transcriberContract(name: string, create: () => TranscriberHarne
         { startMs: 0, endMs: 2400, speaker: 0, text: "Let's begin." },
       ]);
       const result = await h.transcriber.transcribe(request());
+      const second = options.diarization === false ? "Speaker 1" : "Speaker 2";
       expect(result).toEqual({
         ok: true,
         value: [
           { startMs: 0, endMs: 2400, speaker: "Speaker 1", text: "Let's begin." },
-          { startMs: 2500, endMs: 4000, speaker: "Speaker 2", text: "Sounds good." },
+          { startMs: 2500, endMs: 4000, speaker: second, text: "Sounds good." },
         ],
       });
     });
@@ -60,12 +82,7 @@ export function transcriberContract(name: string, create: () => TranscriberHarne
       expect(second).toEqual(first);
     });
 
-    it.each([
-      ["timeout", true],
-      ["rate_limited", true],
-      ["unavailable", true],
-      ["rejected", false],
-    ] as const)("reports %s as a normalized error (retryable: %s)", async (kind, retryable) => {
+    it.each(failures)("reports %s as a normalized error (retryable: %s)", async (kind, retryable) => {
       const h = create();
       h.failNext(kind);
       const result = await h.transcriber.transcribe(request());
