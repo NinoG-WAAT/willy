@@ -309,6 +309,15 @@
   }
 }
 
+/* Invitation text from a calendar file: plain text, line breaks kept, long links wrapped. */
+.excerpt {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* High-contrast (forced colours) mode: system colours replace ours, so shapes must opt back in. */
 @media (forced-colors: active) {
   .rec-shape {
