@@ -4,9 +4,16 @@ import { requireOwner } from "../../../app/identity/require-owner";
 import { formatSchedule } from "../../../components/format-schedule";
 import { loadLiveNote, runCaptureAction, saveRoughNotes } from "../../../app/meetings/live-note";
 import { readFormFields, single } from "../../../app/platform/form";
-import { getCaptureSegmentMs, getLiveNoteDeps, getMeetingDeps } from "../../../composition";
+import { getProcessingStatus } from "../../../app/transcription/processing-status";
+import {
+  getCaptureSegmentMs,
+  getLiveNoteDeps,
+  getMeetingDeps,
+  getStatusDeps,
+} from "../../../composition";
 import { CONSENT_STATEMENT } from "../../../domain/meetings/lifecycle";
 import { MAX_ROUGH_NOTES_CHARS } from "../../../domain/meetings/rough-notes";
+import { describeJob } from "../../../domain/progress/text";
 import { isValidStorageId } from "../../../domain/storage/object-key";
 
 export const prerender = false;
@@ -80,6 +87,10 @@ const notice = Astro.url.searchParams.get("notice") === "notes_saved" ? "Notes s
 // Browsers drop the first newline inside <textarea>, so one is added to keep the text exact.
 const textareaText = `\n${notesDraft ?? detail.roughNotes}`;
 const csrf = Astro.locals.csrfToken ?? "";
+// While the transcript is being prepared the note shows the jobs and keeps them current.
+const processing =
+  detail.status === "processing" ? await getProcessingStatus(getStatusDeps(), owner.id, id) : null;
+const progress = processing?.ok ? processing.value : null;
 const action = `/meetings/${detail.id}`;
 const STATUS_TEXT: Record<string, string> = {
   scheduled: "Not started",
@@ -272,7 +283,31 @@ const STATUS_TEXT: Record<string, string> = {
         </>
       )}
 
-      {controls.phase === "after" && <p role="status">{STATUS_TEXT[detail.status]}</p>}
+      {controls.phase === "after" && detail.status !== "processing" && (
+        <p role="status">{STATUS_TEXT[detail.status]}</p>
+      )}
+      {controls.phase === "after" && detail.status === "processing" && (
+        <div
+          id="processing-progress"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          data-progress="processing"
+          data-progress-url={`/api/meetings/${detail.id}/status`}
+        >
+          <p>{STATUS_TEXT[detail.status]}</p>
+          <ul class="plain">
+            <li data-field="transcript">Transcript: {describeJob(progress?.job ?? null)}</li>
+            <li data-field="summary">Summary: {describeJob(progress?.summary ?? null)}</li>
+          </ul>
+          <p data-field="outcome" data-optional hidden></p>
+        </div>
+      )}
+      {controls.phase === "after" && detail.status === "processing" && (
+        <p class="help">
+          This can take a few minutes. <a href={action}>Check again</a>.
+        </p>
+      )}
       {controls.phase === "archived" && <p>This note is archived. Your rough notes are kept.</p>}
     </section>
 
@@ -334,5 +369,6 @@ const STATUS_TEXT: Record<string, string> = {
 
   <script>
     import "../../../scripts/live-note";
+    import "../../../scripts/job-progress";
   </script>
 </Base>

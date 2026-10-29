@@ -11,7 +11,7 @@ type Reply = PollReply | "network-error";
 /** A manual clock and fake browser: tests step time and visibility by hand, never sleep. */
 function setup(
   replies: Reply[],
-  opts: { hidden?: boolean; settleOn?: (body: unknown) => boolean } = {},
+  opts: { hidden?: boolean; slow?: boolean; settleOn?: (body: unknown) => boolean } = {},
 ) {
   let now = 0;
   let hidden = opts.hidden ?? false;
@@ -22,11 +22,17 @@ function setup(
   const rendered: unknown[] = [];
   const stops: PollStopReason[] = [];
   let i = 0;
+  let answerSlow: (reply: PollReply) => void = () => undefined;
 
   const poller = createPoller({
     url: "/api/x/status",
     fetchJson: (url) => {
       calls.push(url);
+      if (opts.slow) {
+        return new Promise<PollReply>((resolve) => {
+          answerSlow = resolve;
+        });
+      }
       const reply = replies[Math.min(i++, replies.length - 1)];
       if (reply === undefined || reply === "network-error") return Promise.reject(new Error("off"));
       return Promise.resolve(reply);
@@ -75,6 +81,7 @@ function setup(
     rendered,
     stops,
     timers,
+    answerSlow: (reply: PollReply) => answerSlow(reply),
     tick,
     flush,
     setHidden(value: boolean) {
@@ -206,11 +213,23 @@ describe("poller", () => {
     expect(t.timers).toHaveLength(0);
   });
 
-  it("stop() cancels the pending timer and ignores late answers", async () => {
+  it("stop() cancels the pending timer so nothing is requested", () => {
     const t = setup([ok({ n: 1 })]);
     t.poller.start();
     t.poller.stop();
     expect(t.timers).toHaveLength(0);
     expect(t.calls).toEqual([]);
+  });
+
+  it("drops an answer that arrives after stop()", async () => {
+    const t = setup([ok({ n: 1 })], { slow: true });
+    t.poller.start();
+    await t.tick();
+    expect(t.calls).toHaveLength(1);
+    t.poller.stop();
+    t.answerSlow(ok({ n: 1 }));
+    await t.flush();
+    expect(t.rendered).toEqual([]);
+    expect(t.timers).toHaveLength(0);
   });
 });

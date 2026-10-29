@@ -40,6 +40,7 @@ export function createPoller(deps: PollerDeps) {
   let last: string | null = null;
   let running = false;
   let waitingForVisible = false;
+  const isRunning = (): boolean => running;
   let inFlight = false;
 
   const schedule = (retryAfterSeconds: number | null = null): void => {
@@ -67,34 +68,44 @@ export function createPoller(deps: PollerDeps) {
     else schedule(retryAfterSeconds);
   };
 
+  const accept = (reply: PollReply | null): void => {
+    if (reply === null) {
+      failed(null);
+    } else if (reply.status === 401 || reply.status === 404) {
+      finish("unavailable");
+    } else if (reply.status !== 200) {
+      failed(reply.status === 429 ? reply.retryAfterSeconds : null);
+    } else {
+      const shown = deps.render(reply.body);
+      if (shown === null) {
+        failed(null);
+        return;
+      }
+      errors = 0;
+      const snapshot = JSON.stringify(reply.body);
+      streak = snapshot === last ? streak + 1 : 0;
+      last = snapshot;
+      if (shown.settled) finish("settled");
+      else schedule();
+    }
+  };
+
   async function poll(): Promise<void> {
     if (!running || inFlight) return;
-    if (deps.now() - startedAt >= POLL.maxTotalMs) return finish("timeout");
+    if (deps.now() - startedAt >= POLL.maxTotalMs) {
+      finish("timeout");
+      return;
+    }
     if (deps.isHidden()) {
       // Nothing is looking at the page: wait for it to be shown instead of polling.
       waitingForVisible = true;
       return;
     }
     inFlight = true;
-    let reply: PollReply;
-    try {
-      reply = await deps.fetchJson(deps.url);
-    } catch {
-      inFlight = false;
-      return failed(null);
-    }
+    const reply = await deps.fetchJson(deps.url).catch(() => null);
     inFlight = false;
-    if (!running) return;
-    if (reply.status === 401 || reply.status === 404) return finish("unavailable");
-    if (reply.status !== 200) return failed(reply.status === 429 ? reply.retryAfterSeconds : null);
-    const shown = deps.render(reply.body);
-    if (shown === null) return failed(null);
-    errors = 0;
-    const snapshot = JSON.stringify(reply.body);
-    streak = snapshot === last ? streak + 1 : 0;
-    last = snapshot;
-    if (shown.settled) return finish("settled");
-    schedule();
+    // stop() may have been called while the request was out: a late answer is dropped.
+    if (isRunning()) accept(reply);
   }
 
   return {
