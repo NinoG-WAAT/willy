@@ -9,7 +9,10 @@ import {
 type Reply = PollReply | "network-error";
 
 /** A manual clock and fake browser: tests step time and visibility by hand, never sleep. */
-function setup(replies: Reply[], opts: { hidden?: boolean; settleOn?: (body: unknown) => boolean } = {}) {
+function setup(
+  replies: Reply[],
+  opts: { hidden?: boolean; settleOn?: (body: unknown) => boolean } = {},
+) {
   let now = 0;
   let hidden = opts.hidden ?? false;
   let visibilityListener: (() => void) | null = null;
@@ -46,7 +49,9 @@ function setup(replies: Reply[], opts: { hidden?: boolean; settleOn?: (body: unk
     render: (body) => {
       rendered.push(body);
       // Anything that is not an object stands for a payload the page cannot use.
-      return typeof body === "object" ? { settled: opts.settleOn ? opts.settleOn(body) : false } : null;
+      return typeof body === "object"
+        ? { settled: opts.settleOn ? opts.settleOn(body) : false }
+        : null;
     },
     onStop: (reason) => stops.push(reason),
   });
@@ -56,7 +61,7 @@ function setup(replies: Reply[], opts: { hidden?: boolean; settleOn?: (body: unk
     timers.sort((a, b) => a.at - b.at);
     const next = timers.shift();
     if (!next) throw new Error("no timer is scheduled");
-    now = next.at;
+    now = Math.max(now, next.at);
     next.run();
     await flush();
     return now;
@@ -120,9 +125,9 @@ describe("poller", () => {
     const times: number[] = [];
     for (let n = 0; n < 4; n++) times.push(await t.tick());
     const gaps = times.map((time, n) => time - (times[n - 1] ?? 0));
-    // first poll after the base delay; then the gap grows twice (no news); a change resets it
-    expect(gaps[1] ?? 0).toBeGreaterThan(gaps[0] ?? 0);
+    // The first gap is the base delay; once an answer repeats, each gap is longer than the last.
     expect(gaps[2] ?? 0).toBeGreaterThan(gaps[1] ?? 0);
+    expect(gaps[3] ?? 0).toBeGreaterThan(gaps[2] ?? 0);
     const afterChange = t.timers[0];
     expect((afterChange?.at ?? 0) - (times[3] ?? 0)).toBe(gaps[0]);
   });

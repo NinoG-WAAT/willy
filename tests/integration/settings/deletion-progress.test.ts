@@ -2,7 +2,15 @@ import type { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SqliteDeletionStatusQuery } from "../../../src/adapters/sqlite/deletion-status-query";
 import { getDeletionProgress } from "../../../src/app/settings/deletion-progress";
-import { T0, T1, freshDb, insert, meeting, owner } from "../../support/db-fixtures";
+import {
+  T0,
+  T1,
+  consentedMeeting,
+  freshDb,
+  insert,
+  meeting,
+  owner,
+} from "../../support/db-fixtures";
 
 let db: DatabaseSync;
 let query: SqliteDeletionStatusQuery;
@@ -14,7 +22,11 @@ beforeEach(() => {
   owner(db, "B");
 });
 
-function deletion(ownerId: string, meetingId: string, extra: Record<string, string | number | null>) {
+function deletion(
+  ownerId: string,
+  meetingId: string,
+  extra: Record<string, string | number | null>,
+) {
   meeting(db, ownerId, meetingId, {
     status: "deleting",
     title: `Secret title of ${meetingId}`,
@@ -71,7 +83,7 @@ describe("getDeletionProgress (what the settings screen polls)", () => {
   });
 
   it("ignores other kinds of jobs", async () => {
-    meeting(db, "A", "m-t", { status: "processing" });
+    consentedMeeting(db, "A", "m-t", { status: "processing" });
     insert(db, "job", {
       id: "job-t",
       owner_id: "A",

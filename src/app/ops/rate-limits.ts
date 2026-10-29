@@ -41,6 +41,13 @@ const LIMITS: { method: string; path: RegExp; limit: RouteLimit }[] = [
     limit: { name: "search", policy: { limit: 60, windowMs: MINUTE }, scope: "owner" },
   },
   {
+    method: "GET",
+    // Job progress polling (#51). Pages back off to one request every 30 s, so 120 a minute only
+    // stops a runaway loop; one class covers the meeting and the deletions endpoint.
+    path: new RegExp(`^/api/(meetings/${ID}|deletions)/status$`),
+    limit: { name: "status", policy: { limit: 120, windowMs: MINUTE }, scope: "owner" },
+  },
+  {
     method: "POST",
     path: /^\/webhooks\/.*$/,
     limit: { name: "webhook", policy: { limit: 300, windowMs: MINUTE }, scope: "client" },

@@ -72,6 +72,7 @@ const [providers, retention, meetings, deletions] = await Promise.all([
   listDeletions(getDeletionDeps(), owner.id),
 ]);
 
+const deletionsRunning = deletions.some((entry) => entry.view.inProgress);
 const notice = settingsNotice(Astro.url.searchParams.get("notice"));
 const selectedHours = submitted?.hours ?? String(retention.rawAudioRetentionHours);
 const selectedDays =
@@ -241,46 +242,67 @@ const csrf = Astro.locals.csrfToken ?? "";
     </p>
 
     <h3 id="deletions">Deletions</h3>
+    <p id="deletion-announce" class="sr-only" role="status" aria-live="polite"></p>
     {deletions.length === 0 ? (
       <p>No deletions yet.</p>
     ) : (
-      <ul class="rows">
-        {deletions.map((entry) => (
-          <li class="row">
-            <p class="row-title">
-              <span class="badge">{entry.view.label}</span>
-            </p>
-            <p class="row-meta">
-              Requested {formatInstant(entry.requestedAt)} · Reference{" "}
-              <code>{entry.meetingId}</code>
-            </p>
-            <p>{entry.view.detail}</p>
-            {entry.view.state === "retrying" && entry.nextRunAt !== null && (
-              <p class="row-meta">Next attempt: {formatInstant(entry.nextRunAt)}</p>
-            )}
-            {entry.view.state === "succeeded" && (
-              <p class="row-meta">Finished {formatInstant(entry.updatedAt)}</p>
-            )}
-            {entry.view.canRetry && (
-              <form
-                class="inline-form"
-                method="post"
-                action={`/settings/deletions/${entry.meetingId}/retry`}
-              >
-                <input type="hidden" name="csrf_token" value={csrf} />
-                <button class="button button-quiet" type="submit">
-                  Retry deletion<span class="sr-only"> for reference {entry.meetingId}</span>
-                </button>
-              </form>
-            )}
-          </li>
-        ))}
-      </ul>
-    )}
-    {deletions.some((entry) => entry.view.inProgress) && (
-      <p class="help">
-        A deletion is still running. <a href="/settings#deletions">Check again</a> in a moment.
-      </p>
+      <div
+        data-progress={deletionsRunning ? "deletions" : undefined}
+        data-progress-url={deletionsRunning ? "/api/deletions/status" : undefined}
+        data-announce-to={deletionsRunning ? "deletion-announce" : undefined}
+      >
+        <ul class="rows">
+          {deletions.map((entry) => (
+            <li class="row" data-deletion-id={entry.meetingId}>
+              <p class="row-title">
+                <span class="badge" data-field="label">
+                  {entry.view.label}
+                </span>
+              </p>
+              <p class="row-meta">
+                Requested {formatInstant(entry.requestedAt)} · Reference{" "}
+                <code>{entry.meetingId}</code>
+              </p>
+              <p data-field="detail">{entry.view.detail}</p>
+              {entry.view.inProgress && (
+                <p
+                  class="row-meta"
+                  data-field="next"
+                  data-optional
+                  hidden={!(entry.view.state === "retrying" && entry.nextRunAt !== null)}
+                >
+                  {entry.view.state === "retrying" && entry.nextRunAt !== null
+                    ? `Next attempt: ${formatInstant(entry.nextRunAt)}`
+                    : ""}
+                </p>
+              )}
+              {entry.view.state === "succeeded" && (
+                <p class="row-meta">Finished {formatInstant(entry.updatedAt)}</p>
+              )}
+              {(entry.view.canRetry || entry.view.inProgress) && (
+                <form
+                  class="inline-form"
+                  method="post"
+                  action={`/settings/deletions/${entry.meetingId}/retry`}
+                  data-field="retry"
+                  hidden={!entry.view.canRetry}
+                >
+                  <input type="hidden" name="csrf_token" value={csrf} />
+                  <button class="button button-quiet" type="submit">
+                    Retry deletion<span class="sr-only"> for reference {entry.meetingId}</span>
+                  </button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+        <p data-field="outcome" class="help" data-optional hidden></p>
+        {deletionsRunning && (
+          <p class="help" data-while-running>
+            A deletion is still running. <a href="/settings#deletions">Check again</a> in a moment.
+          </p>
+        )}
+      </div>
     )}
 
     <h3>Delete a meeting</h3>
@@ -311,6 +333,10 @@ const csrf = Astro.locals.csrfToken ?? "";
       </ul>
     )}
   </section>
+
+  <script>
+    import "../../scripts/job-progress";
+  </script>
 </Base>
 
 <style>

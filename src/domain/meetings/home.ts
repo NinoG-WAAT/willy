@@ -40,7 +40,9 @@ export interface MeetingDescription {
 }
 
 /** What to show and where to go for a meeting, by lifecycle status (docs/PLAN.md section 3.1). */
-export function describeMeeting(item: MeetingListItem): MeetingDescription {
+export function describeMeeting(
+  item: Pick<MeetingListItem, "id" | "status" | "folderName">,
+): MeetingDescription {
   const live = `/meetings/${item.id}`;
   const review = `/meetings/${item.id}/review`;
   switch (item.status) {
