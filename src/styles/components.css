@@ -237,7 +237,7 @@ fieldset {
 .row {
   display: grid;
   gap: var(--spacing-8);
-  padding: var(--spacing-16) var(--spacing-20);
+  padding: var(--spacing-16);
 }
 
 /* A list inside a panel is already framed: its rows are the "subtle" card (6px, faint fill). */
