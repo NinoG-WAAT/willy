@@ -268,6 +268,14 @@ test.describe("owner screens", () => {
     await audit(page);
     advanceProcessing(id, { meeting: "review", transcription: "succeeded", summary: "succeeded" });
     await expect(page.getByText("Your draft is ready")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("link", { name: "Open the draft" })).toBeVisible();
+    await audit(page);
+  });
+
+  test("live note, ready for review (link to the draft)", async ({ page }) => {
+    const id = await createReviewMeeting("owner-ada");
+    await page.goto(`/meetings/${id}`);
+    await expect(page.getByRole("link", { name: "Open the draft" })).toBeVisible();
     await audit(page);
   });
 

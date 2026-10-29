@@ -122,6 +122,107 @@ test.describe("live note, after capture stopped", () => {
     await expect(region).toContainText("Your draft is ready", WAIT);
     await expect(page.getByRole("link", { name: "Check again" })).toBeVisible();
   });
+
+  // Issue #63: the live update used to say "use Check again" and Check again only reloaded the
+  // live note, which had no way to the review. The link is in the page from the start (hidden)
+  // and is revealed in place, so it is built from the meeting id of the page, never from the
+  // answer of the status endpoint.
+  test("the link to the draft appears in place, without a reload, and opens the review", async ({
+    page,
+  }) => {
+    const id = createCapturingMeeting("owner-ada", "processing", "Review link live note");
+    advanceProcessing(id, { meeting: "processing", transcription: "running", summary: "pending" });
+    await signIn(page);
+    await page.goto(`/meetings/${id}`);
+    const region = page.getByRole("status").filter({ hasText: "Transcript:" });
+    await expect(region).toContainText("Transcript: Running");
+    await expect(page.getByRole("link", { name: "Open the draft" })).toBeHidden();
+    // A marker that a reload would remove: the page must update in place.
+    await page.evaluate(() => {
+      (window as unknown as { sameDocument: boolean }).sameDocument = true;
+    });
+
+    advanceProcessing(id, { meeting: "review", transcription: "succeeded", summary: "succeeded" });
+    const link = region.getByRole("link", { name: "Open the draft" });
+    await expect(link).toBeVisible(WAIT);
+    await expect(link).toHaveAttribute("href", `/meetings/${id}/review`);
+    await expect(region).toContainText("Your draft is ready.");
+    await expect(region).not.toContainText("Use Check again to open it");
+    // The announcement lives in the existing live region, which now contains the link.
+    await expect(region).toHaveAttribute("aria-live", "polite");
+    expect(
+      await page.evaluate(() => (window as unknown as { sameDocument?: boolean }).sameDocument),
+    ).toBe(true);
+
+    await link.click();
+    await expect(page).toHaveURL(`/meetings/${id}/review`);
+    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+  });
+
+  test("a failed processing offers the same way to the review page, where the retry is", async ({
+    page,
+  }) => {
+    const id = createCapturingMeeting("owner-ada", "processing", "Review link failed note");
+    advanceProcessing(id, { meeting: "processing", transcription: "running" });
+    await signIn(page);
+    await page.goto(`/meetings/${id}`);
+    const region = page.getByRole("status").filter({ hasText: "Transcript:" });
+    await expect(region).toContainText("Transcript: Running");
+
+    advanceProcessing(id, { meeting: "failed", transcription: "failed" });
+    const link = region.getByRole("link", { name: "See what happened and retry" });
+    await expect(link).toBeVisible(WAIT);
+    await expect(link).toHaveAttribute("href", `/meetings/${id}/review`);
+    await expect(region).toContainText("Your rough notes are kept");
+    await link.click();
+    await expect(page).toHaveURL(`/meetings/${id}/review`);
+    await expect(page.getByRole("heading", { name: "Transcription did not finish" })).toBeVisible();
+  });
+});
+
+test.describe("live note at status review or failed (server-rendered)", () => {
+  test("always carries a primary link to the review page, and nothing else changes it", async ({
+    page,
+  }) => {
+    const review = await createReviewMeeting("owner-ada");
+    const failed = createCapturingMeeting("owner-ada", "failed", "Review link failed on load");
+    await signIn(page);
+
+    await page.goto(`/meetings/${review}`);
+    await expect(page.getByText("Recording finished. A draft is ready for review.")).toBeVisible();
+    const open = page.getByRole("link", { name: "Open the draft" });
+    await expect(open).toBeVisible();
+    await expect(open).toHaveAttribute("href", `/meetings/${review}/review`);
+    await expect(open).toHaveClass(/button/);
+    await open.click();
+    await expect(page).toHaveURL(`/meetings/${review}/review`);
+
+    await page.goto(`/meetings/${failed}`);
+    const retry = page.getByRole("link", { name: "See what happened and retry" });
+    await expect(retry).toBeVisible();
+    await expect(retry).toHaveAttribute("href", `/meetings/${failed}/review`);
+    await retry.click();
+    await expect(page).toHaveURL(`/meetings/${failed}/review`);
+  });
+
+  test("another owner never sees the link: the note is a plain 404", async ({ page, browser }) => {
+    const id = await createReviewMeeting("owner-ada");
+    const ben = createFreshOwner();
+    const context = await browser.newContext();
+    const other = await context.newPage();
+    await signIn(other, ben.email);
+    const response = await other.goto(`/meetings/${id}`);
+    expect(response?.status()).toBe(404);
+    await expect(other.getByRole("link", { name: /Open the draft|See what happened/ })).toHaveCount(
+      0,
+    );
+    expect(await other.content()).not.toContain(`/meetings/${id}/review`);
+    await context.close();
+    // Positive control: the owner does get it.
+    await signIn(page);
+    await page.goto(`/meetings/${id}`);
+    await expect(page.getByRole("link", { name: "Open the draft" })).toBeVisible();
+  });
 });
 
 test.describe("home", () => {
@@ -221,6 +322,23 @@ test.describe("without JavaScript", () => {
     // ...and "Check again" shows the truth.
     await page.getByRole("link", { name: "Check again" }).click();
     await expect(page.getByRole("heading", { name: "Transcription did not finish" })).toBeVisible();
+
+    // Live note (#63): a reload is the whole no-JS path and it now shows the way to the review.
+    const live = createCapturingMeeting(owner.id, "processing", "No-JS review link");
+    advanceProcessing(live, { meeting: "processing", transcription: "running" });
+    await page.goto(`/meetings/${live}`);
+    await expect(page.getByText("Transcript: Running")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open the draft" })).toBeHidden();
+    advanceProcessing(live, {
+      meeting: "review",
+      transcription: "succeeded",
+      summary: "succeeded",
+    });
+    await page.getByRole("link", { name: "Check again" }).click();
+    const open = page.getByRole("link", { name: "Open the draft" });
+    await expect(open).toBeVisible();
+    await open.click();
+    await expect(page).toHaveURL(`/meetings/${live}/review`);
 
     await page.goto("/settings");
     const row = page.locator(`[data-deletion-id="${deletion}"]`);
