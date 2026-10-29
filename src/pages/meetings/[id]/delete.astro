@@ -29,7 +29,10 @@ if (!prompt.ok) {
 }
 
 if (Astro.request.method === "POST") {
-  const fields = readFormFields(await Astro.request.formData(), ["csrf_token", "confirmation"]);
+  const fields = readFormFields(await Astro.request.clone().formData(), [
+    "csrf_token",
+    "confirmation",
+  ]);
   if (!fields) return new Response("Bad request", { status: 400 });
   // The use case calls requestMeetingDeletion (#13); the route holds no deletion logic.
   const result = await confirmMeetingDeletion(deps, owner.id, id, single(fields, "confirmation"));

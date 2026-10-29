@@ -16,7 +16,7 @@ const found = await findTemplate(deps, owner.id, id);
 if (!found.ok) return Astro.rewrite("/404");
 
 if (Astro.request.method === "POST") {
-  if (!readFormFields(await Astro.request.formData(), ["csrf_token", "confirm"])) {
+  if (!readFormFields(await Astro.request.clone().formData(), ["csrf_token", "confirm"])) {
     return new Response("Bad request", { status: 400 });
   }
   const result = await deleteTemplate(deps, owner.id, id);

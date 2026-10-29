@@ -23,7 +23,7 @@ let errors: FieldError[] = [];
 let blankRows = 3;
 
 if (Astro.request.method === "POST") {
-  const parsed = parseTemplateForm(await Astro.request.formData());
+  const parsed = parseTemplateForm(await Astro.request.clone().formData());
   if (!parsed.ok) return new Response("Bad request", { status: 400 });
   const result = await updateTemplate(deps, owner.id, id, parsed.value);
   if (result.ok) return Astro.redirect("/settings/templates?notice=template_saved", 303);
