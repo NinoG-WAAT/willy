@@ -290,7 +290,7 @@ const STATUS_TEXT: Record<string, string> = {
       )}
       {controls.phase === "after" && detail.status !== "processing" && reviewLabel !== null && (
         <p class="row-actions">
-          <a class="button" href={reviewPath(detail.id)}>
+          <a class="button button-primary" href={reviewPath(detail.id)}>
             {reviewLabel}
           </a>
         </p>
@@ -310,7 +310,13 @@ const STATUS_TEXT: Record<string, string> = {
             <li data-field="summary">Summary: {describeJob(progress?.summary ?? null)}</li>
           </ul>
           <p data-field="outcome" data-optional hidden></p>
-          <a class="button" data-field="link" data-optional hidden href={reviewPath(detail.id)}></a>
+          <a
+            class="button button-primary"
+            data-field="link"
+            data-optional
+            hidden
+            href={reviewPath(detail.id)}
+          ></a>
         </div>
       )}
       {controls.phase === "after" && detail.status === "processing" && (
