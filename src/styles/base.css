@@ -66,6 +66,13 @@ p {
   margin: 0 0 var(--spacing-12);
 }
 
+/* A sub-heading that follows content opens a new group: give it room above. */
+p + h3,
+ul + h3,
+div + h3 {
+  margin-top: var(--spacing-24);
+}
+
 /* Titles and folder names are the owner's own words (a pasted URL, one long word): wrap them. */
 h1,
 h2,

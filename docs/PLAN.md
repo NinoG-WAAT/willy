@@ -95,6 +95,10 @@ All state-changing requests are `POST` with CSRF token (double-submit cookie plu
 | `GET /api/files/:token` | Short-lived authorized file URL (audio while it exists) | Token minted only after owner check, TTL <= 5 min; 404 after deletion |
 | `POST /internal/jobs/run` (dev/Node only) | Runs the signed-in owner's due jobs once (never another owner's) | Disabled in production builds; not exposed on Workers |
 
+### 3.3 UI conventions
+
+The visual reference is `DESIGN.md` (repo root, owner-supplied). Its tokens are defined once in `src/styles/tokens.css`; every other stylesheet and component reads them and never types a colour or radius (enforced by `tests/unit/styles/design-tokens.test.ts`). One acid-lime `button-primary` per view, all other buttons ghost, destructive buttons keep their words. Accessibility rules override the reference where they conflict (44px hit areas, no Ash text, status by text and marker, 1px hairlines); the list is in the README "Design" section. Page frame: 1200px column, left-aligned "Willycrumbs" wordmark, links and session on the right.
+
 ## 4. Data tables (summary; detail in `docs/DATA_MODEL.md`, #4)
 
 Every table that holds user data carries `owner_id` (directly, not only through a parent) so every query can include `owner_id = ?` taken from the session.

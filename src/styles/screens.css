@@ -273,6 +273,11 @@
 
 /* Phone: full-width fields and actions, one column. */
 @media (max-width: 40rem) {
+  /* A capsule cannot hold wrapped text gracefully: use the card radius on a narrow screen. */
+  .rec-banner {
+    border-radius: var(--radius-cards);
+  }
+
   .field input:not([type="checkbox"], [type="radio"]),
   .field select,
   .field textarea,
