@@ -18,6 +18,7 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | Sign-in and sessions, meeting lifecycle, STT/LLM/storage adapters, jobs, deletion job | in progress |
 | Folders and templates (settings pages: create, edit, default, delete) | done |
 | Screen 1: meetings home, new note, calendar import (demo calendar; Google connect flow pending) | done |
+| ICS calendar file import (Outlook / Teams export; no Entra, Google or API keys needed) | done |
 | Screen 2: live note (consent, capture, rough notes, recording state, failure recovery) | done |
 | Search and Markdown export | done |
 | Screen 3: review (transcript beside editable summary, speakers, decisions, action items, publish to folder) | done |
@@ -203,6 +204,24 @@ Settings (`/settings`) lets the owner choose how long raw audio is kept (default
 
 Full checklist: CLAUDE.md section 8.
 
+## Importing meetings from Outlook or Teams (ICS file)
+
+If your company runs Microsoft 365 and you cannot register an Entra app, you can still bring meetings in: export them from Outlook as an `.ics` file and upload it. No account, token or network call is involved, the file is parsed in memory and never stored, and nothing is imported until you confirm.
+
+1. Export from Outlook (steps differ a little by version; Teams shows the same Outlook calendar, so Teams meetings are in the export):
+   - **Classic Outlook (Windows)**: Calendar, File, Save Calendar. Pick a date range (a few weeks is plenty), detail "Full details", and save the `.ics` file. For one meeting, open it, File, Save As, and choose "iCalendar Format (*.ics)".
+   - **Outlook on the web / new Outlook**: Settings, Calendar, Shared calendars, Publish a calendar. Open the ICS link it shows in your browser to download the file. (Willycrumbs never fetches that link itself.)
+2. In Willycrumbs, on the Meetings screen choose **Import from ICS file** (`/meetings/import/ics`), upload the file or paste its text, pick the time zone for events that carry none, and choose **Preview events**.
+3. Untick anything you do not want, then **Import selected events**. Re-importing the same file, or a newer export, never creates duplicates: an event is identified by its calendar id (UID, plus the replaced time for a changed occurrence of a series) and a changed event updates the existing Meeting's title, time and attendee list. Your notes, consent and capture state are never touched.
+
+What it does and does not do:
+
+- Reads single meetings and `RECURRENCE-ID` overrides (a changed or moved occurrence of a series). A **recurring series** (`RRULE`/`RDATE`) is listed in the preview but **not expanded and not imported**: expanding a rule needs a full recurrence engine, and an unbounded series must never flood the list. Export the date range containing the occurrence you want, or use New note.
+- Windows time zone names Outlook writes ("W. Europe Standard Time") are mapped to IANA zones (`src/domain/calendar/windows-timezones.ts`); IANA names work too. An event whose zone cannot be identified is skipped and listed, never guessed. DST gaps and overlaps follow RFC 5545 (see `tests/unit/calendar/local-time.test.ts`).
+- Attendees are exactly the `ORGANIZER` and `ATTENDEE` entries in the file (rooms and equipment are left out). Nobody is invented, and listing someone does not record their consent.
+- Cancelled events are shown but cannot be selected. Teams join links and any URL in the description or location are shown as plain text and never linked or fetched.
+- Limits (reject, never truncate): 1 MB per file, 200 events, 64 KB per unfolded line, UTF-8 only, `.ics` files or pasted text. The two POST routes are rate limited (40 per 10 minutes per owner) and capped at 4 MB of request body before anything is read.
+
 ## Accessibility
 
 Every screen is built to WCAG 2.2 AA as far as automation can show: semantic landmarks (one banner, main, contentinfo, a labelled main navigation that marks the current page with `aria-current`, and search forms as `search` landmarks), a skip link, explicit labels, one `h1` and a page title per screen, a visible focus ring everywhere, state that is always also text or shape (never colour alone), controls at least 44px high, `aria-live`/`role="status"` for capture state, upload status, autosave, notices and job results, `role="alert"` for errors, and `prefers-reduced-motion` support (the recording indicator stops pulsing but keeps its label). The phone layout is its own design: a compact header with one navigation row, full-width fields and primary actions, and no horizontal scroll down to 320px.
@@ -214,7 +233,7 @@ Checks that run in `npm test`: `tests/e2e/a11y.spec.ts` scans every screen and s
 - **Search does not cover transcripts.** The index holds titles, agendas, rough notes, summary sections, decisions and action items. Transcripts are encrypted at rest and an index would store their text in plaintext; indexing them needs an encrypted-index decision (docs/DATA_MODEL.md section 5). Search hits can still open the review screen at the cited source range.
 
 - Several screens and server features are not on `main` yet (see Status); this README is updated in the same PR as each behavior change.
-- No ICS file import yet; calendar import currently supports Google (and the fake).
+- ICS import does not expand recurring series and has only been checked against synthetic Outlook-style fixtures, not a real Outlook or Teams export; Google calendar import is not connected end to end yet.
 - Production sign-in is not built in this slice: development uses seeded credentials; an emailed magic link behind a provider adapter is the documented production option.
 - Live updates use polling, not server-sent events.
 - Diarization depends on the speech-to-text provider; owner corrections are the source of truth.
