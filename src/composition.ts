@@ -63,6 +63,7 @@ import type { ExportDeps } from "./app/search/export";
 import type { SearchDeps } from "./app/search/search";
 import { providerError } from "./domain/platform/provider-error";
 import { err } from "./domain/platform/result";
+import type { CalendarImportRepository } from "./ports/calendar-import-repository";
 import type { CalendarSource } from "./ports/calendar-source";
 import type { NotesDeps } from "./app/notes/deps";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
@@ -464,6 +465,11 @@ export function getCalendarImportDeps(): ImportDeps {
       random: () => Math.random(),
     },
   };
+}
+
+/** ICS file import needs no provider, token or network: only the idempotent import repository. */
+export function getIcsImportDeps(): { repo: CalendarImportRepository } {
+  return { repo: getMeetingCatalog() };
 }
 
 export function getLiveNoteDeps(): LiveNoteDeps {

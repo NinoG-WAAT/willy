@@ -1,0 +1,2 @@
+# Fixtures keep CRLF line endings exactly as Outlook writes them.
+*.ics -text

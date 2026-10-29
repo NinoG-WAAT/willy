@@ -20,6 +20,13 @@ const LIMITS: { method: string; path: RegExp; limit: RouteLimit }[] = [
     limit: { name: "import", policy: { limit: 20, windowMs: TEN_MINUTES }, scope: "owner" },
   },
   {
+    // Preview and confirm are two requests per calendar file, so the allowance is double the
+    // provider import's. A separate class keeps a busy file import from blocking that one.
+    method: "POST",
+    path: /^\/meetings\/import\/ics(\/confirm)?$/,
+    limit: { name: "import-ics", policy: { limit: 40, windowMs: TEN_MINUTES }, scope: "owner" },
+  },
+  {
     method: "GET",
     path: new RegExp(`^/meetings/${ID}/export\\.md$`),
     limit: { name: "export", policy: { limit: 30, windowMs: TEN_MINUTES }, scope: "owner" },

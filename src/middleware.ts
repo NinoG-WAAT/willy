@@ -6,6 +6,7 @@ import {
   forbiddenResponse,
   unauthenticatedResponse,
 } from "./app/identity/route-access";
+import { bodyTooLargeResponse, checkBodyLength, maxBodyBytesFor } from "./app/ops/body-limits";
 import { enforceRateLimit, rateLimitedResponse } from "./app/ops/rate-limits";
 import { observeRequest } from "./app/ops/request-observer";
 import { securityHeaders } from "./app/ops/security-headers";
@@ -106,6 +107,13 @@ const auth = defineMiddleware(async (context, next) => {
     clientAddress: context.clientAddress,
   });
   if (limited) return rateLimitedResponse(limited.retryAfterSeconds, url.pathname);
+
+  // Before anything reads the body: the CSRF check below buffers form posts.
+  const bodyLimit = maxBodyBytesFor(request.method, url.pathname);
+  if (bodyLimit !== null) {
+    const refused = checkBodyLength(request.headers.get("content-length"), bodyLimit);
+    if (refused !== null) return bodyTooLargeResponse(refused);
+  }
 
   if (requiresCsrf(request.method)) {
     const proven =

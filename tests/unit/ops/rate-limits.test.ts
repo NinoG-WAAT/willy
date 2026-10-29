@@ -6,6 +6,8 @@ import { enforceRateLimit, rateLimitFor } from "../../../src/app/ops/rate-limits
 describe("rateLimitFor (abuse-prone endpoints)", () => {
   it.each([
     ["POST", "/meetings/import", "import", "owner"],
+    ["POST", "/meetings/import/ics", "import-ics", "owner"],
+    ["POST", "/meetings/import/ics/confirm", "import-ics", "owner"],
     ["GET", "/meetings/abc123/export.md", "export", "owner"],
     ["POST", "/meetings/abc123/delete", "delete", "owner"],
     ["POST", "/settings/deletions/abc123/retry", "delete", "owner"],
@@ -20,6 +22,8 @@ describe("rateLimitFor (abuse-prone endpoints)", () => {
 
   it.each([
     ["GET", "/meetings/import"],
+    ["GET", "/meetings/import/ics"],
+    ["POST", "/meetings/import/ics/other"],
     ["POST", "/search"],
     ["GET", "/"],
     ["GET", "/meetings/abc/export.md/extra"],

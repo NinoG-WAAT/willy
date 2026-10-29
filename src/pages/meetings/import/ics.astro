@@ -1,0 +1,316 @@
+---
+import Base from "../../../layouts/Base.astro";
+import ErrorSummary from "../../../components/ErrorSummary.astro";
+import { formatDay, formatSchedule } from "../../../components/format-schedule";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { previewIcs } from "../../../app/calendar/import-ics";
+import { readIcsUpload } from "../../../app/calendar/ics-form";
+import {
+  icsProblemMessage,
+  icsProblemStatus,
+  skippedReason,
+} from "../../../app/calendar/ics-messages";
+import type { IcsParse } from "../../../domain/calendar/ics";
+import type { FieldError } from "../../../domain/platform/text";
+
+export const prerender = false;
+
+// Owner route (middleware default-deny, CSRF and body size already checked). Nothing here is
+// stored: a posted file is parsed in memory and the preview carries it forward in the page.
+requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const EXCERPT_CHARS = 240;
+const zones = [...new Set(["UTC", ...Intl.supportedValuesOf("timeZone")])];
+
+let floatingZone = "UTC";
+let calendarText = "";
+let preview: IcsParse | null = null;
+let errors: FieldError[] = [];
+
+const FIELD_FOR_CODE: Record<string, string> = { bad_zone: "floating_zone" };
+const refuse = (code: string, status: number) => {
+  const message = icsProblemMessage(code) ?? icsProblemMessage("malformed") ?? "";
+  errors = [{ field: FIELD_FOR_CODE[code] ?? "file", message }];
+  Astro.response.status = status;
+};
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData().catch(() => null);
+  const upload = form ? await readIcsUpload(form) : null;
+  if (upload === null) {
+    refuse("malformed", 400);
+  } else if (!upload.ok) {
+    refuse(upload.error.code, icsProblemStatus(upload.error.code));
+  } else {
+    floatingZone = upload.value.floatingZone;
+    const parsed = previewIcs(upload.value);
+    if (parsed.ok) {
+      preview = parsed.value;
+      calendarText = upload.value.text;
+    } else {
+      refuse(parsed.error.code, icsProblemStatus(parsed.error.code));
+    }
+  }
+} else {
+  // A refusal from the confirm step arrives as a fixed code in the query string.
+  const code = Astro.url.searchParams.get("problem");
+  const message = icsProblemMessage(code);
+  if (code !== null && message !== null) {
+    errors = [{ field: code === "bad_zone" ? "floating_zone" : "file", message }];
+  }
+}
+
+const importable = preview?.events.filter((e) => !e.cancelled) ?? [];
+const minutes = (startsAt: string, endsAt: string) =>
+  Math.round((Date.parse(endsAt) - Date.parse(startsAt)) / 60_000);
+const plural = (n: number, one: string, many: string) => `${String(n)} ${n === 1 ? one : many}`;
+const errorFor = (field: string) => errors.find((e) => e.field === field);
+---
+
+<Base title="Import from an ICS file">
+  <h1>Import from an ICS file</h1>
+
+  <p id="pending-status" class="sr-only" role="status"></p>
+
+  {preview === null && (
+    <>
+      <p>
+        Export your meetings from Outlook or Teams as an <code>.ics</code> calendar file, then
+        upload it here or paste its text. No calendar account, sign-in or app registration is
+        needed. The file is read in memory and not stored. Links inside invitations stay plain text
+        and are never opened.
+      </p>
+
+      <details>
+        <summary>How to export from Outlook or Teams</summary>
+        <ol>
+          <li>
+            Classic Outlook on Windows: in Calendar choose File, then Save Calendar, pick a date
+            range and Full details, and save the <code>.ics</code> file. To save one meeting, open
+            it, then File, Save As, and choose iCalendar Format.
+          </li>
+          <li>
+            Outlook on the web: Settings, Calendar, Shared calendars, Publish a calendar. Open the
+            ICS link it gives you in your browser to download the file, then upload that file here.
+          </li>
+          <li>
+            Teams shows your Outlook calendar, so Teams meetings are in the same export. Recurring
+            series are listed but not imported (only single meetings and changed occurrences are).
+          </li>
+        </ol>
+      </details>
+
+      <ErrorSummary errors={errors} />
+
+      <form
+        class="form form-wide"
+        method="post"
+        action="/meetings/import/ics"
+        enctype="multipart/form-data"
+        data-pending-text="Reading the calendar…"
+      >
+        <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+
+        <div class="field">
+          <label for="file">Calendar file (.ics, up to 1 MB)</label>
+          <input
+            id="file"
+            name="file"
+            type="file"
+            accept=".ics,text/calendar"
+            aria-invalid={errorFor("file") ? "true" : undefined}
+            aria-describedby={errorFor("file") ? "file-error" : undefined}
+          />
+          {errorFor("file") && (
+            <p class="field-error" id="file-error">
+              {errorFor("file")?.message}
+            </p>
+          )}
+        </div>
+
+        <div class="field">
+          <label for="ics_text">Or paste the calendar text</label>
+          <textarea
+            id="ics_text"
+            name="ics_text"
+            rows="8"
+            spellcheck="false"
+            autocomplete="off"
+          ></textarea>
+        </div>
+
+        <div class="field">
+          <label for="floating_zone">Time zone for events that have none</label>
+          <select
+            id="floating_zone"
+            name="floating_zone"
+            data-browser-zone
+            aria-describedby="floating-zone-help"
+            aria-invalid={errorFor("floating_zone") ? "true" : undefined}
+          >
+            {zones.map((zone) => (
+              <option value={zone} selected={zone === floatingZone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+          <p id="floating-zone-help" class="help">
+            Outlook names the time zone of most events. This applies only to all-day events and to
+            times that carry no zone.
+          </p>
+          {errorFor("floating_zone") && (
+            <p class="field-error" id="floating_zone-error">
+              {errorFor("floating_zone")?.message}
+            </p>
+          )}
+        </div>
+
+        <div class="row-actions">
+          <button class="button" type="submit">
+            Preview events
+          </button>
+          <a href="/">Cancel</a>
+        </div>
+      </form>
+    </>
+  )}
+
+  {preview !== null && (
+    <section aria-labelledby="preview-heading">
+      <h2 id="preview-heading">Preview</h2>
+      <p class="notice" role="status">
+        Found {plural(preview.events.length, "event", "events")} in the file.{" "}
+        {plural(importable.length, "can be imported", "can be imported")}. Nothing has been imported
+        yet.
+      </p>
+
+      {preview.series.length > 0 && (
+        <div class="notice" role="status">
+          <p>
+            {plural(preview.series.length, "recurring series was", "recurring series were")} not
+            expanded and will not be imported. Only single meetings and changed occurrences are
+            imported.
+          </p>
+          <ul>
+            {preview.series.map((s) => (
+              <li>{s.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {preview.skipped.length > 0 && (
+        <div class="alert" role="status">
+          <p>{plural(preview.skipped.length, "event was", "events were")} skipped:</p>
+          <ul>
+            {preview.skipped.map((s) => (
+              <li>
+                {s.title !== null ? `"${s.title}"` : "An event"} {skippedReason(s.code)}.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {preview.events.length === 0 && (
+        <section aria-labelledby="none-heading" class="empty">
+          <h3 id="none-heading">Nothing to import</h3>
+          <p>
+            The file has no single meetings that can be imported.{" "}
+            <a href="/meetings/import/ics">Try another file</a>
+          </p>
+        </section>
+      )}
+
+      {preview.events.length > 0 && (
+        <form
+          method="post"
+          action="/meetings/import/ics/confirm"
+          data-pending-text="Importing…"
+          class="form-wide"
+        >
+          <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
+          <input type="hidden" name="ics_text" value={calendarText} />
+          <input type="hidden" name="floating_zone" value={floatingZone} />
+
+          <fieldset class="section-row">
+            <legend>Events to import</legend>
+            <ul class="rows">
+              {preview.events.map((item, i) => (
+                <li class="row">
+                  {item.cancelled ? (
+                    <h3 class="row-title">{item.event.title}</h3>
+                  ) : (
+                    <div class="check">
+                      <input
+                        id={`event-${String(i)}`}
+                        name="event"
+                        type="checkbox"
+                        value={item.event.providerEventId}
+                        aria-describedby={`event-${String(i)}-meta`}
+                        checked
+                      />
+                      <label for={`event-${String(i)}`}>{item.event.title}</label>
+                    </div>
+                  )}
+                  <p class="row-meta" id={`event-${String(i)}-meta`}>
+                    {item.allDay ? (
+                      <time datetime={item.event.startsAt}>
+                        {formatDay(item.event.startsAt, item.event.timezone)}, all day
+                      </time>
+                    ) : (
+                      <time datetime={item.event.startsAt}>
+                        {formatSchedule(item.event.startsAt, item.event.timezone)}
+                        {` (${String(minutes(item.event.startsAt, item.event.endsAt))} min)`}
+                      </time>
+                    )}
+                    {item.event.attendees.length > 0 && (
+                      <span>
+                        {" · "}
+                        {plural(item.event.attendees.length, "attendee", "attendees")}
+                      </span>
+                    )}
+                    {item.location !== null && <span>{` · ${item.location}`}</span>}
+                    {item.cancelled && <span> · Cancelled in the calendar: not imported</span>}
+                  </p>
+                  {item.description !== null && (
+                    <p class="excerpt">
+                      {item.description.length > EXCERPT_CHARS
+                        ? `${item.description.slice(0, EXCERPT_CHARS)}…`
+                        : item.description}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+
+          {importable.length > 0 ? (
+            <p class="help">
+              Imported meetings appear under Upcoming with consent not yet confirmed. Listing
+              someone as an attendee does not record their consent.
+            </p>
+          ) : (
+            <p class="help">
+              Every event in this file was cancelled, so there is nothing to import.
+            </p>
+          )}
+          <div class="row-actions">
+            {importable.length > 0 && (
+              <button class="button" type="submit">
+                Import selected events
+              </button>
+            )}
+            <a href="/meetings/import/ics">Start over</a>
+          </div>
+        </form>
+      )}
+    </section>
+  )}
+
+  <script>
+    import "../../../scripts/pending-submit";
+    import "../../../scripts/ics-import";
+  </script>
+</Base>

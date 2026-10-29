@@ -44,6 +44,8 @@ Consent invariants (DB backing for `product.md` rule 1, in addition to the domai
 - `CHECK (status NOT IN ('capturing','paused','processing','review','published','failed') OR consent_confirmed_at IS NOT NULL)`: no meeting can be in or past capture without a stored consent time.
 - `status = 'deleted'` requires a scrubbed row: `title = ''`, `agenda`, `rough_notes`, `provider_event_id`, `calendar_provider` all NULL.
 
+`calendar_provider` is `google` or `ics`. For `ics` (file import, #57) `provider_event_id` is the calendar UID, or `UID|<replaced instant>` for a changed occurrence of a series; no schema change was needed because the CHECK already allowed `ics`.
+
 Other meeting constraints: `UNIQUE (owner_id, id)`; partial `UNIQUE (owner_id, calendar_provider, provider_event_id) WHERE provider_event_id IS NOT NULL` (importing the same event twice yields one Meeting; a different owner may import the same provider event); `CHECK (scheduled_end_at IS NULL OR scheduled_end_at >= scheduled_start_at)`; `status_before_archive` is set iff `status = 'archived'`.
 
 ### 2.4 notes (derived, editable, draft until published)
