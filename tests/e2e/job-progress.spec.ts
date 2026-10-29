@@ -130,7 +130,8 @@ test.describe("live note, after capture stopped", () => {
   test("the link to the draft appears in place, without a reload, and opens the review", async ({
     page,
   }) => {
-    const id = createCapturingMeeting("owner-ada", "processing", "Review link live note");
+    // A meeting that has a draft (made by the pipeline in real life), moved back to processing.
+    const id = await createReviewMeeting("owner-ada");
     advanceProcessing(id, { meeting: "processing", transcription: "running", summary: "pending" });
     await signIn(page);
     await page.goto(`/meetings/${id}`);
@@ -189,7 +190,11 @@ test.describe("live note at status review or failed (server-rendered)", () => {
     await signIn(page);
 
     await page.goto(`/meetings/${review}`);
-    await expect(page.getByText("Recording finished. A draft is ready for review.")).toBeVisible();
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "Recording finished. A draft is ready for review." }),
+    ).toBeVisible();
     const open = page.getByRole("link", { name: "Open the draft" });
     await expect(open).toBeVisible();
     await expect(open).toHaveAttribute("href", `/meetings/${review}/review`);
