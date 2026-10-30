@@ -257,7 +257,7 @@ test.describe("home", () => {
     await expect(card).toContainText("Draft", WAIT);
     await expect(card.getByRole("link", { name: /Review note/ })).toBeVisible();
     await expect(page.locator("#progress-announce")).toHaveText(
-      `${title}: draft ready for review.`,
+      `${title}: status changed to draft.`,
     );
   });
 });
