@@ -32,6 +32,24 @@ function readOnly<T>(run: (db: ReturnType<typeof openDatabase>) => T): T {
   }
 }
 
+/** How many audit events of one kind the meeting has (the move writes exactly one per change). */
+export function countAuditEvents(meetingId: string, kind: string): number {
+  return readOnly((db) =>
+    Number(
+      db
+        .prepare("SELECT COUNT(*) AS n FROM audit_event WHERE meeting_id = ? AND kind = ?")
+        .get(meetingId, kind)?.["n"],
+    ),
+  );
+}
+
+/** Removes an empty folder behind the page's back, as another tab or device could. */
+export function removeEmptyFolder(folderId: string): void {
+  writable((db) => {
+    db.prepare("DELETE FROM folder WHERE id = ?").run(folderId);
+  });
+}
+
 export function countTranscribeJobs(meetingId: string): number {
   return readOnly((db) =>
     Number(

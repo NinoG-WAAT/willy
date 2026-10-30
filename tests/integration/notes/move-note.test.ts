@@ -21,7 +21,10 @@ let clock: FixedClock;
 
 const row = (sql: string, ...params: string[]) => defined(db.prepare(sql).get(...params), "row");
 const noteRow = (meetingId: string) =>
-  row("SELECT status, folder_id, published_at, revision, updated_at FROM note WHERE meeting_id = ?", meetingId);
+  row(
+    "SELECT status, folder_id, published_at, revision, updated_at FROM note WHERE meeting_id = ?",
+    meetingId,
+  );
 const moves = (meetingId: string) =>
   count(db, "audit_event", `meeting_id = '${meetingId}' AND kind = 'note.moved'`);
 
@@ -50,7 +53,9 @@ describe("moveNoteToFolder", () => {
   it("moves a published note, keeps everything else, and writes exactly one audit event", async () => {
     clock.advance(22 * 3600_000);
     const before = noteRow("pub");
-    const sections = row("SELECT COUNT(*) AS n, MAX(updated_at) AS u FROM note_section WHERE note_id = 'pub-note'");
+    const sections = row(
+      "SELECT COUNT(*) AS n, MAX(updated_at) AS u FROM note_section WHERE note_id = 'pub-note'",
+    );
 
     const result = await moveNoteToFolder(deps, "A", "pub", "folder-A2");
 
@@ -62,11 +67,15 @@ describe("moveNoteToFolder", () => {
     });
     expect(row("SELECT status FROM meeting WHERE id = 'pub'")["status"]).toBe("published");
     expect(
-      row("SELECT COUNT(*) AS n, MAX(updated_at) AS u FROM note_section WHERE note_id = 'pub-note'"),
+      row(
+        "SELECT COUNT(*) AS n, MAX(updated_at) AS u FROM note_section WHERE note_id = 'pub-note'",
+      ),
     ).toEqual(sections);
     expect(moves("pub")).toBe(1);
     expect(
-      row("SELECT owner_id, actor, detail_json, occurred_at FROM audit_event WHERE kind = 'note.moved'"),
+      row(
+        "SELECT owner_id, actor, detail_json, occurred_at FROM audit_event WHERE kind = 'note.moved'",
+      ),
     ).toEqual({
       owner_id: "A",
       actor: "owner",
@@ -110,8 +119,12 @@ describe("moveNoteToFolder", () => {
         error: { kind: "not_published", status },
       });
     }
-    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'draft'")["folder_id"]).toBe("folder-A");
-    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'arch'")["folder_id"]).toBe("folder-A");
+    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'draft'")["folder_id"]).toBe(
+      "folder-A",
+    );
+    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'arch'")["folder_id"]).toBe(
+      "folder-A",
+    );
     expect(count(db, "audit_event", "kind = 'note.moved'")).toBe(0);
   });
 
@@ -141,8 +154,12 @@ describe("moveNoteToFolder", () => {
       error: { kind: "folder_not_found" },
     });
     // B's own note and folder are untouched.
-    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pubB'")["folder_id"]).toBe("folder-B");
-    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe("folder-A");
+    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pubB'")["folder_id"]).toBe(
+      "folder-B",
+    );
+    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe(
+      "folder-A",
+    );
     expect(count(db, "audit_event", "kind = 'note.moved'")).toBe(0);
   });
 
@@ -152,7 +169,9 @@ describe("moveNoteToFolder", () => {
        BEGIN SELECT RAISE(ABORT, 'audit down'); END`,
     );
     await expect(moveNoteToFolder(deps, "A", "pub", "folder-A2")).rejects.toThrow(/audit down/);
-    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe("folder-A");
+    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe(
+      "folder-A",
+    );
     expect(moves("pub")).toBe(0);
   });
 
@@ -176,7 +195,9 @@ describe("moveNoteToFolder", () => {
     );
     expect(state).toMatchObject({ meetingStatus: "published", noteStatus: "published" });
     expect(applied).toBe("conflict");
-    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe("folder-A");
+    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe(
+      "folder-A",
+    );
     expect(moves("pub")).toBe(0);
   });
 
@@ -193,6 +214,8 @@ describe("moveNoteToFolder", () => {
   it("lets the note be reopened and republished after a move, defaulting to the new folder", async () => {
     await moveNoteToFolder(deps, "A", "pub", "folder-A2");
     await reopenNote(deps, "A", "pub");
-    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe("folder-A2");
+    expect(row("SELECT folder_id FROM note WHERE meeting_id = 'pub'")["folder_id"]).toBe(
+      "folder-A2",
+    );
   });
 });

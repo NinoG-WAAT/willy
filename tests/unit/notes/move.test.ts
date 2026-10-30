@@ -33,15 +33,20 @@ describe("planNoteMove", () => {
     });
   });
 
-  it.each(["review", "archived", "processing", "failed", "deleting", "deleted", "scheduled"] as const)(
-    "refuses a meeting that is %s",
-    (meetingStatus) => {
-      expect(planNoteMove({ ...published, meetingStatus }, mine)).toEqual({
-        ok: false,
-        error: { kind: "not_published", status: meetingStatus },
-      });
-    },
-  );
+  it.each([
+    "review",
+    "archived",
+    "processing",
+    "failed",
+    "deleting",
+    "deleted",
+    "scheduled",
+  ] as const)("refuses a meeting that is %s", (meetingStatus) => {
+    expect(planNoteMove({ ...published, meetingStatus }, mine)).toEqual({
+      ok: false,
+      error: { kind: "not_published", status: meetingStatus },
+    });
+  });
 
   it("refuses a published meeting whose note is a draft or missing", () => {
     for (const noteStatus of ["draft", null] as const) {

@@ -56,7 +56,10 @@ const NOTICES: Readonly<Record<string, string>> = {
  * Fixed codes only: nothing from the URL is ever reflected into the page. The two move notices
  * name the folder the note is in now, which the page reads from the database (never the URL).
  */
-export function reviewNoticeText(code: string | null, folderName: string | null = null): string | null {
+export function reviewNoticeText(
+  code: string | null,
+  folderName: string | null = null,
+): string | null {
   if (code === "moved") return folderName === null ? "Moved." : `Moved to ${folderName}.`;
   if (code === "move_unchanged") {
     return folderName === null ? "Already in that folder." : `Already in ${folderName}.`;
@@ -207,7 +210,10 @@ function moveResult(
         {
           kind: "invalid",
           errors: [
-            { field: "folder", message: "That folder is not available. Choose one of your folders." },
+            {
+              field: "folder",
+              message: "That folder is not available. Choose one of your folders.",
+            },
           ],
         },
         "move_note",

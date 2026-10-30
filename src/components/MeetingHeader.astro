@@ -10,7 +10,8 @@ import { formatSchedule } from "./format-schedule";
  * words, steps and action come from src/domain/meetings/stage.ts, so both pages (and the cards and
  * progress text) say the same thing. Server-rendered; src/scripts/progress/stage-sync.ts only
  * keeps the stepper current while a hand-off settles in place. The `links` slot holds the page's
- * own secondary links (export, the other page).
+ * own secondary links (export, the other page); the `move` slot holds the review's "Move to folder"
+ * control (#76), shown right under the folder chip it changes.
  */
 interface Props {
   page: HeaderPage;
@@ -70,6 +71,12 @@ const pillAttrs =
         </li>
       ))}
     </ul>
+  )}
+
+  {Astro.slots.has("move") && (
+    <div class="meeting-move">
+      <slot name="move" />
+    </div>
   )}
 
   {stage.kind === "flow" && (
