@@ -171,6 +171,7 @@ test.describe("when the draft is ready", () => {
     await expect(link).toBeVisible(WAIT);
     await expect(link).toHaveAttribute("href", `/meetings/${id}/review`);
     await expect(link).toHaveClass(/button-primary/);
+    await expect(link).toHaveClass(/handoff-reveal/); // the short fade, for people who allow motion
     await expect(announce(page)).toHaveText("Draft ready. Use the Open the draft button.");
     await expect(region(page).locator('[data-field="outcome"]')).toHaveText("Your draft is ready.");
     // One primary action in the view.
@@ -187,6 +188,28 @@ test.describe("when the draft is ready", () => {
 
     await link.click();
     await expect(page).toHaveURL(`/meetings/${id}/review`);
+  });
+
+  test.describe("with reduced motion", () => {
+    test.use({ reducedMotion: "reduce" });
+
+    test("the button appears without the fade, and an idle owner is still taken to the draft", async ({
+      page,
+    }) => {
+      const typing = processingWithParts("Hand-off reduced typing");
+      await signIn(page);
+      await page.goto(`/meetings/${typing}`);
+      await notesBox(page).click();
+      finish(typing);
+      await expect(openLink(page)).toBeVisible(WAIT);
+      await expect(openLink(page)).not.toHaveClass(/handoff-reveal/);
+
+      // A page change is not an animation: an idle owner is still taken to the draft.
+      const idle = processingWithParts("Hand-off reduced idle");
+      await page.goto(`/meetings/${idle}`);
+      finish(idle);
+      await expect(page).toHaveURL(`/meetings/${idle}/review`, WAIT);
+    });
   });
 
   test("stays a button while the rough notes have changes that are not saved, even if focus left", async ({
