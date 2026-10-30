@@ -242,6 +242,51 @@ test.describe("capture failure recovery", () => {
     await expect(banner(page)).toHaveCount(0);
   });
 
+  // Issue #65. After a reload the new page numbers its chunks from what the server had stored
+  // when it rendered; the old page's last upload can land just after that, under the same
+  // number with different audio. The server then answers 409 chunk_conflict. The page used to
+  // read every 409 as "capture has ended on the server" and dropped the new audio. Here the
+  // dying page's upload is replayed deterministically: it reaches the server first.
+  test("a chunk number already taken by other audio is renumbered, not reported as the capture having ended", async ({
+    page,
+  }, info) => {
+    await signIn(page, "ada@example.test");
+    const id = await openNewNote(page, unique("Chunk collision", info));
+    const csrf = (await page.locator("#live-note").getAttribute("data-csrf")) ?? "";
+    const origin = new URL(page.url()).origin;
+    let taken = 0;
+    await page.route("**/api/meetings/*/chunks*", async (route) => {
+      if (taken === 0) {
+        taken += 1;
+        const other = await page.request.post(route.request().url(), {
+          headers: { origin, "x-csrf-token": csrf, "content-type": "audio/webm" },
+          data: Buffer.from("RIFF-the-dying-pages-audio"),
+        });
+        expect(other.status()).toBe(201);
+      }
+      await route.continue();
+    });
+    await startCapture(page);
+
+    await expect(page.locator("#upload-status")).toHaveText("All recorded audio is uploaded.", {
+      timeout: 20_000,
+    });
+    expect(taken).toBe(1);
+    await expect(page.locator("#capture-problem")).toBeHidden();
+    await expect(page.locator("#rec-detail")).not.toContainText("Capture has ended");
+    await expect(page.locator("#rec-detail")).toContainText("microphone is on in this browser");
+    const status = await page.request.get(`/api/meetings/${id}/status`);
+    const counts = (await status.json()) as { chunks: { total: number } };
+    // The other page's chunk and ours, both kept.
+    expect(counts.chunks.total).toBeGreaterThanOrEqual(2);
+
+    await page.getByRole("button", { name: "Stop capture" }).click();
+    await expect(
+      page.getByText("Recording finished. Preparing the transcript.").first(),
+    ).toBeVisible();
+    expect(meetingStatus(id)).toBe("processing");
+  });
+
   test("when uploads keep failing the owner is told, can retry, and is warned before stopping", async ({
     page,
   }, info) => {
