@@ -27,8 +27,8 @@ async function noHorizontalScroll(page: Page): Promise<void> {
 }
 
 test("signed-out visitors are sent to sign-in for folders and templates", async ({ page }) => {
-  await page.goto("/settings/folders");
-  await expect(page).toHaveURL(/\/sign-in\?next=%2Fsettings%2Ffolders$/);
+  await page.goto("/folders");
+  await expect(page).toHaveURL(/\/sign-in\?next=%2Ffolders$/);
   await page.goto("/settings/templates");
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fsettings%2Ftemplates$/);
 });
@@ -38,7 +38,7 @@ test.describe("folders", () => {
     const name = unique("Folder", info);
     const renamed = `${name} renamed`;
     await signIn(page, "ada@example.test");
-    await page.goto("/settings/folders");
+    await page.goto("/folders");
     await expect(page).toHaveTitle("Folders - Willycrumbs");
     await noHorizontalScroll(page);
 
@@ -68,7 +68,7 @@ test.describe("folders", () => {
 
   test("shows validation feedback for a blank and a duplicate name", async ({ page }) => {
     await signIn(page, "ada@example.test");
-    await page.goto("/settings/folders");
+    await page.goto("/folders");
 
     await page.getByLabel("Folder name", { exact: true }).fill("   ");
     await page.getByRole("button", { name: "Create folder" }).click();
@@ -85,7 +85,7 @@ test.describe("folders", () => {
 
   test("a folder that contains notes cannot be deleted", async ({ page }) => {
     await signIn(page, "ada@example.test");
-    await page.goto("/settings/folders");
+    await page.goto("/folders");
     await row(page, "Board updates")
       .getByRole("link", { name: /^Delete/ })
       .click();
@@ -96,10 +96,10 @@ test.describe("folders", () => {
 
   test("another owner's folder id is a plain 404", async ({ page }) => {
     await signIn(page, "ada@example.test");
-    const response = await page.goto("/settings/folders/folder-b-board/delete");
+    const response = await page.goto("/folders/folder-b-board/delete");
     expect(response?.status()).toBe(404);
     await expect(page.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
-    const guessed = await page.goto("/settings/folders/does-not-exist/delete");
+    const guessed = await page.goto("/folders/does-not-exist/delete");
     expect(guessed?.status()).toBe(404);
   });
 });
@@ -240,7 +240,7 @@ test.describe("core forms work without JavaScript", () => {
     const template = unique("NoJS template", info);
     await signIn(page, "ada@example.test");
 
-    await page.goto("/settings/folders");
+    await page.goto("/folders");
     await page.getByLabel("Folder name", { exact: true }).fill(folder);
     await page.getByRole("button", { name: "Create folder" }).click();
     await expect(row(page, folder)).toBeVisible();

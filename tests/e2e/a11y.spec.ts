@@ -7,6 +7,7 @@ import {
   createDeletionInState,
   createReviewMeeting,
 } from "../support/e2e-db";
+import { createFolderWithNotes } from "../support/folder-fixtures";
 import { installFakeMicrophone } from "../support/fake-microphone";
 import { createFreshOwner } from "../support/journey-db";
 
@@ -323,13 +324,15 @@ test.describe("owner screens", () => {
     ["search, no query", "/search"],
     ["search, results", "/search?q=roadmap"],
     ["search, no results", "/search?q=zzzznothingmatches"],
-    ["folders", "/settings/folders"],
+    ["folders", "/folders"],
+    ["folder view", "/folders/folder-a-board"],
+    ["folder view, page past the end", "/folders/folder-a-board?page=99"],
     ["templates", "/settings/templates"],
     ["new template", "/settings/templates/new"],
     ["edit template", "/settings/templates/template-a-weekly"],
     ["settings", "/settings"],
     ["delete meeting confirmation", "/meetings/meeting-a-published/delete"],
-    ["delete folder confirmation", "/settings/folders/folder-a-board/delete"],
+    ["delete folder confirmation", "/folders/folder-a-board/delete"],
     ["delete template confirmation", "/settings/templates/template-a-weekly/delete"],
   ];
   for (const [name, path] of screens) {
@@ -338,6 +341,33 @@ test.describe("owner screens", () => {
       await audit(page);
     });
   }
+
+  test("folder view: empty folder, long folder and another owner's folder", async ({
+    browser,
+  }) => {
+    const owner = createFreshOwner();
+    const empty = createFolderWithNotes(owner.id, "Hiring", []);
+    const long = createFolderWithNotes(
+      owner.id,
+      "Archive of notes",
+      Array.from({ length: 27 }, (_, i) => ({
+        title: `Note ${String(i + 1)}`,
+        startsAt: `2026-07-${String(i + 1).padStart(2, "0")}T09:00:00.000Z`,
+      })),
+    );
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await signIn(page, owner.email);
+    await page.goto(`/folders/${empty.folderId}`);
+    await audit(page);
+    await page.goto(`/folders/${long.folderId}`);
+    await audit(page);
+    expect((await page.goto("/folders/folder-a-board"))?.status()).toBe(404);
+    await audit(page);
+    await page.goto("/");
+    await audit(page);
+    await context.close();
+  });
 
   test("template form validation errors", async ({ page }) => {
     await page.goto("/settings/templates/new");
