@@ -336,22 +336,28 @@ html:has(.tabbar) {
     width: 100%;
   }
 
+  /*
+   * The links scroll inside their own region, between the fixed brand and the fixed session block,
+   * so Sign out never sits over a link that has been scrolled under it (WCAG 2.5.8). The small
+   * padding, cancelled by the margin, keeps a focus ring from being clipped at the region's edge.
+   */
   .side-nav {
     display: block;
     flex: 1;
+    min-height: 0;
+    margin: calc(var(--spacing-4) * -1);
+    padding: var(--spacing-4);
+    overflow-y: auto;
   }
 
   .tabbar {
     display: none;
   }
 
-  /* The signed-in name and Sign out close the sidebar; the name is text again. */
-  /* Sticky inside the scrolling sidebar, so Sign out stays reachable however many folders it lists. */
+  /* The signed-in name and Sign out close the sidebar; the name is text again. The links above
+     scroll in their own region, so Sign out stays reachable however many folders it lists. */
   .session {
-    position: sticky;
-    bottom: calc(var(--spacing-12) * -1);
-    margin-bottom: calc(var(--spacing-12) * -1);
-    padding-block: var(--spacing-12);
+    padding-top: var(--spacing-12);
     border-top: 1px solid var(--line);
     background: var(--surface-void);
   }

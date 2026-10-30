@@ -65,7 +65,8 @@ test.describe("meetings home (the Inbox, #72)", () => {
 
     // A published note lives in its folder and in All notes, not in the Inbox (status decides place).
     await expect(card(page, "Weekly sync with Grace")).toHaveCount(0);
-    await page.goto("/notes");
+    // Through the folder filter: Ada's other tests add meetings, so an unfiltered page may page.
+    await page.goto("/notes?folder=folder-a-board");
     const published = card(page, "Weekly sync with Grace");
     await expect(published).toContainText("Published to Board updates");
     await expect(published).toContainText("You confirmed consent");

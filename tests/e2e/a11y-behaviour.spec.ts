@@ -200,10 +200,16 @@ test.describe("focus, navigation and motion", () => {
     await expect(page.locator("#rec-label")).toHaveText("Recording");
   });
 
-  test("the search forms are landmarks and the folder filter is named", async ({ page }) => {
+  test("the Inbox has one search landmark; the All notes filters are named navigations", async ({
+    page,
+  }) => {
     await page.goto("/");
     await expect(page.getByRole("search")).toHaveCount(1);
-    await expect(page.getByRole("form", { name: "Filter meetings" })).toHaveCount(1);
+    // The home's filter form is gone (#72): folders are chips, archived is an All notes filter.
+    await expect(page.getByRole("form", { name: "Filter meetings" })).toHaveCount(0);
+    await page.goto("/notes");
+    await expect(page.getByRole("navigation", { name: "Filter by status" })).toHaveCount(1);
+    await expect(page.getByRole("navigation", { name: "Filter by folder" })).toHaveCount(1);
   });
 });
 
