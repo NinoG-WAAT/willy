@@ -22,7 +22,15 @@ describe("parseNotesFilter", () => {
   });
 
   it("treats an unknown or hostile status as All and never throws", () => {
-    for (const raw of ["", "nope", "DRAFT", "deleted", "deleting", "review", "'; DROP TABLE meeting"]) {
+    for (const raw of [
+      "",
+      "nope",
+      "DRAFT",
+      "deleted",
+      "deleting",
+      "review",
+      "'; DROP TABLE meeting",
+    ]) {
       expect(parseNotesFilter(query(`status=${encodeURIComponent(raw)}`)).status, raw).toBe("all");
     }
   });

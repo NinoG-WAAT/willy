@@ -39,13 +39,13 @@ test("signed-out visitors are sent to sign-in for the home and new-note pages", 
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fmeetings%2Fnew$/);
 });
 
-test.describe("meetings home", () => {
+test.describe("meetings home (the Inbox, #72)", () => {
   test("shows calendar context, consent readiness and note status for the owner's meetings", async ({
     page,
   }) => {
     await signIn(page, "ada@example.test");
-    await expect(page).toHaveTitle("Meetings - Willycrumbs");
-    await expect(page.getByRole("heading", { level: 1, name: "Meetings" })).toBeVisible();
+    await expect(page).toHaveTitle("Inbox - Willycrumbs");
+    await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
     await noHorizontalScroll(page);
 
     const upcoming = card(page, "Intro call (not started)");
@@ -58,6 +58,14 @@ test.describe("meetings home", () => {
       /^\/meetings\/[^/]+$/,
     );
 
+    await expect(card(page, "Customer call (transcription failed)")).toContainText(
+      "Needs attention: processing failed",
+    );
+    await expect(card(page, "Investor update prep")).toContainText("Draft ready for review");
+
+    // A published note lives in its folder and in All notes, not in the Inbox (status decides place).
+    await expect(card(page, "Weekly sync with Grace")).toHaveCount(0);
+    await page.goto("/notes");
     const published = card(page, "Weekly sync with Grace");
     await expect(published).toContainText("Published to Board updates");
     await expect(published).toContainText("You confirmed consent");
@@ -65,11 +73,6 @@ test.describe("meetings home", () => {
       "href",
       /\/review$/,
     );
-
-    await expect(card(page, "Customer call (transcription failed)")).toContainText(
-      "Needs attention: processing failed",
-    );
-    await expect(card(page, "Investor update prep")).toContainText("Draft ready for review");
   });
 
   test("never lists archived or deleting meetings, or another owner's meetings", async ({
@@ -80,24 +83,36 @@ test.describe("meetings home", () => {
     await expect(card(page, "Meeting being deleted")).toHaveCount(0);
     await expect(page.getByText("Ben's confidential roadmap review")).toHaveCount(0);
 
-    await page.getByLabel("Show archived").check();
-    await page.getByRole("button", { name: "Apply" }).click();
+    // Archived notes are reachable through the All notes filter; one being deleted never is.
+    await page.goto("/notes");
+    await page
+      .getByRole("navigation", { name: "Filter by status" })
+      .getByRole("link", { name: "Archived" })
+      .click();
     await expect(card(page, "Old kickoff")).toContainText("Archived");
+    await expect(card(page, "Meeting being deleted")).toHaveCount(0);
+    await page.goto("/notes");
     await expect(card(page, "Meeting being deleted")).toHaveCount(0);
   });
 
   test("the other owner sees only their own meeting", async ({ page }) => {
     await signIn(page, "ben@example.test");
+    await page.goto("/notes");
     await expect(card(page, "Ben's confidential roadmap review")).toBeVisible();
+    await expect(page.getByText("Weekly sync with Grace")).toHaveCount(0);
+    await page.goto("/");
     await expect(page.getByText("Weekly sync with Grace")).toHaveCount(0);
   });
 
-  test("filters by folder, and an empty folder or a guessed foreign folder id shows the empty state", async ({
+  test("filters All notes by folder chip, and an empty folder or a guessed foreign folder id shows the empty state", async ({
     page,
   }, info) => {
     await signIn(page, "ada@example.test");
-    await page.getByLabel("Folder", { exact: true }).selectOption({ label: "Board updates" });
-    await page.getByRole("button", { name: "Apply" }).click();
+    await page.goto("/notes");
+    await page
+      .getByRole("navigation", { name: "Filter by folder" })
+      .getByRole("link", { name: "Board updates" })
+      .click();
     await expect(page).toHaveURL(/folder=folder-a-board/);
     await expect(card(page, "Weekly sync with Grace")).toBeVisible();
     await expect(card(page, "Intro call (not started)")).toHaveCount(0);
@@ -106,14 +121,16 @@ test.describe("meetings home", () => {
     await page.goto("/folders");
     await page.getByLabel("Folder name", { exact: true }).fill(folder);
     await page.getByRole("button", { name: "Create folder" }).click();
-    await page.goto("/");
-    await page.getByLabel("Folder", { exact: true }).selectOption({ label: folder });
-    await page.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByRole("heading", { name: "No meetings match" })).toBeVisible();
+    await page.goto("/notes");
+    await page
+      .getByRole("navigation", { name: "Filter by folder" })
+      .getByRole("link", { name: folder })
+      .click();
+    await expect(page.getByRole("heading", { name: "No notes match" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Clear filters" }).first()).toBeVisible();
 
-    await page.goto("/?folder=folder-b-board");
-    await expect(page.getByRole("heading", { name: "No meetings match" })).toBeVisible();
+    await page.goto("/notes?folder=folder-b-board");
+    await expect(page.getByRole("heading", { name: "No notes match" })).toBeVisible();
     await expect(page.getByText("Ben's confidential roadmap review")).toHaveCount(0);
   });
 
@@ -158,8 +175,16 @@ test.describe("calendar import", () => {
     await expect(page.getByRole("alert")).toContainText("Your calendar could not be reached");
     await expect(page.getByRole("alert")).toContainText("create a note manually");
     await expect(card(page, DEMO)).toHaveCount(0);
-    await expect(card(page, "Ben's confidential roadmap review")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
     await expect(page.getByRole("main").getByRole("link", { name: "New note" })).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("button", { name: "Import from calendar" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("link", { name: "Import from ICS file" }),
+    ).toBeVisible();
+    await page.goto("/notes");
+    await expect(card(page, "Ben's confidential roadmap review")).toBeVisible();
   });
 });
 

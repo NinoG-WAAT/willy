@@ -174,12 +174,12 @@ test.describe("focus, navigation and motion", () => {
     await page.goto("/search");
     const nav = page.getByRole("navigation", { name: "Main" });
     await expect(nav.getByRole("link", { name: "Search" })).toHaveAttribute("aria-current", "page");
-    await expect(nav.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
+    await expect(nav.getByRole("link", { name: "Inbox" })).not.toHaveAttribute("aria-current");
     const decoration = await nav
       .getByRole("link", { name: "Search" })
       .evaluate((el) => getComputedStyle(el).textDecorationLine + getComputedStyle(el).fontWeight);
     const other = await nav
-      .getByRole("link", { name: "Home" })
+      .getByRole("link", { name: "Inbox" })
       .evaluate((el) => getComputedStyle(el).textDecorationLine + getComputedStyle(el).fontWeight);
     expect(decoration).not.toBe(other);
   });

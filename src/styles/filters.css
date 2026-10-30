@@ -1,0 +1,111 @@
+/*
+ * Filters of All notes and the Inbox's section footers (issue #72). The status choice is a
+ * segmented control made of plain links, the folder choice is the existing chip row: a filter is
+ * a GET link, so it works without JavaScript. The current choice differs from the others by a
+ * heavier word and a hairline frame as well as the fill, never by colour alone. Tokens only.
+ */
+
+.note-filters {
+  display: grid;
+  gap: var(--spacing-12);
+  margin: var(--spacing-16) 0;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-8) var(--spacing-12);
+  margin: 0;
+}
+
+.filter-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+  margin: 0;
+  padding: var(--spacing-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pills);
+  list-style: none;
+}
+
+.seg a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding: var(--spacing-4) var(--spacing-16);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pills);
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  text-decoration: none;
+}
+
+.seg a:hover {
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+.seg a[aria-current="true"],
+.chip[aria-current="true"] {
+  border-color: var(--text-strong);
+  background: var(--fill-soft);
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w510);
+}
+
+/* The mark means "chosen" for people who cannot tell fills apart; the words say it to a reader. */
+.seg a[aria-current="true"]::before,
+.chip[aria-current="true"]::before {
+  content: "\2713" / "";
+  margin-inline-end: var(--spacing-8);
+}
+
+/* What the page lists, and a way out of a filter that matches nothing. */
+.list-summary {
+  margin: 0 0 var(--spacing-8);
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.section-more {
+  margin: var(--spacing-8) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+/* An empty Inbox section is a quiet line with its one next step, not a dashed card. */
+.inbox-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-8) var(--spacing-16);
+  max-width: var(--measure-list);
+  margin: var(--spacing-8) 0 var(--spacing-16);
+}
+
+.inbox-empty p {
+  margin: 0;
+}
+
+.inbox-section {
+  margin: var(--spacing-24) 0;
+}
+
+.inbox-section > h2 {
+  margin-bottom: var(--spacing-8);
+}
+
+/* A next step in an empty state is a link on its own, so it gets a full-size hit area. */
+.inbox-empty a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+}

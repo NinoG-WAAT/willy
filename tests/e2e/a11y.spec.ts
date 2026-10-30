@@ -8,6 +8,7 @@ import {
   createReviewMeeting,
 } from "../support/e2e-db";
 import { createFolderWithNotes } from "../support/folder-fixtures";
+import { createFolder, createNotes } from "../support/notes-fixtures";
 import { installFakeMicrophone } from "../support/fake-microphone";
 import { createFreshOwner } from "../support/journey-db";
 
@@ -149,9 +150,79 @@ test.describe("owner screens", () => {
     await signIn(page);
   });
 
-  test("meetings home", async ({ page }) => {
+  test("Inbox", async ({ page }) => {
     await page.goto("/");
     await audit(page);
+  });
+
+  test("Inbox: every section filled, and every section empty", async ({ browser }) => {
+    const full = createFreshOwner();
+    const empty = createFreshOwner();
+    createNotes(full.id, [
+      {
+        title: "A11y soon",
+        status: "scheduled",
+        startsAt: "2031-05-14T09:00:00.000Z",
+        endsAt: "2031-05-14T09:30:00.000Z",
+      },
+      {
+        title: "A11y missed",
+        status: "scheduled",
+        startsAt: "2020-01-10T09:00:00.000Z",
+        endsAt: "2020-01-10T09:30:00.000Z",
+      },
+      { title: "A11y live", status: "capturing", startsAt: "2026-10-01T09:00:00.000Z" },
+      { title: "A11y broken", status: "failed", startsAt: "2026-10-02T09:00:00.000Z" },
+      { title: "A11y draft", status: "review", startsAt: "2026-10-03T09:00:00.000Z" },
+    ]);
+    createFolder(full.id, "A11y folder");
+    for (const owner of [full, empty]) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await signIn(page, owner.email);
+      await page.goto("/");
+      await audit(page);
+      await context.close();
+    }
+  });
+
+  test("All notes: default, filtered, empty filter and paginated", async ({ browser }) => {
+    const owner = createFreshOwner();
+    const folderId = createFolder(owner.id, "A11y folder");
+    createNotes(owner.id, [
+      ...Array.from({ length: 26 }, (_, i) => ({
+        title: `A11y note ${String(i + 1).padStart(2, "0")}`,
+        status: "review" as const,
+        startsAt: `2026-07-${String(i + 1).padStart(2, "0")}T09:00:00.000Z`,
+      })),
+      {
+        title: "A11y published",
+        status: "published" as const,
+        startsAt: "2026-08-01T09:00:00.000Z",
+        folderId,
+      },
+    ]);
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await signIn(page, owner.email);
+    for (const path of [
+      "/notes",
+      "/notes?page=2",
+      "/notes?status=published",
+      `/notes?folder=${folderId}`,
+      `/notes?status=archived&folder=${folderId}`,
+    ]) {
+      await page.goto(path);
+      await audit(page);
+    }
+    await context.close();
+    const none = createFreshOwner();
+    const bare = await browser.newContext();
+    const barePage = await bare.newPage();
+    await signIn(barePage, none.email);
+    await barePage.goto("/notes");
+    await audit(barePage);
+    await bare.close();
   });
 
   test("meetings home, calendar outage state", async ({ browser }) => {

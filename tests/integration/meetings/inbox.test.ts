@@ -38,13 +38,7 @@ beforeEach(() => {
 type Extra = Record<string, string>;
 
 /** A meeting at `start` (an ISO instant) with one hour assumed unless `end` says otherwise. */
-function m(
-  ownerId: string,
-  id: string,
-  status: string,
-  start: string,
-  extra: Extra = {},
-): void {
+function m(ownerId: string, id: string, status: string, start: string, extra: Extra = {}): void {
   const base: Extra = { title: `Title ${id}`, scheduled_start_at: start, ...extra };
   if (status === "scheduled") meeting(db, ownerId, id, { ...base, status });
   else if (status === "archived")
@@ -147,7 +141,12 @@ describe("loadInbox", () => {
 
   it("caps a section and reports the real total so the page can say there is more", async () => {
     for (let i = 0; i < INBOX_SECTION_LIMIT + 3; i += 1) {
-      m("A", `d${String(i).padStart(3, "0")}`, "review", `2026-10-${String((i % 28) + 1).padStart(2, "0")}T09:00:00.000Z`);
+      m(
+        "A",
+        `d${String(i).padStart(3, "0")}`,
+        "review",
+        `2026-10-${String((i % 28) + 1).padStart(2, "0")}T09:00:00.000Z`,
+      );
     }
     const { sections } = await inbox();
     expect(sections.drafts.items).toHaveLength(INBOX_SECTION_LIMIT);
@@ -230,7 +229,12 @@ describe("loadAllNotes", () => {
 
   it("paginates with the folder view's window: pages of 25, the last page clamped, junk is page 1", async () => {
     for (let i = 1; i <= FOLDER_PAGE_SIZE + 2; i += 1) {
-      m("A", `m${String(i).padStart(2, "0")}`, "published", `2026-07-${String(i).padStart(2, "0")}T09:00:00.000Z`);
+      m(
+        "A",
+        `m${String(i).padStart(2, "0")}`,
+        "published",
+        `2026-07-${String(i).padStart(2, "0")}T09:00:00.000Z`,
+      );
     }
     const first = await all();
     expect(first.items).toHaveLength(FOLDER_PAGE_SIZE);

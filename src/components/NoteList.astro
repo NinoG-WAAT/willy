@@ -1,0 +1,18 @@
+---
+import MeetingCard from "./MeetingCard.astro";
+import type { MeetingListItem } from "../domain/meetings/list-item";
+
+interface Props {
+  items: readonly MeetingListItem[];
+}
+
+const { items } = Astro.props;
+---
+
+{/* The one list of notes: the Inbox, All notes and a folder all render through here, so a row
+    (title, time, status, consent, action) can never differ from one page to the next. */}
+<ul class="rows">
+  {items.map((item) => (
+    <MeetingCard item={item} />
+  ))}
+</ul>

@@ -1,35 +1,5 @@
 import type { MeetingListItem } from "./list-item";
 
-export interface MeetingGroups {
-  /** Captures that are running or paused: the owner's first concern. */
-  inProgress: MeetingListItem[];
-  /** Scheduled and not over yet, soonest first. */
-  upcoming: MeetingListItem[];
-  /** Everything else, newest first. */
-  recent: MeetingListItem[];
-}
-
-const ASSUMED_DURATION_MS = 60 * 60 * 1000;
-
-const startOf = (m: MeetingListItem) => Date.parse(m.scheduledStartAt);
-const endOf = (m: MeetingListItem) =>
-  m.scheduledEndAt === null ? startOf(m) + ASSUMED_DURATION_MS : Date.parse(m.scheduledEndAt);
-
-/** Splits the owner's meetings into the three groups of the home screen. */
-export function groupMeetings(items: readonly MeetingListItem[], now: Date): MeetingGroups {
-  const groups: MeetingGroups = { inProgress: [], upcoming: [], recent: [] };
-  for (const item of items) {
-    if (item.status === "capturing" || item.status === "paused") groups.inProgress.push(item);
-    else if (item.status === "scheduled" && endOf(item) >= now.getTime())
-      groups.upcoming.push(item);
-    else groups.recent.push(item);
-  }
-  groups.inProgress.sort((a, b) => startOf(b) - startOf(a));
-  groups.upcoming.sort((a, b) => startOf(a) - startOf(b));
-  groups.recent.sort((a, b) => startOf(b) - startOf(a));
-  return groups;
-}
-
 export interface MeetingDescription {
   /** Status in words: state is never conveyed by colour alone. */
   label: string;

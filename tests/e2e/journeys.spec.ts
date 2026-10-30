@@ -245,10 +245,12 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
     await expect(page.getByText("We agreed to ship the beta in November.").first()).toBeVisible();
     expect(meetingStatus(id)).toBe("published");
 
-    // And the folder filter on the home screen finds it.
-    await page.goto("/");
-    await page.getByLabel("Folder", { exact: true }).selectOption({ label: "Board updates" });
-    await page.getByRole("button", { name: "Apply" }).click();
+    // And All notes, filtered by the folder chip, finds it (published notes left the Inbox).
+    await page.goto("/notes");
+    await page
+      .getByRole("navigation", { name: "Filter by folder" })
+      .getByRole("link", { name: "Board updates" })
+      .click();
     await expect(page.getByRole("heading", { level: 3, name: "Roadmap sync" })).toBeVisible();
   });
 });

@@ -26,6 +26,7 @@ describe("classifyRoute", () => {
     "/meetings/123",
     "/api/meetings/1/chunks",
     "/search",
+    "/notes",
     "/settings",
     "/diagnostics",
     "/oauth/calendar/callback",

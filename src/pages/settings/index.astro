@@ -12,7 +12,7 @@ import { loadProviderStatus } from "../../app/settings/provider-status";
 import { loadRetention, saveRetention } from "../../app/settings/retention";
 import {
   getDeletionDeps,
-  getHomeDeps,
+  getMeetingListDeps,
   getProviderStatusDeps,
   getRetentionDeps,
 } from "../../composition";
@@ -68,7 +68,7 @@ if (Astro.request.method === "POST") {
 const [providers, retention, meetings, deletions] = await Promise.all([
   loadProviderStatus(getProviderStatusDeps(), owner.id),
   loadRetention(retentionDeps, owner.id),
-  listDeletableMeetings(getHomeDeps(), owner.id),
+  listDeletableMeetings(getMeetingListDeps(), owner.id),
   listDeletions(getDeletionDeps(), owner.id),
 ]);
 

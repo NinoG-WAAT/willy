@@ -1,6 +1,7 @@
 ---
 import Base from "../../../layouts/Base.astro";
-import MeetingCard from "../../../components/MeetingCard.astro";
+import NoteList from "../../../components/NoteList.astro";
+import Pager from "../../../components/Pager.astro";
 import { requireOwner } from "../../../app/identity/require-owner";
 import { loadFolderView } from "../../../app/notes/folder-view";
 import { getFolderViewDeps } from "../../../composition";
@@ -57,33 +58,9 @@ const pageHref = (n: number): string =>
   ) : (
     <section aria-labelledby="notes-heading">
       <h2 id="notes-heading">Notes</h2>
-      <ul class="rows">
-        {items.map((item) => (
-          <MeetingCard item={item} />
-        ))}
-      </ul>
+      <NoteList items={items} />
     </section>
   )}
 
-  {page.pageCount > 1 && (
-    <nav class="pager" aria-label="Pages of notes">
-      {page.hasPrevious ? (
-        <a class="button button-quiet" href={pageHref(page.page - 1)} rel="prev">
-          Previous page
-        </a>
-      ) : (
-        <span></span>
-      )}
-      <span>
-        Page {page.page} of {page.pageCount}
-      </span>
-      {page.hasNext ? (
-        <a class="button button-quiet" href={pageHref(page.page + 1)} rel="next">
-          Next page
-        </a>
-      ) : (
-        <span></span>
-      )}
-    </nav>
-  )}
+  <Pager page={page} previousHref={pageHref(page.page - 1)} nextHref={pageHref(page.page + 1)} />
 </Base>
