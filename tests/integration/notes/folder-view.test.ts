@@ -4,7 +4,15 @@ import { SqliteFolderNotes } from "../../../src/adapters/sqlite/folder-notes";
 import { SqliteFolderRepository } from "../../../src/adapters/sqlite/folder-repository";
 import { loadFolderView, type FolderViewDeps } from "../../../src/app/notes/folder-view";
 import { FOLDER_PAGE_SIZE } from "../../../src/domain/notes/folder-view";
-import { attendee, folder, freshDb, meeting, note, owner, T0 } from "../../support/db-fixtures";
+import {
+  attendee,
+  consentedMeeting,
+  folder,
+  freshDb,
+  note,
+  owner,
+  T0,
+} from "../../support/db-fixtures";
 
 let db: DatabaseSync;
 let deps: FolderViewDeps;
@@ -23,7 +31,14 @@ function published(
   folderId: string,
   extra: Record<string, string> = {},
 ): void {
-  meeting(db, ownerId, id, { status: "published", title: `Title ${id}`, ...extra });
+  const status = extra["status"] ?? "published";
+  consentedMeeting(db, ownerId, id, {
+    title: `Title ${id}`,
+    // The schema ties these columns to the status.
+    ...(status === "archived" ? { status_before_archive: "published" } : {}),
+    ...(status === "deleted" ? { title: "", deleted_at: T0 } : {}),
+    ...extra,
+  });
   note(db, ownerId, id, `${id}-note`, {
     status: "published",
     published_at: T0,
@@ -79,7 +94,7 @@ describe("loadFolderView", () => {
     published("A", "deleting", "f1", { status: "deleting", title: "Secret being deleted" });
     published("A", "deleted", "f1", { status: "deleted" });
     // A reopened note is a draft again: it is not "published in the folder" until republished.
-    meeting(db, "A", "reopened", { status: "review" });
+    consentedMeeting(db, "A", "reopened", { status: "review" });
     note(db, "A", "reopened", "reopened-note", { status: "draft", folder_id: "f1" });
     const { items, folder: found } = await view("A", "f1");
     expect(items.map((i) => i.id)).toEqual(["visible"]);
@@ -151,9 +166,7 @@ describe("owner isolation", () => {
     expect((await folders.list("A")).map((f) => [f.name, f.publishedCount])).toEqual([
       ["Alpha", 1],
     ]);
-    expect((await folders.list("B")).map((f) => [f.name, f.publishedCount])).toEqual([
-      ["Beta", 2],
-    ]);
+    expect((await folders.list("B")).map((f) => [f.name, f.publishedCount])).toEqual([["Beta", 2]]);
   });
 
   it("keeps the delete guard on every note filed in the folder, shown or not", async () => {

@@ -22,7 +22,10 @@ async function noHorizontalScroll(page: Page): Promise<void> {
 test.describe("browsing folders (read-only)", () => {
   test("home -> Folders -> a folder -> a note, by links alone", async ({ page }) => {
     await signIn(page, "ada@example.test");
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Folders" }).click();
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Folders" })
+      .click();
     await expect(page).toHaveURL(/\/folders$/);
     await expect(page.getByRole("heading", { level: 1, name: "Folders" })).toBeVisible();
     await expect(
@@ -31,7 +34,7 @@ test.describe("browsing folders (read-only)", () => {
 
     const card = page.getByRole("listitem").filter({ hasText: "Board updates" });
     await expect(card).toContainText("1 note");
-    await card.getByRole("link", { name: "Board updates" }).click();
+    await card.getByRole("link", { name: "Board updates", exact: true }).click();
 
     await expect(page).toHaveURL(/\/folders\/folder-a-board$/);
     await expect(page).toHaveTitle("Board updates - Willycrumbs");
@@ -143,9 +146,10 @@ test.describe("browsing folders (read-only)", () => {
     expect(response?.status()).toBe(404);
     await page.goto("/folders");
     await expect(page.getByText("Weekly sync with Grace")).toHaveCount(0);
-    await expect(
-      page.getByRole("listitem").filter({ hasText: "Board updates" }).getByRole("link"),
-    ).toHaveAttribute("href", "/folders/folder-b-board");
+    await expect(page.getByRole("link", { name: "Board updates", exact: true })).toHaveAttribute(
+      "href",
+      "/folders/folder-b-board",
+    );
   });
 
   test("signed-out visitors are sent to sign-in", async ({ page }) => {
@@ -168,8 +172,11 @@ test.describe("without JavaScript", () => {
   test("folders, a folder and a note open by plain links", async ({ page }) => {
     await signIn(page, "ada@example.test");
     await page.goto("/");
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Folders" }).click();
-    await page.getByRole("link", { name: "Board updates" }).click();
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Folders" })
+      .click();
+    await page.getByRole("link", { name: "Board updates", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Board updates" })).toBeVisible();
     await page.getByRole("link", { name: /^Open note/ }).click();
     await expect(page).toHaveURL(/\/meetings\/meeting-a-published\/review$/);

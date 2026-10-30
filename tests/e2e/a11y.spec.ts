@@ -342,9 +342,7 @@ test.describe("owner screens", () => {
     });
   }
 
-  test("folder view: empty folder, long folder and another owner's folder", async ({
-    browser,
-  }) => {
+  test("folder view: empty folder, long folder and another owner's folder", async ({ browser }) => {
     const owner = createFreshOwner();
     const empty = createFolderWithNotes(owner.id, "Hiring", []);
     const long = createFolderWithNotes(

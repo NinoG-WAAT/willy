@@ -1,12 +1,12 @@
 ---
-import Base from "../../../layouts/Base.astro";
-import { requireOwner } from "../../../app/identity/require-owner";
-import { createFolder, listFolders, renameFolder } from "../../../app/notes/folders";
-import { noticeText } from "../../../app/notes/notices";
-import { readFormFields, single } from "../../../app/platform/form";
-import { getNotesDeps } from "../../../composition";
-import { FOLDER_NAME_MAX } from "../../../domain/notes/folder";
-import type { FieldError } from "../../../domain/platform/text";
+import Base from "../../layouts/Base.astro";
+import { requireOwner } from "../../app/identity/require-owner";
+import { createFolder, listFolders, renameFolder } from "../../app/notes/folders";
+import { noticeText } from "../../app/notes/notices";
+import { readFormFields, single } from "../../app/platform/form";
+import { getNotesDeps } from "../../composition";
+import { FOLDER_NAME_MAX } from "../../domain/notes/folder";
+import type { FieldError } from "../../domain/platform/text";
 
 export const prerender = false;
 
@@ -34,13 +34,13 @@ if (Astro.request.method === "POST") {
   const name = single(fields, "name") ?? "";
   if (intent === "create") {
     const result = await createFolder(deps, owner.id, name);
-    if (result.ok) return Astro.redirect("/settings/folders?notice=folder_created", 303);
+    if (result.ok) return Astro.redirect("/folders?notice=folder_created", 303);
     createValue = name;
     errors = result.error.kind === "invalid" ? result.error.errors : [];
   } else {
     const id = single(fields, "id") ?? "";
     const result = await renameFolder(deps, owner.id, id, name);
-    if (result.ok) return Astro.redirect("/settings/folders?notice=folder_renamed", 303);
+    if (result.ok) return Astro.redirect("/folders?notice=folder_renamed", 303);
     if (result.error.kind === "not_found") return Astro.rewrite("/404");
     failedRenameId = id;
     failedRenameValue = name;
@@ -61,7 +61,7 @@ const renameError = failedRenameId === null ? undefined : errors[0];
   </div>
   <p>
     Folders are private to you. You choose one when you publish a note, so finished notes stay
-    organised.
+    organised. Open a folder to read the notes inside it.
   </p>
 
   {notice !== null && (
@@ -76,7 +76,7 @@ const renameError = failedRenameId === null ? undefined : errors[0];
   )}
 
   <h2>New folder</h2>
-  <form class="form" method="post" action="/settings/folders">
+  <form class="form" method="post" action="/folders">
     <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
     <input type="hidden" name="intent" value="create" />
     <div class="field">
@@ -109,12 +109,14 @@ const renameError = failedRenameId === null ? undefined : errors[0];
     <ul class="rows">
       {folders.map((folder) => (
         <li class="row">
-          <h3 class="row-title">{folder.name}</h3>
+          <h3 class="row-title">
+            <a href={`/folders/${folder.id}`}>{folder.name}</a>
+          </h3>
           <p class="row-meta">
-            {folder.noteCount} {folder.noteCount === 1 ? "note" : "notes"}
+            {folder.publishedCount} {folder.publishedCount === 1 ? "note" : "notes"}
           </p>
           <div class="row-actions">
-            <form class="inline-form" method="post" action="/settings/folders">
+            <form class="inline-form" method="post" action="/folders">
               <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
               <input type="hidden" name="intent" value="rename" />
               <input type="hidden" name="id" value={folder.id} />
@@ -136,7 +138,7 @@ const renameError = failedRenameId === null ? undefined : errors[0];
                 Rename<span class="sr-only"> {folder.name}</span>
               </button>
             </form>
-            <a href={`/settings/folders/${folder.id}/delete`}>
+            <a href={`/folders/${folder.id}/delete`}>
               Delete<span class="sr-only"> folder {folder.name}</span>
             </a>
           </div>
