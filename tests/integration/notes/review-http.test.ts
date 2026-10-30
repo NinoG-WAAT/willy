@@ -48,6 +48,8 @@ beforeEach(async () => {
   owner(db, "A");
   owner(db, "B");
   folder(db, "A", "folder-A", { name: "Board" });
+  folder(db, "A", "folder-A2", { name: "Customers" });
+  folder(db, "B", "folder-B", { name: "Secret" });
   await seedReviewMeeting(db, "A", "m1");
   await seedReviewMeeting(db, "B", "m2");
 });
@@ -122,6 +124,44 @@ describe("handleReviewForm", () => {
     expectRedirect(await submit("A", "m1", { intent: "reopen" }), "reopened", "publish");
   });
 
+  it("moves a published note: a fixed notice, a repeat is told so, and no second audit event", async () => {
+    await seedReviewMeeting(db, "A", "pub", "published");
+    expectRedirect(
+      await submit("A", "pub", { intent: "move_note", folder: "folder-A2" }),
+      "moved",
+      "move-folder",
+    );
+    expectRedirect(
+      await submit("A", "pub", { intent: "move_note", folder: "folder-A2" }),
+      "move_unchanged",
+      "move-folder",
+    );
+    expect(count(db, "audit_event", "kind = 'note.moved'")).toBe(1);
+    expect(reviewNoticeText("moved")).toBe("Moved.");
+    expect(reviewNoticeText("move_unchanged")).toBe("Already in that folder.");
+  });
+
+  it("shows a folder that is gone, foreign or missing as a 422 on the folder field, and moves nothing", async () => {
+    await seedReviewMeeting(db, "A", "pub", "published");
+    for (const folderId of ["folder-B", "guess", ""]) {
+      expect(await submit("A", "pub", { intent: "move_note", folder: folderId })).toMatchObject({
+        kind: "problem",
+        status: 422,
+        errors: [{ field: "folder" }],
+        echo: { itemId: "move_note" },
+      });
+    }
+    expect(count(db, "audit_event", "kind = 'note.moved'")).toBe(0);
+  });
+
+  it("answers 409 when the note is not published, and never moves it", async () => {
+    expect(await submit("A", "m1", { intent: "move_note", folder: "folder-A2" })).toMatchObject({
+      kind: "problem",
+      status: 409,
+    });
+    expect(count(db, "audit_event", "kind = 'note.moved'")).toBe(0);
+  });
+
   it("reports a validation problem with 422 and echoes what was typed, without saving", async () => {
     const result = await submit("A", "m1", {
       intent: "edit_action_item",
@@ -176,6 +216,7 @@ describe("handleReviewForm", () => {
       { intent: "publish", folder: "folder-A", confirm: "on" },
       { intent: "reopen" },
       { intent: "retry_transcription" },
+      { intent: "move_note", folder: "folder-A2" },
     ];
     for (const fields of attempts) {
       expect(await submit("A", "m2", fields)).toEqual({ kind: "not_found" });

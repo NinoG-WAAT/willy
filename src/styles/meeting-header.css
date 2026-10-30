@@ -81,6 +81,36 @@
   margin-top: var(--spacing-12);
 }
 
+/*
+ * "Move to folder" (#76): a disclosure under the folder chip. Closed it is one default (ghost)
+ * button; open it shows a labelled select and a Move button. The summary keeps the 44px hit area
+ * and a visible focus ring from the global rules; the marker comes from `details > summary`.
+ */
+.meeting-move {
+  margin-top: var(--spacing-8);
+}
+
+.move-folder > summary {
+  display: inline-flex;
+  padding: var(--spacing-8) var(--spacing-16);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-buttons);
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-w510);
+  text-decoration: none;
+  /* After a move the redirect lands here: leave room above for the folder chip it just changed. */
+  scroll-margin-top: var(--spacing-128);
+}
+
+.move-folder > summary:hover {
+  border-color: var(--text-muted);
+  background: var(--fill-soft);
+}
+
+.move-folder-form {
+  margin-top: var(--spacing-12);
+}
+
 .stage {
   margin-top: var(--spacing-16);
 }

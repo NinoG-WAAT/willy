@@ -118,7 +118,12 @@ const typed = (key: string, name: string, fallback: string): string =>
 const errorsFor = (key: string, field: string) =>
   problem !== null && echo?.itemId === key ? problem.errors.filter((e) => e.field === field) : [];
 
-const notice = reviewNoticeText(Astro.url.searchParams.get("notice"));
+// The move notices name the folder the note is in now: read from the database, never the URL.
+const notice = reviewNoticeText(Astro.url.searchParams.get("notice"), note?.folderName ?? null);
+// Only a Published note moves; the control lists the owner's other folders.
+const canMove = meeting.status === "published" && note?.status === "published";
+const moveTargets = folders.filter((f) => f.id !== note?.folderId);
+const moveErrors = errorsFor("move_note", "folder");
 
 const regeneration = progress?.regeneration ?? null;
 ---
@@ -138,6 +143,48 @@ const regeneration = progress?.regeneration ?? null;
     }
     template={meeting.template}
   >
+    {canMove && (
+      <details slot="move" class="move-folder" open={moveErrors.length > 0}>
+        {/* The redirect after a move lands here, so focus returns to the control it was used from. */}
+        <summary id="move-folder">Move to folder</summary>
+        {moveTargets.length === 0 ? (
+          <p class="help move-folder-form">
+            You have no other folder to move this note to. <a href="/folders">Create a folder</a>.
+          </p>
+        ) : (
+          <form method="post" action={base} class="form form-wide move-folder-form">
+            <input type="hidden" name="csrf_token" value={csrf} />
+            <input type="hidden" name="intent" value="move_note" />
+            <div class="field field-wide">
+              <label for="move-folder-select">Move this note to</label>
+              <select
+                id="move-folder-select"
+                name="folder"
+                required
+                aria-describedby="move-folder-help move-folder-error"
+              >
+                {moveTargets.map((f) => (
+                  <option value={f.id}>{f.name}</option>
+                ))}
+              </select>
+              {moveErrors.map((e) => (
+                <p class="field-error" id="move-folder-error">
+                  {e.message}
+                </p>
+              ))}
+            </div>
+            <p id="move-folder-help" class="help">
+              The note stays published and keeps its content. Only its folder changes.
+            </p>
+            <div class="row-actions">
+              <button class="button" type="submit">
+                Move
+              </button>
+            </div>
+          </form>
+        )}
+      </details>
+    )}
     <a slot="links" href={`/meetings/${meeting.id}/export.md`} download>
       Export as Markdown<span class="sr-only"> ({meeting.title})</span>
     </a>

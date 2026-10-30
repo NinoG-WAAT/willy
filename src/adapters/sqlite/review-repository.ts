@@ -1,10 +1,16 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { Meeting, MeetingStatus, TransitionOutcome } from "../../domain/meetings/lifecycle";
+import type {
+  AuditEventDraft,
+  Meeting,
+  MeetingStatus,
+  TransitionOutcome,
+} from "../../domain/meetings/lifecycle";
 import type { ActionItemFields } from "../../domain/notes/review";
 import type { IdGenerator } from "../../ports/id-generator";
 import type {
   ActionItemOutcome,
   EditOutcome,
+  NoteFolderState,
   ReviewRepository,
   ReviewView,
 } from "../../ports/review-repository";
@@ -341,6 +347,69 @@ export class SqliteReviewRepository implements ReviewRepository {
                   .run(iso, ownerId, meeting.id);
           // No note in the expected state: undo the meeting transition too.
           if (moved.changes !== 1) throw new Conflict();
+          return "applied" as const;
+        });
+      } catch (cause) {
+        if (cause instanceof Conflict) return "conflict" as const;
+        throw cause;
+      }
+    });
+  }
+
+  noteFolderState(ownerId: string, meetingId: string): Promise<NoteFolderState | null> {
+    const row = this.db
+      .prepare(
+        `SELECT m.status AS meeting_status, n.status AS note_status, n.folder_id
+           FROM meeting m
+           LEFT JOIN note n ON n.owner_id = m.owner_id AND n.meeting_id = m.id
+          WHERE m.owner_id = ? AND m.id = ?`,
+      )
+      .get(ownerId, meetingId);
+    if (!row) return Promise.resolve(null);
+    const noteStatus = text(row["note_status"]);
+    return Promise.resolve({
+      meetingStatus: String(row["meeting_status"]) as MeetingStatus,
+      noteStatus: noteStatus === "draft" || noteStatus === "published" ? noteStatus : null,
+      folderId: text(row["folder_id"]),
+    });
+  }
+
+  applyNoteMove(
+    ownerId: string,
+    meetingId: string,
+    move: { fromFolderId: string | null; toFolderId: string; event: AuditEventDraft },
+    now: Date,
+  ): Promise<"applied" | "conflict"> {
+    const iso = now.toISOString();
+    return settle(() => {
+      try {
+        return inTransaction(this.db, () => {
+          // Guarded by everything the decision was made on: still published, still in the old
+          // folder. The composite FK (owner_id, folder_id) refuses a folder of another owner.
+          const moved = this.db
+            .prepare(
+              `UPDATE note SET folder_id = ?, updated_at = ?
+                WHERE owner_id = ? AND meeting_id = ? AND status = 'published' AND folder_id IS ?
+                  AND EXISTS (SELECT 1 FROM meeting m
+                               WHERE m.owner_id = note.owner_id AND m.id = note.meeting_id
+                                 AND m.status = 'published')`,
+            )
+            .run(move.toFolderId, iso, ownerId, meetingId, move.fromFolderId);
+          if (moved.changes !== 1) throw new Conflict();
+          this.db
+            .prepare(
+              `INSERT INTO audit_event (id, owner_id, meeting_id, kind, actor, detail_json, occurred_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .run(
+              this.ids.newId(),
+              ownerId,
+              meetingId,
+              move.event.kind,
+              move.event.actor,
+              JSON.stringify(move.event.detail),
+              iso,
+            );
           return "applied" as const;
         });
       } catch (cause) {
