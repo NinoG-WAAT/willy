@@ -16,7 +16,13 @@ describe("currentNavHref", () => {
     expect(currentNavHref("/settings/deletions/x")).toBe("/settings");
   });
 
-  it("files meeting pages under Meetings", () => {
+  it("marks All notes for its page", () => {
+    expect(currentNavHref("/notes")).toBe("/notes");
+    expect(currentNavHref("/notes/")).toBe("/notes");
+    expect(currentNavHref("/notesx")).toBeNull();
+  });
+
+  it("files meeting pages under the Inbox", () => {
     expect(currentNavHref("/meetings/new")).toBe("/");
     expect(currentNavHref("/meetings/abc/review")).toBe("/");
   });
@@ -34,6 +40,7 @@ describe("currentNavHref", () => {
   it("lists every navigation link once, in the order of the shell", () => {
     expect(NAV_LINKS.map((l) => l.href)).toEqual([
       "/",
+      "/notes",
       "/search",
       "/folders",
       "/settings/templates",
@@ -41,9 +48,10 @@ describe("currentNavHref", () => {
     ]);
   });
 
-  it("calls the first item Home (it becomes the Inbox later)", () => {
+  it("calls the first item Inbox and offers All notes next to it", () => {
     expect(NAV_LINKS.map((l) => l.label)).toEqual([
-      "Home",
+      "Inbox",
+      "All notes",
       "Search",
       "Folders",
       "Templates",
