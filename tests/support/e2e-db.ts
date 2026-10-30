@@ -183,6 +183,38 @@ function writable<T>(run: (db: ReturnType<typeof openDatabase>) => T): T {
 
 export type JobState = "pending" | "running" | "retrying" | "succeeded" | "failed";
 
+export type ChunkState = "uploaded" | "transcribed" | "failed" | "purged";
+
+/**
+ * Plays the transcription worker for the hand-off tests: replaces a meeting's audio chunk rows
+ * with one row per given state (in order, seq 0..n-1), so the status endpoint reports real counts
+ * ("2 of 7 parts") without any audio. Rows carry no real object, so nothing can transcribe them.
+ */
+export function setChunkStates(meetingId: string, states: readonly ChunkState[]): void {
+  writable((db) => {
+    const row = db.prepare("SELECT owner_id FROM meeting WHERE id = ?").get(meetingId);
+    const ownerId = String(row?.["owner_id"]);
+    const iso = new Date().toISOString();
+    db.prepare("DELETE FROM audio_chunk WHERE meeting_id = ?").run(meetingId);
+    for (const [seq, state] of states.entries()) {
+      db.prepare(
+        `INSERT INTO audio_chunk (id, owner_id, meeting_id, seq, state, byte_size, duration_ms,
+                                  content_type, sha256, key_id, object_key, created_at)
+         VALUES (?, ?, ?, ?, ?, 10, 1000, 'audio/webm', ?, 'e2e-key', ?, ?)`,
+      ).run(
+        `chunk-${meetingId}-${String(seq)}`,
+        ownerId,
+        meetingId,
+        seq,
+        state,
+        "a".repeat(64),
+        state === "purged" ? null : `e2e/${meetingId}/${String(seq)}`,
+        iso,
+      );
+    }
+  });
+}
+
 /**
  * Plays the background worker for the progress tests (the in-process runner is off in e2e): moves
  * a meeting's status and sets its transcription job, creating the job on first use. Due times are

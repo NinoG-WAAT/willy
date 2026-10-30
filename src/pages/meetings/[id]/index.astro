@@ -13,7 +13,8 @@ import {
 } from "../../../composition";
 import { CONSENT_STATEMENT } from "../../../domain/meetings/lifecycle";
 import { MAX_ROUGH_NOTES_CHARS } from "../../../domain/meetings/rough-notes";
-import { describeJob, reviewLinkLabel, reviewPath } from "../../../domain/progress/text";
+import { handoffProgress } from "../../../domain/progress/handoff";
+import { reviewLinkLabel, reviewPath } from "../../../domain/progress/text";
 import { isValidStorageId } from "../../../domain/storage/object-key";
 
 export const prerender = false;
@@ -91,6 +92,20 @@ const csrf = Astro.locals.csrfToken ?? "";
 const processing =
   detail.status === "processing" ? await getProcessingStatus(getStatusDeps(), owner.id, id) : null;
 const progress = processing?.ok ? processing.value : null;
+// After Stop: real counts, then one action (issue #66). Without a usable status the block still
+// renders, with what is known, and the script fills in the rest.
+const handoff =
+  controls.phase === "after" && detail.status === "processing"
+    ? handoffProgress(
+        progress ?? {
+          meetingStatus: "processing",
+          job: null,
+          summary: null,
+          regeneration: null,
+          chunks: null,
+        },
+      )
+    : null;
 const action = `/meetings/${detail.id}`;
 // Where the review page has something to do (the draft, or the retry), the note links to it.
 const reviewLabel = reviewLinkLabel(detail.status);
@@ -295,28 +310,47 @@ const STATUS_TEXT: Record<string, string> = {
           </a>
         </p>
       )}
-      {controls.phase === "after" && detail.status === "processing" && (
+      {handoff !== null && (
         <div
           id="processing-progress"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          data-progress="processing"
+          class="handoff"
+          data-progress="handoff"
           data-progress-url={`/api/meetings/${detail.id}/status`}
         >
-          <p>{STATUS_TEXT[detail.status]}</p>
+          <p data-field="headline">{handoff.fields["headline"]}</p>
           <ul class="plain">
-            <li data-field="transcript">Transcript: {describeJob(progress?.job ?? null)}</li>
-            <li data-field="summary">Summary: {describeJob(progress?.summary ?? null)}</li>
+            <li data-field="transcribe">{handoff.fields["transcribe"]}</li>
+            <li data-field="draft">{handoff.fields["draft"]}</li>
           </ul>
+          <progress
+            class="handoff-bar"
+            data-bar
+            aria-label="Transcription progress"
+            max={handoff.bar?.max ?? 1}
+            value={handoff.bar?.value ?? 0}
+            hidden={handoff.bar === null}
+          ></progress>
+          <p data-field="note" data-optional hidden={handoff.fields["note"] === ""}>
+            {handoff.fields["note"]}
+          </p>
           <p data-field="outcome" data-optional hidden></p>
-          <a
-            class="button button-primary"
-            data-field="link"
-            data-optional
-            hidden
-            href={reviewPath(detail.id)}
-          ></a>
+          <p class="row-actions">
+            <a
+              class="button button-primary"
+              data-field="link"
+              data-optional
+              hidden
+              href={reviewPath(detail.id)}
+            ></a>
+          </p>
+          {/* Stages are announced here, not every count: a polite status region of its own. */}
+          <p
+            id="handoff-announce"
+            class="sr-only"
+            role="status"
+            aria-live="polite"
+            data-field="announce"
+          />
         </div>
       )}
       {controls.phase === "after" && detail.status === "processing" && (

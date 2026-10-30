@@ -114,9 +114,11 @@ test.describe("live note, after capture stopped", () => {
     advanceProcessing(id, { meeting: "processing", transcription: "pending" });
     await signIn(page);
     await page.goto(`/meetings/${id}`);
-    const region = page.getByRole("status").filter({ hasText: "Transcript:" });
+    const region = page.locator("#processing-progress");
     await expect(region).toContainText("Recording finished. Preparing the transcript.");
-    await expect(region).toContainText("Transcript: Waiting to start");
+    await expect(region).toContainText("Transcribing: Waiting to start");
+    // Focus in the notes keeps the hand-off from opening the draft (#66, tested in handoff.spec).
+    await page.getByLabel("Your notes (saved as you type)").click();
 
     advanceProcessing(id, { meeting: "review", transcription: "succeeded", summary: "succeeded" });
     await expect(region).toContainText("Your draft is ready", WAIT);
@@ -135,9 +137,12 @@ test.describe("live note, after capture stopped", () => {
     advanceProcessing(id, { meeting: "processing", transcription: "running", summary: "pending" });
     await signIn(page);
     await page.goto(`/meetings/${id}`);
-    const region = page.getByRole("status").filter({ hasText: "Transcript:" });
-    await expect(region).toContainText("Transcript: Running");
+    const region = page.locator("#processing-progress");
+    // The seeded meeting has two audio parts, both already transcribed.
+    await expect(region).toContainText("Transcribing: 2 of 2 parts");
     await expect(page.getByRole("link", { name: "Open the draft" })).toBeHidden();
+    // Focus in the notes keeps the hand-off from opening the draft (#66, tested in handoff.spec).
+    await page.getByLabel("Your notes (saved as you type)").click();
     // A marker that a reload would remove: the page must update in place.
     await page.evaluate(() => {
       (window as unknown as { sameDocument: boolean }).sameDocument = true;
@@ -149,8 +154,11 @@ test.describe("live note, after capture stopped", () => {
     await expect(link).toHaveAttribute("href", `/meetings/${id}/review`);
     await expect(region).toContainText("Your draft is ready.");
     await expect(region).not.toContainText("Use Check again to open it");
-    // The announcement lives in the existing live region, which now contains the link.
-    await expect(region).toHaveAttribute("aria-live", "polite");
+    // The announcement lives in its own live region, which names the button (#66).
+    await expect(page.locator("#handoff-announce")).toHaveAttribute("role", "status");
+    await expect(page.locator("#handoff-announce")).toHaveText(
+      "Draft ready. Use the Open the draft button.",
+    );
     expect(
       await page.evaluate(() => (window as unknown as { sameDocument?: boolean }).sameDocument),
     ).toBe(true);
@@ -167,8 +175,8 @@ test.describe("live note, after capture stopped", () => {
     advanceProcessing(id, { meeting: "processing", transcription: "running" });
     await signIn(page);
     await page.goto(`/meetings/${id}`);
-    const region = page.getByRole("status").filter({ hasText: "Transcript:" });
-    await expect(region).toContainText("Transcript: Running");
+    const region = page.locator("#processing-progress");
+    await expect(region).toContainText("Transcribing: Running");
 
     advanceProcessing(id, { meeting: "failed", transcription: "failed" });
     const link = region.getByRole("link", { name: "See what happened and retry" });
@@ -332,7 +340,7 @@ test.describe("without JavaScript", () => {
     const live = createCapturingMeeting(owner.id, "processing", "No-JS review link");
     advanceProcessing(live, { meeting: "processing", transcription: "running" });
     await page.goto(`/meetings/${live}`);
-    await expect(page.getByText("Transcript: Running")).toBeVisible();
+    await expect(page.getByText("Transcribing: Running")).toBeVisible();
     await expect(page.getByRole("link", { name: "Open the draft" })).toBeHidden();
     advanceProcessing(live, {
       meeting: "review",

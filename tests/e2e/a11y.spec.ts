@@ -267,6 +267,9 @@ test.describe("owner screens", () => {
     advanceProcessing(id, { meeting: "processing", transcription: "running" });
     await page.goto(`/meetings/${id}`);
     await audit(page);
+    // Focus in the notes keeps the hand-off from opening the draft (#66); handoff.spec scans
+    // the other hand-off states.
+    await page.getByLabel("Your notes (saved as you type)").click();
     advanceProcessing(id, { meeting: "review", transcription: "succeeded", summary: "succeeded" });
     await expect(page.getByText("Your draft is ready")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("link", { name: "Open the draft" })).toBeVisible();

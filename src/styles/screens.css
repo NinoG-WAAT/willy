@@ -318,6 +318,54 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * The hand-off after Stop (#66): real counts, then one action. The bar is neutral (Mist on
+ * Graphite): acid lime stays the one primary action, which is the button that replaces the bar.
+ */
+.handoff {
+  max-width: var(--measure-form-wide);
+}
+
+.handoff-bar {
+  display: block;
+  width: 100%;
+  max-width: var(--measure-form);
+  height: 0.5rem;
+  margin: 0 0 var(--spacing-12);
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-pills);
+  background: var(--surface-slate);
+  overflow: hidden;
+}
+
+.handoff-bar::-webkit-progress-bar {
+  background: var(--surface-slate);
+}
+
+.handoff-bar::-webkit-progress-value {
+  border-radius: var(--radius-pills);
+  background: var(--color-mist);
+}
+
+.handoff-bar::-moz-progress-bar {
+  border-radius: var(--radius-pills);
+  background: var(--color-mist);
+}
+
+/* The button appears with a short fade; nothing moves, and none of it under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .handoff-reveal {
+    animation: handoff-reveal 120ms ease-out;
+  }
+}
+
+@keyframes handoff-reveal {
+  from {
+    opacity: 0;
+  }
+}
+
 /* High-contrast (forced colours) mode: system colours replace ours, so shapes must opt back in. */
 @media (forced-colors: active) {
   .rec-shape {

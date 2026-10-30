@@ -9,6 +9,13 @@ import {
   stoppedMessage,
   type ProgressView,
 } from "../domain/progress/text";
+import { handoffProgress, isTypingTarget, type HandoffView } from "../domain/progress/handoff";
+import {
+  decideNow,
+  scheduleAutoOpen,
+  type AutoOpenDeps,
+  type AutoOpenState,
+} from "./progress/auto-open";
 import { createPoller, type PollReply } from "./progress/poller";
 
 // Progressive enhancement for job progress. The pages already show the current state and a
@@ -80,7 +87,70 @@ function show(el: HTMLElement, view: ProgressView): { settled: boolean } {
   return { settled: view.settled };
 }
 
+function readAutoOpenState(): AutoOpenState {
+  const focused = document.activeElement;
+  const typingTarget =
+    focused instanceof HTMLElement
+      ? {
+          tagName: focused.tagName,
+          type: focused instanceof HTMLInputElement ? focused.type : "",
+          isContentEditable: focused.isContentEditable,
+        }
+      : null;
+  return {
+    focusInTextField: isTypingTarget(typingTarget),
+    // Set by the notes autosave while the textarea holds text the server may not have.
+    unsavedNotes: document.getElementById("rough-notes")?.dataset["unsaved"] === "1",
+    reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  };
+}
+
+/** The hand-off block of the live note after Stop (issue #66). */
+function renderHandoff(el: HTMLElement, body: unknown): { settled: boolean } | null {
+  const payload = parseProcessingPayload(body);
+  if (!payload) return null;
+  const link = el.querySelector<HTMLAnchorElement>('a[data-field="link"]');
+  const deps: AutoOpenDeps = {
+    readState: readAutoOpenState,
+    setTimer: (run, ms) => window.setTimeout(run, ms),
+    // The address was rendered by the server from this page's meeting id; a status answer
+    // can never choose where the page goes.
+    navigate: () => {
+      const href = link?.getAttribute("href");
+      if (href) window.location.assign(href);
+    },
+    announce: (text) => {
+      writeFields(el, el.id, { announce: text });
+    },
+  };
+
+  let view: HandoffView = handoffProgress(payload);
+  const decision = decideNow(deps, view.stage);
+  if (decision.open) view = handoffProgress(payload, { autoOpening: true });
+
+  const wasHidden = link?.hidden ?? false;
+  writeFields(el, el.id, view.fields);
+  const bar = el.querySelector<HTMLProgressElement>("progress[data-bar]");
+  if (bar) {
+    bar.hidden = view.bar === null;
+    if (view.bar) {
+      bar.max = view.bar.max;
+      bar.value = view.bar.value;
+    }
+  }
+  if (view.stage === "ready") {
+    // For someone who switched windows while waiting.
+    if (!document.title.startsWith("Draft ready"))
+      document.title = `Draft ready: ${document.title}`;
+    const animate = decision.open ? decision.animate : !readAutoOpenState().reducedMotion;
+    if (link && wasHidden && animate) link.classList.add("handoff-reveal");
+  }
+  scheduleAutoOpen(deps, decision);
+  return { settled: view.settled };
+}
+
 const renderers: Record<string, Render> = {
+  handoff: renderHandoff,
   processing: (el, body) => {
     const payload = parseProcessingPayload(body);
     // Only the live note has a link to the review (its href is in the page, built from the

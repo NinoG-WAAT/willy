@@ -244,7 +244,7 @@ Checks that run in `npm test`: `tests/e2e/a11y.spec.ts` scans every screen and s
 - Live updates use polling, not server-sent events.
 - Diarization depends on the speech-to-text provider; owner corrections are the source of truth.
 - Single role (Owner); no sharing or teams by design.
-- Accessibility is verified with axe-core, Playwright keyboard tests and manual visual review only. It has not been tested with a real screen reader (VoiceOver, NVDA, TalkBack) and live-region announcements are asserted in the DOM, not heard. Job progress (transcription on the live note, review and home; regeneration; deletion on settings) is announced by polling (docs/PLAN.md, decision 5) but, like the rest, has not been heard on a real screen reader; the manual pass, hover and paused-banner contrast and the review layout question are tracked in #51.
+- Accessibility is verified with axe-core, Playwright keyboard tests and manual visual review only. It has not been tested with a real screen reader (VoiceOver, NVDA, TalkBack) and live-region announcements are asserted in the DOM, not heard. After Stop, the live note counts the transcription in place and opens the draft by itself only when the owner is not typing (docs/PLAN.md, decision 5). Job progress (transcription on the live note, review and home; regeneration; deletion on settings) is announced by polling (docs/PLAN.md, decision 5) but, like the rest, has not been heard on a real screen reader; the manual pass, hover and paused-banner contrast and the review layout question are tracked in #51.
 
 ## Contributing
 

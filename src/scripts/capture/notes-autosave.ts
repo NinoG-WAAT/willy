@@ -36,6 +36,12 @@ export function setupNotesAutosave(root: HTMLElement): void {
       // Storage can be unavailable (private mode); the server copy is still saved.
     }
   };
+  // The hand-off after Stop reads this to know the notes are not safely on the server yet, so it
+  // does not navigate away from words that only this page holds.
+  const markUnsaved = (unsaved: boolean): void => {
+    if (unsaved) textarea.dataset["unsaved"] = "1";
+    else delete textarea.dataset["unsaved"];
+  };
   const schedule = (ms: number): void => {
     clearTimeout(timer);
     timer = setTimeout(() => void save(), ms);
@@ -56,6 +62,7 @@ export function setupNotesAutosave(root: HTMLElement): void {
         failures = 0;
         if (textarea.value === value) {
           writeDraft(null);
+          markUnsaved(false);
           status.textContent = `Saved at ${clock()}.`;
         } else {
           schedule(DEBOUNCE_MS);
@@ -80,12 +87,14 @@ export function setupNotesAutosave(root: HTMLElement): void {
   const draft = readDraft();
   if (draft !== null && draft !== textarea.value) {
     textarea.value = draft;
+    markUnsaved(true);
     status.textContent = "Restored notes you typed but had not saved. Saving…";
     schedule(0);
   }
 
   textarea.addEventListener("input", () => {
     writeDraft(textarea.value);
+    markUnsaved(true);
     status.textContent = "Saving…";
     schedule(DEBOUNCE_MS);
   });
