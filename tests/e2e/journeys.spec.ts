@@ -253,8 +253,25 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
   });
 });
 
-test.describe("live note to review (#63)", () => {
-  test("after Stop the page offers the draft by itself, with no reload, and the link opens the review", async ({
+test.describe("live note to review (#63, #66)", () => {
+  // Issue #66: nobody is typing after Stop, so once the pipeline has run the draft opens by itself.
+  test("after Stop the draft opens by itself when the owner is idle", async ({ page }) => {
+    const owner = createFreshOwner();
+    const token = await signIn(page, owner);
+    const id = await createAndOpenNote(page, "Idle hand-off");
+    await startCaptureAndWaitForAudio(page, id);
+    await stopCapture(page);
+    // Real counts from the real chunk rows (the fake speech-to-text has not run yet).
+    await expect(page.locator('#processing-progress [data-field="transcribe"]')).toHaveText(
+      /^Transcribing: 0 of [1-9]\d* parts?$/,
+    );
+
+    await runJobsUntil(page, token, id, "review");
+    await expect(page).toHaveURL(`/meetings/${id}/review`, { timeout: 45_000 });
+    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+  });
+
+  test("after Stop, with the cursor in the notes, the page offers the draft with no reload, and the link opens the review", async ({
     page,
   }) => {
     const owner = createFreshOwner();
@@ -262,6 +279,8 @@ test.describe("live note to review (#63)", () => {
     const id = await createAndOpenNote(page, "Link to the draft");
     await startCaptureAndWaitForAudio(page, id);
     await stopCapture(page);
+    // The owner is writing: the draft must not open under the cursor.
+    await page.getByLabel("Your notes (saved as you type)").click();
     // A marker a reload would remove: the link has to show up in this very document.
     await page.evaluate(() => {
       (window as unknown as { sameDocument: boolean }).sameDocument = true;

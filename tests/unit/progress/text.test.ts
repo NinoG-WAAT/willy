@@ -28,6 +28,7 @@ const payload = (over: Partial<ProcessingPayload> = {}): ProcessingPayload => ({
   job: job(),
   summary: null,
   regeneration: null,
+  chunks: null,
   ...over,
 });
 
@@ -244,7 +245,40 @@ describe("payload parsing", () => {
       regeneration: null,
       chunks: { total: 1, uploaded: 1, transcribed: 0, failed: 0, purged: 0 },
     };
-    expect(parseProcessingPayload(body)).toMatchObject({ meetingStatus: "processing" });
+    expect(parseProcessingPayload(body)).toMatchObject({
+      meetingStatus: "processing",
+      chunks: { total: 1, uploaded: 1, transcribed: 0, failed: 0, purged: 0 },
+    });
+  });
+
+  it("keeps the chunk counts, which are what the live counts are made of", () => {
+    const body = {
+      meetingStatus: "processing",
+      job: null,
+      summary: null,
+      regeneration: null,
+      chunks: { total: 7, uploaded: 4, transcribed: 2, failed: 1, purged: 0 },
+    };
+    expect(parseProcessingPayload(body)?.chunks).toEqual({
+      total: 7,
+      uploaded: 4,
+      transcribed: 2,
+      failed: 1,
+      purged: 0,
+    });
+  });
+
+  it("treats an answer without chunk counts as having none, and a malformed one as unusable", () => {
+    const base = { meetingStatus: "processing", job: null, summary: null, regeneration: null };
+    expect(parseProcessingPayload(base)?.chunks).toBeNull();
+    expect(parseProcessingPayload({ ...base, chunks: "many" })).toBeNull();
+    expect(parseProcessingPayload({ ...base, chunks: { total: -1 } })).toBeNull();
+    expect(
+      parseProcessingPayload({
+        ...base,
+        chunks: { total: 1.5, uploaded: 0, transcribed: 0, failed: 0, purged: 0 },
+      }),
+    ).toBeNull();
   });
 
   it.each([null, "x", 3, {}, { meetingStatus: 4 }, { meetingStatus: "processing", job: "no" }])(
