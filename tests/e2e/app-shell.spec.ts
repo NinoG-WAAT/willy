@@ -38,7 +38,8 @@ const mainNav = (page: Page): Locator => page.getByRole("navigation", { name: "M
 const sidebarFolderLinks = (page: Page): Locator => mainNav(page).locator('a[href^="/folders/"]');
 
 const SHELL_PAGES: [string, string][] = [
-  ["home", "/"],
+  ["the Inbox", "/"],
+  ["all notes", "/notes"],
   ["search", "/search"],
   ["folders", "/folders"],
   ["a folder", "/folders/folder-a-board"],
@@ -63,13 +64,21 @@ test.describe("the shell is on every signed-in page", () => {
         page.getByRole("banner").getByRole("link", { name: "New note" }),
       ).toHaveAttribute("href", "/meetings/new");
       if (isPhone(page)) {
-        for (const label of ["Home", "Search", "Folders"]) {
+        for (const label of ["Inbox", "Search", "Folders"]) {
           await expect(mainNav(page).getByRole("link", { name: label, exact: true })).toBeVisible();
         }
         await expect(mainNav(page).locator("summary")).toHaveText("More");
         await expect(mainNav(page).getByRole("link", { name: "Templates" })).toBeHidden();
+        await expect(mainNav(page).getByRole("link", { name: "All notes" })).toBeHidden();
       } else {
-        for (const label of ["Home", "Search", "All folders", "Templates", "Settings"]) {
+        for (const label of [
+          "Inbox",
+          "All notes",
+          "Search",
+          "All folders",
+          "Templates",
+          "Settings",
+        ]) {
           await expect(mainNav(page).getByRole("link", { name: label, exact: true })).toBeVisible();
         }
         await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
@@ -147,15 +156,27 @@ test.describe("the current item is marked", () => {
   test("search, with the others unmarked", async ({ page }) => {
     await page.goto("/search");
     await expect(section(page, "Search")).toHaveAttribute("aria-current", "page");
-    await expect(section(page, "Home")).not.toHaveAttribute("aria-current");
+    await expect(section(page, "Inbox")).not.toHaveAttribute("aria-current");
     await expect(mainNav(page).locator('[aria-current="page"]')).toHaveCount(1);
   });
 
-  test("home, and meeting pages belong to Home", async ({ page }) => {
+  test("the Inbox, and meeting pages belong to the Inbox", async ({ page }) => {
     await page.goto("/");
-    await expect(section(page, "Home")).toHaveAttribute("aria-current", "page");
+    await expect(section(page, "Inbox")).toHaveAttribute("aria-current", "page");
     await page.goto("/meetings/new");
-    await expect(section(page, "Home")).toHaveAttribute("aria-current", "page");
+    await expect(section(page, "Inbox")).toHaveAttribute("aria-current", "page");
+  });
+
+  test("All notes (on a phone it is in the More menu, which shows it holds the page)", async ({
+    page,
+  }) => {
+    await page.goto("/notes");
+    if (isPhone(page)) {
+      await expect(mainNav(page).locator("summary")).toHaveAttribute("aria-current", "true");
+      await mainNav(page).locator("summary").click();
+    }
+    await expect(section(page, "All notes")).toHaveAttribute("aria-current", "page");
+    await expect(section(page, "Inbox")).not.toHaveAttribute("aria-current");
   });
 
   test("the folders index", async ({ page }) => {
@@ -190,7 +211,7 @@ test.describe("the current item is marked", () => {
           s.borderBottomWidth,
         ].join("|");
       });
-    expect(await cue("Search")).not.toBe(await cue("Home"));
+    expect(await cue("Search")).not.toBe(await cue("Inbox"));
   });
 });
 
@@ -517,7 +538,8 @@ test.describe("one lime action per view", () => {
     page.locator("main .button-primary:visible").count();
 
   for (const [name, path] of [
-    ["home", "/"],
+    ["the Inbox", "/"],
+    ["all notes", "/notes"],
     ["a folder", "/folders/folder-a-board"],
     ["the folders index", "/folders"],
     ["search", "/search"],

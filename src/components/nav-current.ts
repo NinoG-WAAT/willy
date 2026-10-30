@@ -1,6 +1,7 @@
-/** The shell's navigation, in order. Home becomes the Inbox in a later increment (UX 2b). */
+/** The shell's navigation, in order. The Inbox is `/`; All notes is `/notes` (UX 2b, #72). */
 export const NAV_LINKS: readonly { href: string; label: string }[] = [
-  { href: "/", label: "Home" },
+  { href: "/", label: "Inbox" },
+  { href: "/notes", label: "All notes" },
   { href: "/search", label: "Search" },
   { href: "/folders", label: "Folders" },
   { href: "/settings/templates", label: "Templates" },

@@ -52,7 +52,7 @@ test.describe("browsing folders (read-only)", () => {
     await expect(page).toHaveURL(/\/meetings\/meeting-a-published\/review$/);
   });
 
-  test("the home screen shows folder chips that link to the folder; the filter stays", async ({
+  test("the Inbox shows folder chips that link to the folder; the old dropdown and Apply are gone", async ({
     page,
   }) => {
     await signIn(page, "ada@example.test");
@@ -61,8 +61,8 @@ test.describe("browsing folders (read-only)", () => {
     await chips.getByRole("link", { name: /^Board updates/ }).click();
     await expect(page).toHaveURL(/\/folders\/folder-a-board$/);
     await page.goto("/");
-    await expect(page.getByLabel("Folder", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Apply" })).toBeVisible();
+    await expect(page.getByLabel("Folder", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Apply" })).toHaveCount(0);
   });
 
   test("lists newest first, hides archived and deleting meetings, and counts only what it lists", async ({

@@ -27,6 +27,7 @@ import { SqliteSearchIndex } from "./adapters/sqlite/search-index";
 import { SqliteNoteRepository } from "./adapters/sqlite/note-repository";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteFolderNotes } from "./adapters/sqlite/folder-notes";
+import { SqliteNoteLists } from "./adapters/sqlite/note-lists";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
 import { SqliteSettingsRepository } from "./adapters/sqlite/settings-repository";
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
@@ -58,7 +59,7 @@ import type { UploadDeps } from "./app/transcription/upload-chunk";
 import type { ImportDeps } from "./app/calendar/import-events";
 import type { MeetingDeps } from "./app/meetings/capture";
 import type { CreateMeetingDeps } from "./app/meetings/create-meeting";
-import type { HomeDeps } from "./app/meetings/home";
+import type { InboxDeps } from "./app/meetings/inbox";
 import type { LiveNoteDeps } from "./app/meetings/live-note";
 import type { ExportDeps } from "./app/search/export";
 import type { SearchDeps } from "./app/search/search";
@@ -66,7 +67,9 @@ import { providerError } from "./domain/platform/provider-error";
 import { err } from "./domain/platform/result";
 import type { CalendarImportRepository } from "./ports/calendar-import-repository";
 import type { CalendarSource } from "./ports/calendar-source";
+import type { MeetingListQuery } from "./ports/meeting-list";
 import type { NotesDeps } from "./app/notes/deps";
+import type { AllNotesDeps } from "./app/notes/all-notes";
 import type { FolderViewDeps } from "./app/notes/folder-view";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
 import type { JobRepository } from "./ports/job-repository";
@@ -432,8 +435,23 @@ function getMeetingCatalog(): SqliteMeetingCatalog {
   return catalog;
 }
 
-export function getHomeDeps(): HomeDeps {
-  return { list: getMeetingCatalog(), folders: getNotesDeps().folders, clock: new SystemClock() };
+/** The Inbox: what needs the owner now (UX 2b). */
+export function getInboxDeps(): InboxDeps {
+  return {
+    inbox: new SqliteNoteLists(getDatabase()),
+    folders: getNotesDeps().folders,
+    clock: new SystemClock(),
+  };
+}
+
+/** All notes: every non-deleted meeting of the owner, filtered and paged. */
+export function getAllNotesDeps(): AllNotesDeps {
+  return { notes: new SqliteNoteLists(getDatabase()), folders: getNotesDeps().folders };
+}
+
+/** The settings page lists every meeting that can be permanently deleted. */
+export function getMeetingListDeps(): { list: MeetingListQuery } {
+  return { list: getMeetingCatalog() };
 }
 
 export function getCreateMeetingDeps(): CreateMeetingDeps {

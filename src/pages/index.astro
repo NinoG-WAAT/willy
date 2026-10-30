@@ -1,35 +1,33 @@
 ---
 import Base from "../layouts/Base.astro";
-import MeetingCard from "../components/MeetingCard.astro";
+import NoteList from "../components/NoteList.astro";
 import { requireOwner } from "../app/identity/require-owner";
-import { loadMeetingsHome } from "../app/meetings/home";
+import { loadInbox } from "../app/meetings/inbox";
 import { noticeMessage, problemMessage } from "../app/meetings/messages";
-import { getHomeDeps } from "../composition";
+import { getInboxDeps } from "../composition";
+import type { InboxSection } from "../ports/note-list";
 
 export const prerender = false;
 
-// Owner route (middleware default-deny). The owner id comes from the session only.
+// Owner route (middleware default-deny). The owner id comes from the session only. Status decides
+// place: this page lists what needs the owner; published notes live in folders (/folders/:id).
 const owner = requireOwner(Astro.locals);
 Astro.response.headers.set("Cache-Control", "no-store");
 
 const params = Astro.url.searchParams;
-const folderParam = params.get("folder");
-const folderId =
-  folderParam !== null && folderParam !== "" && folderParam.length <= 100 ? folderParam : null;
-const includeArchived = params.get("archived") === "1";
-
-const home = await loadMeetingsHome(getHomeDeps(), owner.id, { folderId, includeArchived });
-const { groups } = home;
+const { sections, folders } = await loadInbox(getInboxDeps(), owner.id);
 const notice = noticeMessage(params);
 const problem = problemMessage(params.get("problem"));
-const selectedFolder = home.folders.find((f) => f.id === folderId) ?? null;
-const filtering = folderId !== null || includeArchived;
-const nothingToShow = home.total === 0;
+
+const more = (section: InboxSection): string | null =>
+  section.total > section.items.length
+    ? `Showing ${String(section.items.length)} of ${String(section.total)}.`
+    : null;
 ---
 
-<Base title="Meetings">
+<Base title="Inbox">
   <div class="page-head">
-    <h1>Meetings</h1>
+    <h1>Inbox</h1>
     <div class="row-actions">
       {/* The shell's New note is the lime action here; this one is the same action, so it is a default button. */}
       <a class="button" href="/meetings/new">
@@ -50,6 +48,7 @@ const nothingToShow = home.total === 0;
       </a>
     </div>
   </div>
+  <p class="row-meta">What needs you: published notes are in your folders and in All notes.</p>
 
   <p id="pending-status" class="sr-only" role="status"></p>
   <p id="progress-announce" class="sr-only" role="status" aria-live="polite"></p>
@@ -64,11 +63,11 @@ const nothingToShow = home.total === 0;
     </p>
   )}
 
-  {home.folders.length > 0 && (
+  {folders.length > 0 && (
     <nav class="folder-nav" aria-label="Folders">
       <p class="row-meta">Open a folder</p>
       <ul class="chips">
-        {home.folders.map((f) => (
+        {folders.map((f) => (
           <li>
             <a class="chip" href={`/folders/${f.id}`}>
               {f.name}
@@ -93,91 +92,69 @@ const nothingToShow = home.total === 0;
         Search
       </button>
     </form>
-
-    <form class="inline-form" method="get" action="/" aria-label="Filter meetings">
-      <div class="field">
-        <label for="folder-filter">Folder</label>
-        <select id="folder-filter" name="folder">
-          <option value="">All folders</option>
-          {home.folders.map((f) => (
-            <option value={f.id} selected={f.id === folderId}>
-              {f.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div class="check">
-        <input
-          id="show-archived"
-          name="archived"
-          type="checkbox"
-          value="1"
-          checked={includeArchived}
-        />
-        <label for="show-archived">Show archived</label>
-      </div>
-      <button class="button button-quiet" type="submit">
-        Apply
-      </button>
-      {filtering && <a href="/">Clear filters</a>}
-    </form>
   </div>
 
-  {nothingToShow && !filtering && (
-    <section aria-labelledby="empty-heading" class="empty">
-      <h2 id="empty-heading">No meetings yet</h2>
-      <p>
-        Create a note for a meeting you are about to have, or import the next two weeks from your
-        calendar. Nothing is recorded until you confirm consent.
+  <section class="inbox-section" aria-labelledby="in-progress-heading">
+    <h2 id="in-progress-heading">In progress</h2>
+    {sections.inProgress.items.length === 0 ? (
+      <div class="inbox-empty">
+        <p>Nothing is recording or being processed.</p>
+        <a href="#upcoming-heading">Go to upcoming notes</a>
+      </div>
+    ) : (
+      <NoteList items={sections.inProgress.items} />
+    )}
+    {more(sections.inProgress) !== null && (
+      <p class="section-more">
+        {more(sections.inProgress)} <a href="/notes">See all notes</a>
       </p>
-    </section>
-  )}
-  {nothingToShow && filtering && (
-    <section aria-labelledby="empty-heading" class="empty">
-      <h2 id="empty-heading">No meetings match</h2>
-      <p>
-        {selectedFolder !== null
-          ? `Nothing is filed in the folder "${selectedFolder.name}" yet.`
-          : "There are no meetings for these filters."}
-        <a href="/">Clear filters</a>
+    )}
+  </section>
+
+  <section class="inbox-section" aria-labelledby="upcoming-heading">
+    <h2 id="upcoming-heading">Upcoming</h2>
+    {sections.upcoming.items.length === 0 ? (
+      <div class="inbox-empty">
+        <p>Nothing scheduled.</p>
+        <a href="/meetings/new">Create a note</a>
+        <a href="/meetings/import/ics">Import a calendar file</a>
+      </div>
+    ) : (
+      <NoteList items={sections.upcoming.items} />
+    )}
+    {more(sections.upcoming) !== null && (
+      <p class="section-more">
+        {more(sections.upcoming)} <a href="/notes">See all notes</a>
       </p>
-    </section>
-  )}
+    )}
+  </section>
 
-  {groups.inProgress.length > 0 && (
-    <section aria-labelledby="in-progress-heading">
-      <h2 id="in-progress-heading">In progress</h2>
-      <ul class="rows">
-        {groups.inProgress.map((item) => (
-          <MeetingCard item={item} />
-        ))}
-      </ul>
-    </section>
-  )}
+  <section class="inbox-section" aria-labelledby="drafts-heading">
+    <h2 id="drafts-heading">Drafts to review</h2>
+    {sections.drafts.items.length === 0 ? (
+      <div class="inbox-empty">
+        <p>No draft is waiting. A note appears here when its transcript has been summarised.</p>
+        <a href="/notes">Browse all notes</a>
+      </div>
+    ) : (
+      <NoteList items={sections.drafts.items} />
+    )}
+    {more(sections.drafts) !== null && (
+      <p class="section-more">
+        {more(sections.drafts)} <a href="/notes?status=draft">See all drafts</a>
+      </p>
+    )}
+  </section>
 
-  {!nothingToShow && (
-    <section aria-labelledby="upcoming-heading">
-      <h2 id="upcoming-heading">Upcoming</h2>
-      {groups.upcoming.length === 0 ? (
-        <p>Nothing scheduled. Create a note or import your calendar.</p>
-      ) : (
-        <ul class="rows">
-          {groups.upcoming.map((item) => (
-            <MeetingCard item={item} />
-          ))}
-        </ul>
+  {sections.missed.items.length > 0 && (
+    <section class="inbox-section" aria-labelledby="missed-heading">
+      <h2 id="missed-heading">Past and not started</h2>
+      <NoteList items={sections.missed.items} />
+      {more(sections.missed) !== null && (
+        <p class="section-more">
+          {more(sections.missed)} <a href="/notes">See all notes</a>
+        </p>
       )}
-    </section>
-  )}
-
-  {groups.recent.length > 0 && (
-    <section aria-labelledby="recent-heading">
-      <h2 id="recent-heading">Recent</h2>
-      <ul class="rows">
-        {groups.recent.map((item) => (
-          <MeetingCard item={item} />
-        ))}
-      </ul>
     </section>
   )}
 

@@ -5,7 +5,6 @@ import { SqliteMeetingCatalog } from "../../../src/adapters/sqlite/meeting-catal
 import { SqliteTemplateRepository } from "../../../src/adapters/sqlite/template-repository";
 import { FixedClock, SequentialIds } from "../../../src/adapters/system/fakes";
 import { createMeeting, type CreateMeetingDeps } from "../../../src/app/meetings/create-meeting";
-import { loadMeetingsHome } from "../../../src/app/meetings/home";
 import { count, freshDb, insert, owner, T0 } from "../../support/db-fixtures";
 
 let db: DatabaseSync;
@@ -113,34 +112,4 @@ describe("createMeeting", () => {
       expect(count(db, "meeting")).toBe(0);
     },
   );
-});
-
-describe("loadMeetingsHome", () => {
-  it("returns grouped meetings and the owner's folders for the filter", async () => {
-    await createMeeting(deps, "A", form());
-    await createMeeting(
-      deps,
-      "B",
-      form({ title: "Bens call", submissionId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" }),
-    );
-    insert(db, "folder", {
-      id: "f1",
-      owner_id: "A",
-      name: "Board",
-      created_at: T0,
-      updated_at: T0,
-    });
-    const home = await loadMeetingsHome(
-      {
-        list: catalog,
-        folders: deps.notes.folders,
-        clock: new FixedClock(new Date("2026-10-27T09:00:00.000Z")),
-      },
-      "A",
-      { folderId: null, includeArchived: false },
-    );
-    expect(home.groups.upcoming.map((m) => m.title)).toEqual(["Customer call"]);
-    expect(home.folders.map((f) => f.name)).toEqual(["Board"]);
-    expect(JSON.stringify(home)).not.toContain("Bens call");
-  });
 });

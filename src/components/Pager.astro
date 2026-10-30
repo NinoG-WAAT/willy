@@ -1,0 +1,35 @@
+---
+import type { PageWindow } from "../domain/notes/folder-view";
+
+interface Props {
+  page: PageWindow;
+  /** Where Previous and Next go (page 1 usually has no parameter). */
+  previousHref: string;
+  nextHref: string;
+}
+
+const { page, previousHref, nextHref } = Astro.props;
+---
+
+{/* Plain links: no script. Shared by the folder view and All notes. */}
+{page.pageCount > 1 && (
+  <nav class="pager" aria-label="Pages of notes">
+    {page.hasPrevious ? (
+      <a class="button button-quiet" href={previousHref} rel="prev">
+        Previous page
+      </a>
+    ) : (
+      <span />
+    )}
+    <span>
+      Page {page.page} of {page.pageCount}
+    </span>
+    {page.hasNext ? (
+      <a class="button button-quiet" href={nextHref} rel="next">
+        Next page
+      </a>
+    ) : (
+      <span />
+    )}
+  </nav>
+)}

@@ -1,0 +1,132 @@
+---
+import Base from "../../layouts/Base.astro";
+import NoteList from "../../components/NoteList.astro";
+import Pager from "../../components/Pager.astro";
+import { requireOwner } from "../../app/identity/require-owner";
+import { loadAllNotes } from "../../app/notes/all-notes";
+import { getAllNotesDeps } from "../../composition";
+import {
+  NOTE_STATUS_FILTERS,
+  notesHref,
+  parseNotesFilter,
+  type NoteStatusFilter,
+} from "../../domain/notes/notes-filter";
+
+export const prerender = false;
+
+// Owner route (middleware default-deny). Read-only: filters are plain GET links, no form and no
+// mutation. The owner id comes from the session only; status, folder and page are untrusted.
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const { filter, items, total, page, folders } = await loadAllNotes(
+  getAllNotesDeps(),
+  owner.id,
+  parseNotesFilter(Astro.url.searchParams),
+);
+
+const STATUS_LABELS: Record<NoteStatusFilter, string> = {
+  all: "All",
+  draft: "Draft",
+  published: "Published",
+  archived: "Archived",
+};
+const selectedFolder = folders.find((f) => f.id === filter.folderId) ?? null;
+const filtering = filter.status !== "all" || filter.folderId !== null;
+const count = `${String(total)} ${total === 1 ? "note" : "notes"}`;
+---
+
+<Base title="All notes">
+  <div class="page-head">
+    <h1>All notes</h1>
+  </div>
+  <p class="list-summary">
+    {count}, newest first.{" "}
+    {selectedFolder !== null && <a href={`/folders/${selectedFolder.id}`}>Open the folder</a>}
+  </p>
+
+  <p id="progress-announce" class="sr-only" role="status" aria-live="polite"></p>
+
+  <div class="note-filters">
+    <nav class="filter-group" aria-label="Filter by status">
+      <p class="filter-label">Status</p>
+      <ul class="seg">
+        {NOTE_STATUS_FILTERS.map((status) => (
+          <li>
+            <a
+              href={notesHref({ status, folderId: filter.folderId })}
+              aria-current={status === filter.status ? "true" : undefined}
+            >
+              {STATUS_LABELS[status]}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <nav class="filter-group" aria-label="Filter by folder">
+      <p class="filter-label">Folder</p>
+      <ul class="chips">
+        <li>
+          <a
+            class="chip"
+            href={notesHref({ status: filter.status, folderId: null })}
+            aria-current={filter.folderId === null ? "true" : undefined}
+          >
+            All folders
+          </a>
+        </li>
+        {folders.map((f) => (
+          <li>
+            <a
+              class="chip"
+              href={notesHref({ status: filter.status, folderId: f.id })}
+              aria-current={f.id === filter.folderId ? "true" : undefined}
+            >
+              {f.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+
+  {total === 0 && filtering && (
+    <section aria-labelledby="empty-heading" class="empty">
+      <h2 id="empty-heading">No notes match</h2>
+      <p>
+        There are no notes for this filter. <a href="/notes">Clear filters</a>
+      </p>
+    </section>
+  )}
+  {total === 0 && !filtering && (
+    <section aria-labelledby="empty-heading" class="empty">
+      <h2 id="empty-heading">No notes yet</h2>
+      <p>
+        Create a note for a meeting you are about to have. Nothing is recorded until you confirm
+        consent.
+      </p>
+      <p>
+        <a class="button button-quiet" href="/meetings/new">
+          Create a note
+        </a>
+      </p>
+    </section>
+  )}
+  {total > 0 && (
+    <section aria-labelledby="notes-heading">
+      <h2 id="notes-heading">Notes</h2>
+      <NoteList items={items} />
+    </section>
+  )}
+
+  <Pager
+    page={page}
+    previousHref={notesHref(filter, page.page - 1)}
+    nextHref={notesHref(filter, page.page + 1)}
+  />
+
+  <script>
+    import "../../scripts/job-progress";
+  </script>
+</Base>
