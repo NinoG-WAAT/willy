@@ -3,6 +3,7 @@ import type { Result } from "../../domain/platform/result";
 import { isValidStorageId } from "../../domain/storage/object-key";
 import { retryMeetingProcessing, type MeetingDeps } from "../meetings/capture";
 import { readFormFields, single } from "../platform/form";
+import { moveNoteToFolder, type MoveNoteError, type MoveNoteOutcome } from "./move-note";
 import {
   addActionItem,
   addDecision,
@@ -51,8 +52,15 @@ const NOTICES: Readonly<Record<string, string>> = {
   retry_queued: "Transcription restarted. Only the parts that failed are redone.",
 };
 
-/** Fixed codes only: nothing from the URL is ever reflected into the page. */
-export function reviewNoticeText(code: string | null): string | null {
+/**
+ * Fixed codes only: nothing from the URL is ever reflected into the page. The two move notices
+ * name the folder the note is in now, which the page reads from the database (never the URL).
+ */
+export function reviewNoticeText(code: string | null, folderName: string | null = null): string | null {
+  if (code === "moved") return folderName === null ? "Moved." : `Moved to ${folderName}.`;
+  if (code === "move_unchanged") {
+    return folderName === null ? "Already in that folder." : `Already in ${folderName}.`;
+  }
   return code !== null && Object.hasOwn(NOTICES, code) ? (NOTICES[code] ?? null) : null;
 }
 
@@ -160,6 +168,8 @@ export async function handleReviewForm(
         notice: "reopened",
         anchor: "publish",
       });
+    case "move_note":
+      return moveResult(await moveNoteToFolder(r, ownerId, meetingId, value("folder")), fields);
     case "retry_transcription": {
       const retried = await retryMeetingProcessing(deps.capture, ownerId, meetingId);
       if (retried.ok) return { kind: "redirect", notice: "retry_queued", anchor: null };
@@ -172,6 +182,44 @@ export async function handleReviewForm(
     }
     default:
       return { kind: "bad_request" };
+  }
+}
+
+/** Where the owner lands after a move: the control in the header, next to the folder chip. */
+const MOVE_ANCHOR = "move-folder";
+
+function moveResult(
+  result: Result<MoveNoteOutcome, MoveNoteError>,
+  fields: Map<string, string[]>,
+): ReviewFormResult {
+  if (result.ok) {
+    return {
+      kind: "redirect",
+      notice: result.value.moved ? "moved" : "move_unchanged",
+      anchor: MOVE_ANCHOR,
+    };
+  }
+  switch (result.error.kind) {
+    case "not_found":
+      return { kind: "not_found" };
+    case "folder_not_found":
+      return problemOrNotFound(
+        {
+          kind: "invalid",
+          errors: [
+            { field: "folder", message: "That folder is not available. Choose one of your folders." },
+          ],
+        },
+        "move_note",
+        fields,
+      );
+    case "not_published":
+      return conflict(
+        "Only a published note can be moved to another folder. This one is not published right now; the page shows where things stand.",
+        fields,
+      );
+    case "conflict":
+      return conflict("The note changed at the same moment. Check it below and try again.", fields);
   }
 }
 

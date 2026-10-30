@@ -163,7 +163,15 @@ describe("moveNoteToFolder", () => {
     const applied = await deps.reviews.applyNoteMove(
       "A",
       "pub",
-      { fromFolderId: "folder-A", toFolderId: "folder-A2" },
+      {
+        fromFolderId: "folder-A",
+        toFolderId: "folder-A2",
+        event: {
+          kind: "note.moved",
+          actor: "owner",
+          detail: { fromFolderId: "folder-A", toFolderId: "folder-A2" },
+        },
+      },
       clock.now(),
     );
     expect(state).toMatchObject({ meetingStatus: "published", noteStatus: "published" });

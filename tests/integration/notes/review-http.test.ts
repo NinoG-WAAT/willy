@@ -148,7 +148,7 @@ describe("handleReviewForm", () => {
         kind: "problem",
         status: 422,
         errors: [{ field: "folder" }],
-        echo: { itemId: "move" },
+        echo: { itemId: "move_note" },
       });
     }
     expect(count(db, "audit_event", "kind = 'note.moved'")).toBe(0);

@@ -1,4 +1,9 @@
-import type { Meeting, MeetingStatus, TransitionOutcome } from "../domain/meetings/lifecycle";
+import type {
+  AuditEventDraft,
+  Meeting,
+  MeetingStatus,
+  TransitionOutcome,
+} from "../domain/meetings/lifecycle";
 import type { ActionItemFields } from "../domain/notes/review";
 
 export interface ReviewSection {
@@ -65,6 +70,14 @@ export interface ReviewView {
   decisions: ReviewDecision[];
   actionItems: ReviewActionItem[];
   segments: ReviewSegment[];
+}
+
+/** The states and folder the move rule reads: ids and states only. */
+export interface NoteFolderState {
+  meetingStatus: MeetingStatus;
+  /** Null when the meeting has no note (failed before a summary). */
+  noteStatus: "draft" | "published" | null;
+  folderId: string | null;
 }
 
 /** `missing`: not the owner's, unknown, or the note is not an editable draft. */
@@ -150,6 +163,22 @@ export interface ReviewRepository {
     meeting: Meeting,
     outcome: TransitionOutcome,
     note: { status: "published"; folderId: string } | { status: "draft" },
+    now: Date,
+  ): Promise<"applied" | "conflict">;
+
+  /** Null for an unknown id or another owner's meeting. A meeting being deleted is returned: the caller hides it. */
+  noteFolderState(ownerId: string, meetingId: string): Promise<NoteFolderState | null>;
+
+  /**
+   * Moves the note of a Published meeting from `fromFolderId` to `toFolderId` and appends
+   * `event` to the audit history in ONE transaction. Nothing else changes (not the status, the
+   * revision or the content). `conflict` writes nothing: the note is no longer published, or no
+   * longer in `fromFolderId`.
+   */
+  applyNoteMove(
+    ownerId: string,
+    meetingId: string,
+    move: { fromFolderId: string | null; toFolderId: string; event: AuditEventDraft },
     now: Date,
   ): Promise<"applied" | "conflict">;
 }
