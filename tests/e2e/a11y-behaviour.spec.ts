@@ -123,8 +123,10 @@ test.describe("keyboard-only journeys", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("status")).toContainText("results for");
 
-    await tabTo(page, page.getByRole("link", { name: /Export Markdown/ }).first());
+    // In tab order a hit's Open link comes before its Export link. The other way round only
+    // worked by wrapping around the whole page, which takes more tab stops as results grow.
     await tabTo(page, page.getByRole("link", { name: "Open" }).first());
+    await tabTo(page, page.getByRole("link", { name: /Export Markdown/ }).first());
 
     const meeting = createCapturingMeeting("owner-ada", "scheduled", "Keyboard delete");
     await page.goto(`/meetings/${meeting}/delete`);

@@ -67,7 +67,7 @@ describe("processingProgress", () => {
     expect(view.settled).toBe(true);
     expect(view.fields["outcome"]).toMatch(/draft is ready/i);
     expect(view.fields["outcome"]).toMatch(/check again/i);
-    expect(view.fields["badge"]).toBe("Draft: not published");
+    expect(view.fields["badge"]).toBe("Draft");
   });
 
   it("settles on failure with the reason code, never more", () => {
@@ -80,7 +80,7 @@ describe("processingProgress", () => {
     expect(view.settled).toBe(true);
     expect(view.fields["transcript"]).toBe("Transcript: Failed after 5 attempts (stt_unavailable)");
     expect(view.fields["outcome"]).toMatch(/did not finish/i);
-    expect(view.fields["badge"]).toBe("Processing needs attention");
+    expect(view.fields["badge"]).toBe("Needs attention");
   });
 
   it("settles for any status that is no longer processing", () => {
@@ -98,7 +98,7 @@ describe("processingProgress on a page that has a link to the review (#63)", () 
     expect(view.settled).toBe(true);
     expect(view.fields["link"]).toBe("Open the draft");
     expect(view.fields["outcome"]).toBe("Your draft is ready.");
-    expect(view.fields["badge"]).toBe("Draft: not published");
+    expect(view.fields["badge"]).toBe("Draft");
   });
 
   it("offers the link on failure too, because the review page is where the retry is", () => {
@@ -182,10 +182,10 @@ describe("cardProgress", () => {
     const view = cardProgress(payload({ meetingStatus: "review" }), "Weekly sync", "m1");
     expect(view.settled).toBe(true);
     expect(view.fields).toMatchObject({
-      label: "Draft ready for review",
+      label: "Draft",
       action: "Review note",
     });
-    expect(view.announce).toBe("Weekly sync: draft ready for review.");
+    expect(view.announce).toBe("Weekly sync: status changed to draft.");
   });
 
   it("stays quiet while the meeting is still being processed", () => {
@@ -196,7 +196,7 @@ describe("cardProgress", () => {
 
   it("announces a failure", () => {
     const view = cardProgress(payload({ meetingStatus: "failed" }), "Weekly sync", "m1");
-    expect(view.announce).toBe("Weekly sync: needs attention: processing failed.");
+    expect(view.announce).toBe("Weekly sync: status changed to needs attention.");
   });
 });
 

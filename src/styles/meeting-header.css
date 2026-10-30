@@ -1,0 +1,205 @@
+/*
+ * The meeting header and its status stepper (#73), shared by the live note and the review.
+ * Tokens only (see tokens.css). State is never colour alone: every step has a marker shape, a
+ * word and, where it needs attention, a visible phrase; the borders keep it legible in forced colors.
+ */
+
+.meeting-header {
+  margin: 0 0 var(--spacing-24);
+}
+
+.meeting-header-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-8) var(--spacing-12);
+}
+
+.meeting-header-title h1 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.meeting-header .row-meta {
+  margin: var(--spacing-8) 0 0;
+}
+
+/* The status as a word with a marker shape: a pill, never a colour on its own. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding: 0 var(--spacing-12);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pills);
+  color: var(--text-strong);
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-w510);
+  line-height: var(--leading-body);
+}
+
+.status-pill::before {
+  content: "\25CB" / "";
+}
+
+.status-pill[data-status="capturing"]::before {
+  content: "\25CF" / "";
+}
+
+.status-pill[data-status="paused"]::before {
+  content: "\275A\275A" / "";
+}
+
+.status-pill[data-status="processing"]::before {
+  content: "\25D4" / "";
+}
+
+.status-pill[data-status="review"]::before {
+  content: "\25D0" / "";
+}
+
+.status-pill[data-status="published"]::before {
+  content: "\2713" / "";
+}
+
+.status-pill[data-status="failed"]::before {
+  content: "\25C6" / "";
+}
+
+.status-pill[data-status="archived"]::before {
+  content: "\25AD" / "";
+}
+
+/* Recording and a warning are the only coral states, each with its own shape and word. */
+.status-pill[data-status="capturing"],
+.status-pill[data-status="failed"] {
+  border-color: var(--line-danger);
+}
+
+.meeting-chips {
+  margin-top: var(--spacing-12);
+}
+
+.stage {
+  margin-top: var(--spacing-16);
+}
+
+.stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8) var(--spacing-20);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+.step-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pills);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Done: a filled marker with a tick. */
+.step[data-state="done"] {
+  color: var(--text);
+}
+
+.step[data-state="done"] .step-mark {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--text-on-accent);
+}
+
+/* Current: a heavier ring, the word in strong weight (and aria-current="step" in the markup). */
+.step[aria-current="step"] {
+  color: var(--text-strong);
+}
+
+.step[aria-current="step"] .step-mark {
+  border-width: 2px;
+  border-color: var(--text-strong);
+}
+
+.step[aria-current="step"] .step-name {
+  font-weight: var(--font-weight-w590);
+}
+
+/* Needs attention: the same step, a dashed coral ring, "!" and the phrase on screen. */
+.step[data-state="attention"] .step-mark {
+  border-style: dashed;
+  border-color: var(--line-danger);
+  color: var(--text-danger);
+}
+
+.step[data-state="attention"] .step-state {
+  color: var(--text-danger);
+  font-weight: var(--font-weight-w590);
+}
+
+.stage-summary {
+  margin: var(--spacing-8) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.meeting-header-actions {
+  margin-top: var(--spacing-16);
+}
+
+.meeting-header-actions:empty {
+  display: none;
+}
+
+/*
+ * Phone: five markers in one line, only the current step keeps its word on screen; the summary
+ * line ("Step 4 of 5: Draft") says where the note is, and every step still has its name for a
+ * screen reader.
+ */
+@media (max-width: 40rem) {
+  .stepper {
+    flex-wrap: nowrap;
+    gap: var(--spacing-8);
+  }
+
+  .step:not([aria-current="step"]) .step-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .step[aria-current="step"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .meeting-header-actions .button {
+    width: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .step[data-state="done"] .step-mark {
+    border-width: 2px;
+  }
+}

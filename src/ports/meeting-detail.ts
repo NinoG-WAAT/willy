@@ -16,6 +16,12 @@ export interface MeetingDetail {
   consentConfirmedAt: string | null;
   captureStartedAt: string | null;
   updatedAt: string;
+  /** The folder the published note is filed in; null until a note is published. */
+  folder: { id: string; name: string } | null;
+  /** The template the meeting was created from, when it still exists. */
+  template: { id: string; name: string } | null;
+  /** Null when there is no note yet. */
+  noteStatus: "draft" | "published" | null;
 }
 
 /** Owner-scoped. Unknown ids, other owners' meetings and meetings being deleted are null. */

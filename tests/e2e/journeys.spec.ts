@@ -130,7 +130,7 @@ test.describe("journey 1: import, consent, capture, rough notes, recording state
       .getByRole("listitem")
       .filter({ has: page.getByRole("heading", { level: 3, name: DEMO_EVENT }) });
     await expect(card).toContainText("From your calendar");
-    await expect(card).toContainText("Not started");
+    await expect(card).toContainText("Scheduled");
     await expect(card).toContainText("Your consent confirmation is still needed before capture");
     await noHorizontalScroll(page);
     await card.getByRole("link", { name: `Start note for ${DEMO_EVENT}` }).click();
@@ -167,7 +167,7 @@ test.describe("journey 1: import, consent, capture, rough notes, recording state
       "Grace wants the November beta",
     );
     await page.goto("/");
-    await expect(card).toContainText("Transcribing");
+    await expect(card).toContainText("Processing");
   });
 });
 
@@ -198,7 +198,7 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
       .getByRole("link", { name: "Review note for Roadmap sync" })
       .click();
     await expect(page).toHaveURL(`/meetings/${id}/review`);
-    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+    await expect(page.locator("#note-status")).toHaveText("Draft");
     await noHorizontalScroll(page);
 
     // Transcript-backed: every summary section cites transcript lines, and following the link
@@ -270,7 +270,7 @@ test.describe("live note to review (#63, #66)", () => {
 
     await runJobsUntil(page, token, id, "review");
     await expect(page).toHaveURL(`/meetings/${id}/review`, { timeout: 45_000 });
-    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+    await expect(page.locator("#note-status")).toHaveText("Draft");
   });
 
   test("after Stop, with the cursor in the notes, the page offers the draft with no reload, and the link opens the review", async ({
@@ -301,7 +301,7 @@ test.describe("live note to review (#63, #66)", () => {
 
     await link.click();
     await expect(page).toHaveURL(`/meetings/${id}/review`);
-    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+    await expect(page.locator("#note-status")).toHaveText("Draft");
   });
 });
 

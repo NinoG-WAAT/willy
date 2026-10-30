@@ -1,0 +1,120 @@
+---
+import type { MeetingStatus } from "../domain/meetings/lifecycle";
+import { headerAction, headerChips, stageFor, statusLabel } from "../domain/meetings/stage";
+import type { HeaderPage } from "../domain/meetings/stage";
+import { formatSchedule } from "./format-schedule";
+
+/**
+ * The one header of a meeting, on the live note and on the review: title, when, the status in
+ * words, the folder and template chips, the status stepper and the stage's one action. The
+ * words, steps and action come from src/domain/meetings/stage.ts, so both pages (and the cards and
+ * progress text) say the same thing. Server-rendered; src/scripts/progress/stage-sync.ts only
+ * keeps the stepper current while a hand-off settles in place. The `links` slot holds the page's
+ * own secondary links (export, the other page).
+ */
+interface Props {
+  page: HeaderPage;
+  meeting: {
+    id: string;
+    title: string;
+    status: MeetingStatus;
+    scheduledStartAt: string;
+    timezone: string;
+  };
+  noteStatus: "draft" | "published" | null;
+  folder: { id: string; name: string } | null;
+  template: { id: string; name: string } | null;
+  /** Live note: the consent is already stored, so the start button (not the tick) is the target. */
+  consentConfirmed?: boolean;
+}
+
+const { page, meeting, noteStatus, folder, template, consentConfirmed = false } = Astro.props;
+const stage = stageFor(meeting.status);
+const chips = headerChips({ noteStatus, folder, template });
+const action = headerAction(page, meeting.status, {
+  meetingId: meeting.id,
+  noteStatus,
+  consentConfirmed,
+});
+// The review page's status word is also what the polling script updates (it names its region).
+const pillAttrs =
+  page === "review"
+    ? { id: "note-status", "data-progress-for": "processing-progress", "data-field": "badge" }
+    : {};
+---
+
+<header class="meeting-header">
+  <div class="meeting-header-title">
+    <h1>{meeting.title}</h1>
+    <span class="status-pill" data-stage-label data-status={meeting.status} {...pillAttrs}>
+      {statusLabel(meeting.status)}
+    </span>
+    <span class="badge" data-not-published hidden={meeting.status !== "review"}>
+      Not published
+    </span>
+  </div>
+
+  <p class="row-meta">
+    <time datetime={meeting.scheduledStartAt}>
+      {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
+    </time>
+  </p>
+
+  {chips.length > 0 && (
+    <ul class="chips meeting-chips" aria-label="Where this note lives">
+      {chips.map((chip) => (
+        <li>
+          <a class="chip" href={chip.href}>
+            {chip.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {stage.kind === "flow" && (
+    <div class="stage">
+      <ol class="stepper" aria-label="Note stage" data-stepper>
+        {stage.steps.map((step) => (
+          <li
+            class="step"
+            data-step={step.key}
+            data-state={step.state}
+            aria-current={step.current ? "step" : undefined}
+          >
+            <span class="step-mark" data-step-mark aria-hidden="true">
+              {step.mark}
+            </span>
+            <span class="step-name">{step.label}</span>
+            <span
+              class:list={["step-state", { "sr-only": step.state !== "attention" }]}
+              data-step-state
+            >
+              {step.stateText}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p class="stage-summary" data-stage-summary>
+        {stage.summary}
+      </p>
+    </div>
+  )}
+  {stage.kind === "archived" && (
+    <p class="stage-summary" data-stage-summary>
+      This note is archived.
+    </p>
+  )}
+
+  <div class="row-actions meeting-header-actions">
+    {action !== null && (
+      <a
+        class:list={["button", { "button-primary": action.emphasis === "primary" }]}
+        href={action.href}
+      >
+        {action.label}
+      </a>
+    )}
+    <slot name="links" />
+  </div>
+</header>

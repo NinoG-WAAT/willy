@@ -109,9 +109,9 @@ test.describe("Inbox", () => {
       await expect(card(page, t, progress)).toBeVisible();
     }
     await expect(card(page, "Broken call", progress)).toContainText("Needs attention");
-    await expect(card(page, "Soon call", section(page, "Upcoming"))).toContainText("Not started");
+    await expect(card(page, "Soon call", section(page, "Upcoming"))).toContainText("Scheduled");
     const drafts = section(page, "Drafts to review");
-    await expect(card(page, "Draft call", drafts)).toContainText("Draft ready for review");
+    await expect(card(page, "Draft call", drafts)).toContainText("Draft");
     await expect(
       card(page, "Draft call", drafts).getByRole("link", { name: /Review note/ }),
     ).toHaveAttribute("href", /\/review$/);

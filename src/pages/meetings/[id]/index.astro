@@ -1,5 +1,6 @@
 ---
 import Base from "../../../layouts/Base.astro";
+import MeetingHeader from "../../../components/MeetingHeader.astro";
 import { requireOwner } from "../../../app/identity/require-owner";
 import { formatSchedule } from "../../../components/format-schedule";
 import { loadLiveNote, runCaptureAction, saveRoughNotes } from "../../../app/meetings/live-note";
@@ -14,7 +15,7 @@ import {
 import { CONSENT_STATEMENT } from "../../../domain/meetings/lifecycle";
 import { MAX_ROUGH_NOTES_CHARS } from "../../../domain/meetings/rough-notes";
 import { handoffProgress } from "../../../domain/progress/handoff";
-import { reviewLinkLabel, reviewPath } from "../../../domain/progress/text";
+import { reviewPath } from "../../../domain/progress/text";
 import { isValidStorageId } from "../../../domain/storage/object-key";
 
 export const prerender = false;
@@ -107,21 +108,18 @@ const handoff =
       )
     : null;
 const action = `/meetings/${detail.id}`;
-// Where the review page has something to do (the draft, or the retry), the note links to it.
-const reviewLabel = reviewLinkLabel(detail.status);
+// What happened, in a sentence, for the states after capture ends (the header carries the status word).
 const STATUS_TEXT: Record<string, string> = {
-  scheduled: "Not started",
-  capturing: "Recording",
-  paused: "Recording paused",
-  processing: "Recording finished. Preparing the transcript.",
   review: "Recording finished. A draft is ready for review.",
   published: "Published",
   failed: "Recording finished, but processing needs attention.",
-  archived: "Archived",
 };
 ---
 
-<Base title={detail.title}>
+<Base
+  title={detail.title}
+  noteFolderId={detail.noteStatus === "published" ? (detail.folder?.id ?? null) : null}
+>
   {controls.indicator !== null && (
     <div
       class="rec-banner"
@@ -145,19 +143,18 @@ const STATUS_TEXT: Record<string, string> = {
     </div>
   )}
 
-  <h1>{detail.title}</h1>
-  <p class="row-meta">
-    <time datetime={detail.scheduledStartAt}>
-      {formatSchedule(detail.scheduledStartAt, detail.timezone)}
-    </time>
-    {" · "}
-    {STATUS_TEXT[detail.status] ?? detail.status}
-  </p>
-  <p class="row-actions">
-    <a href={`/meetings/${detail.id}/export.md`} download>
+  <MeetingHeader
+    page="live"
+    meeting={detail}
+    noteStatus={detail.noteStatus}
+    folder={detail.folder}
+    template={detail.template}
+    consentConfirmed={detail.consentConfirmedAt !== null}
+  >
+    <a slot="links" href={`/meetings/${detail.id}/export.md`} download>
       Export as Markdown<span class="sr-only"> ({detail.title})</span>
     </a>
-  </p>
+  </MeetingHeader>
 
   {notice !== null && (
     <p class="notice" role="status">
@@ -216,7 +213,7 @@ const STATUS_TEXT: Record<string, string> = {
             </p>
           )}
           <div class="row-actions">
-            <button class="button button-primary" type="submit" id="start-button">
+            <button class="button" type="submit" id="start-button">
               Start capture
             </button>
           </div>
@@ -303,13 +300,6 @@ const STATUS_TEXT: Record<string, string> = {
       {controls.phase === "after" && detail.status !== "processing" && (
         <p role="status">{STATUS_TEXT[detail.status]}</p>
       )}
-      {controls.phase === "after" && detail.status !== "processing" && reviewLabel !== null && (
-        <p class="row-actions">
-          <a class="button button-primary" href={reviewPath(detail.id)}>
-            {reviewLabel}
-          </a>
-        </p>
-      )}
       {handoff !== null && (
         <div
           id="processing-progress"
@@ -358,7 +348,7 @@ const STATUS_TEXT: Record<string, string> = {
           This can take a few minutes. <a href={action}>Check again</a>.
         </p>
       )}
-      {controls.phase === "archived" && <p>This note is archived. Your rough notes are kept.</p>}
+      {controls.phase === "archived" && <p>Your rough notes are kept.</p>}
     </section>
 
     <div class="two-col">

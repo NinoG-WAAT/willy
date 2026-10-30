@@ -49,7 +49,7 @@ test.describe("meetings home (the Inbox, #72)", () => {
     await noHorizontalScroll(page);
 
     const upcoming = card(page, "Intro call (not started)");
-    await expect(upcoming).toContainText("Not started");
+    await expect(upcoming).toContainText("Scheduled");
     await expect(upcoming).toContainText(
       "Your consent confirmation is still needed before capture",
     );
@@ -59,9 +59,9 @@ test.describe("meetings home (the Inbox, #72)", () => {
     );
 
     await expect(card(page, "Customer call (transcription failed)")).toContainText(
-      "Needs attention: processing failed",
+      "Needs attention",
     );
-    await expect(card(page, "Investor update prep")).toContainText("Draft ready for review");
+    await expect(card(page, "Investor update prep")).toContainText("Draft");
 
     // A published note lives in its folder and in All notes, not in the Inbox (status decides place).
     await expect(card(page, "Weekly sync with Grace")).toHaveCount(0);
@@ -212,7 +212,7 @@ test.describe("new note", () => {
     await expect(page.getByRole("status").filter({ hasText: "Note created" })).toBeVisible();
     const created = card(page, title);
     await expect(created).toBeVisible();
-    await expect(created).toContainText("Not started");
+    await expect(created).toContainText("Scheduled");
     await expect(created).toContainText("2 attendees");
     await expect(created).toContainText("Your consent confirmation is still needed before capture");
     await expect(created.locator("time")).toContainText("14 May");

@@ -49,6 +49,8 @@ export interface ReviewView {
     scheduledStartAt: string;
     /** The owner's own rough notes: they survive any failure and are shown when there is no summary. */
     roughNotes: string;
+    /** The template the meeting was created from, when it still exists. */
+    template: { id: string; name: string } | null;
   };
   attendees: { id: string; name: string }[];
   note: {
