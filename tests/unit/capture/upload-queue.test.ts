@@ -4,7 +4,9 @@ import {
   type UploadQueueEvent,
 } from "../../../src/scripts/capture/upload-queue";
 
-type Reply = { status: number; headers?: Record<string, string> } | "network-error";
+type Reply =
+  | { status: number; headers?: Record<string, string>; error?: string }
+  | "network-error";
 
 function setup(replies: Reply[], options: { maxAttempts?: number } = {}) {
   const calls: { url: string; bytes: number; headers: Record<string, string> }[] = [];
@@ -22,6 +24,7 @@ function setup(replies: Reply[], options: { maxAttempts?: number } = {}) {
         retryAfterSeconds: reply.headers?.["Retry-After"]
           ? Number(reply.headers["Retry-After"])
           : null,
+        error: reply.error ?? null,
       });
     },
     sleep: (ms) => {
@@ -105,6 +108,68 @@ describe("upload queue", () => {
     await queue.idle();
     expect(events.some((e) => e.kind === "closed")).toBe(true);
     expect(queue.state().uploaded).toBe(0);
+  });
+
+  // Issue #65. A reload while a chunk is on its way leaves the dying page's upload and the new
+  // page's first chunk with the same sequence number (the new page numbers from what the server
+  // had stored at render time). The server answers 409 chunk_conflict. That is not "capture has
+  // ended": the new audio must be kept and uploaded under the next free number.
+  describe("409 chunk_conflict (the sequence number is taken by different audio)", () => {
+    const conflict: Reply = { status: 409, error: "chunk_conflict" };
+    const seqOf = (url: string): string | undefined => /seq=(\d+)/.exec(url)?.[1];
+
+    it("uploads the chunk under the next sequence number instead of closing the capture", async () => {
+      const { queue, calls, events } = setup([conflict, { status: 201 }]);
+      queue.add(1, blob(), 1500);
+      await queue.idle();
+      expect(calls.map((c) => c.url)).toEqual([
+        "/api/meetings/m1/chunks?seq=1&durationMs=1500",
+        "/api/meetings/m1/chunks?seq=2&durationMs=1500",
+      ]);
+      expect(events).toContainEqual({ kind: "renumbered", from: 1, to: 2 });
+      expect(events.some((e) => e.kind === "closed")).toBe(false);
+      expect(queue.state()).toMatchObject({ uploaded: 1, pending: 0, closed: false, failed: [] });
+    });
+
+    it("keeps looking for a free number when several are taken", async () => {
+      const { queue, calls } = setup([conflict, conflict, { status: 201 }]);
+      queue.add(4, blob(), 1000);
+      await queue.idle();
+      expect(calls.map((c) => seqOf(c.url))).toEqual(["4", "5", "6"]);
+      expect(queue.state().uploaded).toBe(1);
+    });
+
+    it("keeps the audio order: a later chunk is not sent before the renumbered one", async () => {
+      const { queue, calls } = setup([conflict, { status: 201 }, { status: 201 }]);
+      queue.add(1, blob(1), 1000);
+      queue.add(2, blob(2), 1000);
+      await queue.idle();
+      // Chunk 1 became 2 (this stub accepts it). Against a real server chunk 2 would now
+      // conflict with it and move on in turn; either way nothing is lost and order is kept.
+      expect(calls.map((c) => [seqOf(c.url), c.bytes])).toEqual([
+        ["1", 1],
+        ["2", 1],
+        ["2", 2],
+      ]);
+      expect(queue.state().uploaded).toBe(2);
+    });
+
+    it("gives up visibly (rejected, kept in failed) after too many conflicts", async () => {
+      const { queue, events } = setup([conflict]);
+      queue.add(0, blob(), 1000);
+      await queue.idle();
+      expect(events.some((e) => e.kind === "rejected")).toBe(true);
+      expect(queue.state().failed).toHaveLength(1);
+      expect(queue.state().closed).toBe(false);
+    });
+  });
+
+  it("only meeting_not_capturing means the capture ended", async () => {
+    const { queue, events } = setup([{ status: 409, error: "meeting_not_capturing" }]);
+    queue.add(0, blob(), 1000);
+    await queue.idle();
+    expect(events.some((e) => e.kind === "closed")).toBe(true);
+    expect(queue.state().closed).toBe(true);
   });
 
   it("after maxAttempts the chunk is stalled, not dropped", async () => {
