@@ -94,6 +94,15 @@ describe("stageFor: the five steps of the stepper", () => {
     ]);
   });
 
+  it("marks done steps with a tick, a step that needs attention with !, the rest with their number", () => {
+    const draft = stageFor("review");
+    if (draft.kind !== "flow") throw new Error("flow expected");
+    expect(draft.steps.map((s) => s.mark)).toEqual(["✓", "✓", "✓", "4", "5"]);
+    const failed = stageFor("failed");
+    if (failed.kind !== "flow") throw new Error("flow expected");
+    expect(failed.steps.map((s) => s.mark)).toEqual(["✓", "✓", "!", "4", "5"]);
+  });
+
   it("counts paused as Capturing and says it is paused", () => {
     const stage = stageFor("paused");
     if (stage.kind !== "flow") throw new Error("flow expected");
@@ -227,9 +236,10 @@ describe("headerChips", () => {
   });
 
   it("lists the folder before the template", () => {
-    expect(
-      headerChips({ noteStatus: "published", folder, template }).map((c) => c.kind),
-    ).toEqual(["folder", "template"]);
+    expect(headerChips({ noteStatus: "published", folder, template }).map((c) => c.kind)).toEqual([
+      "folder",
+      "template",
+    ]);
   });
 
   it("shows nothing when there is nothing to show", () => {

@@ -34,8 +34,11 @@ export class SqliteReviewRepository implements ReviewRepository {
     const db = this.db;
     const m = db
       .prepare(
-        `SELECT id, title, status, timezone, scheduled_start_at, rough_notes FROM meeting
-          WHERE owner_id = ? AND id = ? AND status NOT IN ('deleting', 'deleted')`,
+        `SELECT m.id, m.title, m.status, m.timezone, m.scheduled_start_at, m.rough_notes,
+                m.template_id, t.name AS template_name
+           FROM meeting m
+           LEFT JOIN template t ON t.owner_id = m.owner_id AND t.id = m.template_id
+          WHERE m.owner_id = ? AND m.id = ? AND m.status NOT IN ('deleting', 'deleted')`,
       )
       .get(ownerId, meetingId);
     if (!m) return Promise.resolve(null);
@@ -63,6 +66,10 @@ export class SqliteReviewRepository implements ReviewRepository {
         timezone: String(m["timezone"]),
         scheduledStartAt: String(m["scheduled_start_at"]),
         roughNotes: text(m["rough_notes"]) ?? "",
+        template:
+          text(m["template_id"]) !== null && text(m["template_name"]) !== null
+            ? { id: String(m["template_id"]), name: String(m["template_name"]) }
+            : null,
       },
       attendees: db
         .prepare(

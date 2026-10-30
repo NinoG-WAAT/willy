@@ -1,5 +1,6 @@
 ---
 import Base from "../../../layouts/Base.astro";
+import MeetingHeader from "../../../components/MeetingHeader.astro";
 import { requireOwner } from "../../../app/identity/require-owner";
 import { formatSchedule } from "../../../components/format-schedule";
 import { loadReviewPage } from "../../../app/notes/review";
@@ -118,19 +119,7 @@ const errorsFor = (key: string, field: string) =>
   problem !== null && echo?.itemId === key ? problem.errors.filter((e) => e.field === field) : [];
 
 const notice = reviewNoticeText(Astro.url.searchParams.get("notice"));
-const draft = note?.status === "draft";
 
-const STATUS_LABEL: Record<string, string> = {
-  processing: "Preparing the transcript",
-  failed: "Processing needs attention",
-  archived: "Archived",
-};
-const statusLabel =
-  note?.status === "published"
-    ? "Published"
-    : draft && meeting.status === "review"
-      ? "Draft: not published"
-      : (STATUS_LABEL[meeting.status] ?? meeting.status);
 const regeneration = progress?.regeneration ?? null;
 ---
 
@@ -138,34 +127,24 @@ const regeneration = progress?.regeneration ?? null;
   title={`Review: ${meeting.title}`}
   noteFolderId={note?.status === "published" ? note.folderId : null}
 >
-  <div class="page-head">
-    <div>
-      <h1>{meeting.title}</h1>
-      <p class="row-meta">
-        <time datetime={meeting.scheduledStartAt}>
-          {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
-        </time>
-        {" · "}
-        <span
-          class="badge"
-          id="note-status"
-          data-progress-for="processing-progress"
-          data-field="badge"
-        >
-          {statusLabel}
-        </span>
-        {note?.status === "published" && note.folderName !== null && (
-          <span> in the folder {note.folderName}</span>
-        )}
-      </p>
-      <p class="row-actions">
-        <a href={`/meetings/${meeting.id}/export.md`} download>
-          Export as Markdown<span class="sr-only"> ({meeting.title})</span>
-        </a>
-        <a href={`/meetings/${meeting.id}`}>Rough notes</a>
-      </p>
-    </div>
-  </div>
+  <MeetingHeader
+    page="review"
+    meeting={meeting}
+    noteStatus={note?.status ?? null}
+    folder={
+      note?.folderId != null && note.folderName !== null
+        ? { id: note.folderId, name: note.folderName }
+        : null
+    }
+    template={meeting.template}
+  >
+    <a slot="links" href={`/meetings/${meeting.id}/export.md`} download>
+      Export as Markdown<span class="sr-only"> ({meeting.title})</span>
+    </a>
+    <a slot="links" href={`/meetings/${meeting.id}`}>
+      Rough notes
+    </a>
+  </MeetingHeader>
 
   {notice !== null && (
     <p class="notice" role="status">
@@ -338,7 +317,7 @@ const regeneration = progress?.regeneration ?? null;
                 folder.
               </p>
               <div class="row-actions">
-                <button class="button button-primary" type="submit">
+                <button class="button" type="submit">
                   Publish to folder
                 </button>
               </div>

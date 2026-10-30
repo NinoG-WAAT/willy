@@ -27,7 +27,7 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
   const id = await createReviewMeeting("owner-ada");
   await page.goto(`/meetings/${id}/review`);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(id);
-  await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+  await expect(page.locator("#note-status")).toHaveText("Draft");
 
   // Layout: transcript beside the summary on a desktop, intentionally stacked on a phone.
   const summary = await page.locator("#summary").boundingBox();

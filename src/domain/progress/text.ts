@@ -1,5 +1,6 @@
 import { describeMeeting } from "../meetings/home";
 import type { MeetingStatus } from "../meetings/lifecycle";
+import { OPEN_DRAFT_LABEL, RETRY_LINK_LABEL, statusLabel } from "../meetings/stage";
 import { describeDeletion, type DeletionDescription } from "../settings/deletion-status";
 
 /**
@@ -90,9 +91,9 @@ export const reviewPath = (meetingId: string): string => `/meetings/${meetingId}
 export function reviewLinkLabel(status: MeetingStatus): string | null {
   switch (status) {
     case "review":
-      return "Open the draft";
+      return OPEN_DRAFT_LABEL;
     case "failed":
-      return "See what happened and retry";
+      return RETRY_LINK_LABEL;
     default:
       return null;
   }
@@ -118,12 +119,12 @@ export function processingProgress(payload: ProcessingPayload, withLink = false)
       fields["outcome"] = withLink
         ? "Your draft is ready."
         : "Your draft is ready. Use Check again to open it.";
-      fields["badge"] = "Draft: not published";
+      fields["badge"] = statusLabel("review");
     } else if (payload.meetingStatus === "failed") {
       fields["outcome"] = withLink
         ? "Processing did not finish. Your rough notes are kept."
         : "Processing did not finish. Use Check again to see what happened and retry. Your rough notes are kept.";
-      fields["badge"] = "Processing needs attention";
+      fields["badge"] = statusLabel("failed");
     } else {
       fields["outcome"] = "This note has moved on. Use Check again to see where it is now.";
     }
@@ -172,7 +173,7 @@ export function cardProgress(
       marker: description.marker,
     },
     settled,
-    announce: settled ? `${title}: ${lowerFirst(description.label)}.` : null,
+    announce: settled ? `${title}: status changed to ${lowerFirst(description.label)}.` : null,
   };
 }
 

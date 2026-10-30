@@ -18,8 +18,10 @@ import {
   chunk,
   consentedMeeting,
   count,
+  folder,
   freshDb,
   meeting,
+  note,
   owner,
 } from "../../support/db-fixtures";
 
@@ -83,6 +85,65 @@ describe("loadLiveNote", () => {
         error: { kind: "not_found" },
       });
     }
+  });
+});
+
+describe("loadLiveNote: what the meeting header shows (#73)", () => {
+  const template = (ownerId: string, id: string, name: string) =>
+    db
+      .prepare(
+        `INSERT INTO template (id, owner_id, name, sections_json, created_at, updated_at)
+         VALUES (?, ?, ?, '[]', ?, ?)`,
+      )
+      .run(id, ownerId, name, T0, T0);
+  const detailOf = async (ownerId: string, id: string) => {
+    const result = await loadLiveNote(live, ownerId, id);
+    if (!result.ok) throw new Error("expected a live note");
+    return result.value.detail;
+  };
+
+  it("has no folder, template or note when none exist", async () => {
+    meeting(db, "A", "m1");
+    expect(await detailOf("A", "m1")).toMatchObject({
+      folder: null,
+      template: null,
+      noteStatus: null,
+    });
+  });
+
+  it("carries the template's name, and the folder only through the note", async () => {
+    template("A", "t1", "Customer call");
+    folder(db, "A", "f1", { name: "Board updates" });
+    consentedMeeting(db, "A", "m1", { status: "review", template_id: "t1" });
+    note(db, "A", "m1", "n1");
+    expect(await detailOf("A", "m1")).toMatchObject({
+      template: { id: "t1", name: "Customer call" },
+      folder: null,
+      noteStatus: "draft",
+    });
+    db.prepare(
+      "UPDATE note SET status = 'published', folder_id = 'f1', published_at = ? WHERE id = 'n1'",
+    ).run(T0);
+    db.prepare("UPDATE meeting SET status = 'published' WHERE id = 'm1'").run();
+    expect(await detailOf("A", "m1")).toMatchObject({
+      folder: { id: "f1", name: "Board updates" },
+      noteStatus: "published",
+    });
+  });
+
+  it("never shows another owner's folder or template, and another owner's meeting is not found", async () => {
+    template("B", "tb", "Secret template");
+    folder(db, "B", "fb", { name: "Secret folder" });
+    consentedMeeting(db, "B", "mb", { status: "published", template_id: "tb" });
+    note(db, "B", "mb", "nb", { status: "published", folder_id: "fb", published_at: T0 });
+    expect(await loadLiveNote(live, "A", "mb")).toEqual({
+      ok: false,
+      error: { kind: "not_found" },
+    });
+    expect(await detailOf("B", "mb")).toMatchObject({
+      folder: { name: "Secret folder" },
+      template: { name: "Secret template" },
+    });
   });
 });
 

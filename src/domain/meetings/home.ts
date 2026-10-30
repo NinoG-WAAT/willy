@@ -1,4 +1,5 @@
 import type { MeetingListItem } from "./list-item";
+import { statusLabel } from "./stage";
 
 export interface MeetingDescription {
   /** Status in words: state is never conveyed by colour alone. */
@@ -17,40 +18,58 @@ export function describeMeeting(
   const review = `/meetings/${item.id}/review`;
   switch (item.status) {
     case "scheduled":
-      return { label: "Not started", marker: "○", actionLabel: "Start note", href: live };
+      return {
+        label: statusLabel("scheduled"),
+        marker: "○",
+        actionLabel: "Start note",
+        href: live,
+      };
     case "capturing":
-      return { label: "Recording", marker: "●", actionLabel: "Return to recording", href: live };
+      return {
+        label: statusLabel("capturing"),
+        marker: "●",
+        actionLabel: "Return to recording",
+        href: live,
+      };
     case "paused":
-      return { label: "Recording paused", marker: "❚❚", actionLabel: "Resume note", href: live };
+      return { label: statusLabel("paused"), marker: "❚❚", actionLabel: "Resume note", href: live };
     case "processing":
-      return { label: "Transcribing", marker: "…", actionLabel: "View progress", href: review };
+      return {
+        label: statusLabel("processing"),
+        marker: "…",
+        actionLabel: "View progress",
+        href: review,
+      };
     case "review":
       return {
-        label: "Draft ready for review",
+        label: statusLabel("review"),
         marker: "✎",
         actionLabel: "Review note",
         href: review,
       };
     case "published":
       return {
-        label: item.folderName === null ? "Published" : `Published to ${item.folderName}`,
+        label:
+          item.folderName === null
+            ? statusLabel("published")
+            : `${statusLabel("published")} to ${item.folderName}`,
         marker: "✓",
         actionLabel: "Open note",
         href: review,
       };
     case "failed":
       return {
-        label: "Needs attention: processing failed",
+        label: statusLabel("failed"),
         marker: "!",
         actionLabel: "Open and retry",
         href: review,
       };
     case "archived":
-      return { label: "Archived", marker: "▭", actionLabel: "Open note", href: live };
+      return { label: statusLabel("archived"), marker: "▭", actionLabel: "Open note", href: live };
     case "deleting":
     case "deleted":
       // Never listed; handled for exhaustiveness without leaking anything.
-      return { label: "Unavailable", marker: "-", actionLabel: "Back", href: "/" };
+      return { label: statusLabel(item.status), marker: "-", actionLabel: "Back", href: "/" };
   }
 }
 

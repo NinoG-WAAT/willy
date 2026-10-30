@@ -78,6 +78,20 @@ describe("loadReviewPage", () => {
     expect(result.value.view.note).toMatchObject({ status: "published", folderName: "Board" });
   });
 
+  it("carries the template's name for the header, and none when the meeting has no template", async () => {
+    db.prepare(
+      `INSERT INTO template (id, owner_id, name, sections_json, created_at, updated_at)
+       VALUES ('t1', 'A', 'Customer call', '[]', ?, ?)`,
+    ).run("2026-10-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z");
+    db.prepare("UPDATE meeting SET template_id = 't1' WHERE id = 'm1'").run();
+    const withTemplate = await loadReviewPage(deps, "A", "m1");
+    if (!withTemplate.ok) throw new Error("expected a page");
+    expect(withTemplate.value.view.meeting.template).toEqual({ id: "t1", name: "Customer call" });
+    const without = await loadReviewPage(deps, "B", "m2");
+    if (!without.ok) throw new Error("expected a page");
+    expect(without.value.view.meeting.template).toBeNull();
+  });
+
   it("keeps the page usable when one segment cannot be decrypted", async () => {
     db.prepare("UPDATE transcript_segment SET text_ciphertext = 'garbage' WHERE id = ?").run(
       "m1-seg-0-1",

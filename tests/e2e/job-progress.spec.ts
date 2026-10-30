@@ -82,7 +82,7 @@ test.describe("review screen, while the transcript is prepared", () => {
     await expect(region).toContainText("Transcript: Done", WAIT);
     await expect(region).toContainText("Summary: Done");
     await expect(region).toContainText("Your draft is ready");
-    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+    await expect(page.locator("#note-status")).toHaveText("Draft");
     // The no-JS way to the same place is still on the page and still works.
     await region.locator("xpath=..").getByRole("link", { name: "Check again" }).click();
     await expect(page.getByRole("heading", { name: "Summary", level: 2 })).toBeVisible();
@@ -104,7 +104,7 @@ test.describe("review screen, while the transcript is prepared", () => {
       WAIT,
     );
     await expect(region).toContainText("Processing did not finish");
-    await expect(page.locator("#note-status")).toHaveText("Processing needs attention");
+    await expect(page.locator("#note-status")).toHaveText("Needs attention");
   });
 });
 
@@ -165,7 +165,7 @@ test.describe("live note, after capture stopped", () => {
 
     await link.click();
     await expect(page).toHaveURL(`/meetings/${id}/review`);
-    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+    await expect(page.locator("#note-status")).toHaveText("Draft");
   });
 
   test("a failed processing offers the same way to the review page, where the retry is", async ({
@@ -250,11 +250,11 @@ test.describe("home", () => {
     advanceProcessing(id, { meeting: "processing", transcription: "running" });
     await signIn(page, owner.email);
     const card = page.locator(`[data-meeting-id="${id}"]`);
-    await expect(card).toContainText("Transcribing");
+    await expect(card).toContainText("Processing");
     await expect(card.getByRole("link", { name: /View progress/ })).toBeVisible();
 
     advanceProcessing(id, { meeting: "review", transcription: "succeeded", summary: "succeeded" });
-    await expect(card).toContainText("Draft ready for review", WAIT);
+    await expect(card).toContainText("Draft", WAIT);
     await expect(card.getByRole("link", { name: /Review note/ })).toBeVisible();
     await expect(page.locator("#progress-announce")).toHaveText(
       `${title}: draft ready for review.`,

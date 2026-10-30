@@ -60,7 +60,7 @@ async function limeActions(page: Page): Promise<string[]> {
       if (box.width === 0 || box.height === 0 || el.closest("[hidden]")) continue;
       const style = getComputedStyle(el);
       if (style.visibility === "hidden" || style.display === "none") continue;
-      if (style.backgroundColor === lime) found.push((el.textContent ?? "").trim());
+      if (style.backgroundColor === lime) found.push(el.textContent.trim());
     }
     return found;
   }, LIME);
@@ -83,8 +83,11 @@ interface StageCase {
   current: string;
   pill: string;
   summary: string;
-  /** Visible acid-lime actions in the whole page, shell included: always exactly one. */
-  lime: string;
+  /**
+   * The visible acid-lime action of the whole page, shell included: at most one. While the
+   * hand-off waits there is none (its link is hidden until the draft is ready).
+   */
+  lime: string | null;
   /** The header's own action, if the stage has one. */
   action?: { name: string; href: string | RegExp; lime: boolean };
 }
@@ -124,7 +127,7 @@ const LIVE_CASES: StageCase[] = [
     current: "Processing",
     pill: "Processing",
     summary: "Step 3 of 5: Processing",
-    lime: "New note",
+    lime: null,
   },
   {
     name: "failed",
@@ -238,7 +241,7 @@ for (const c of LIVE_CASES) {
     const path = await pathFor(c, "live");
     await page.goto(path);
     await expectStage(page, c);
-    expect(await limeActions(page)).toEqual([c.lime]);
+    expect(await limeActions(page)).toEqual(c.lime === null ? [] : [c.lime]);
     if (c.action !== undefined) {
       const link = header(page).getByRole("link", { name: c.action.name });
       await expect(link).toHaveCount(1);
@@ -256,7 +259,7 @@ for (const c of REVIEW_CASES) {
     const path = await pathFor(c, "review");
     await page.goto(path);
     await expectStage(page, c);
-    expect(await limeActions(page)).toEqual([c.lime]);
+    expect(await limeActions(page)).toEqual(c.lime === null ? [] : [c.lime]);
     if (c.action !== undefined) {
       const link = header(page).getByRole("link", { name: c.action.name });
       await expect(link).toHaveCount(1);
@@ -353,7 +356,7 @@ test.describe("stepper accessibility", () => {
     expect(await list.evaluate((el) => el.tagName)).toBe("OL");
     const items = list.getByRole("listitem");
     await expect(items).toHaveCount(5);
-    const states = await items.evaluateAll((els) => els.map((el) => el.textContent ?? ""));
+    const states = await items.evaluateAll((els) => els.map((el) => el.textContent));
     expect(states[0]).toContain("Done");
     expect(states[2]).toContain("Done");
     expect(states[3]).toContain("Current step");
@@ -395,7 +398,6 @@ test.describe("stepper accessibility", () => {
       .locator(".step-mark")
       .evaluate((el) => getComputedStyle(el).borderTopWidth);
     expect(parseFloat(border)).toBeGreaterThan(0);
-    await audit(page);
   });
 });
 

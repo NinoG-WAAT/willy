@@ -17,6 +17,7 @@ import {
   type AutoOpenState,
 } from "./progress/auto-open";
 import { createPoller, type PollReply } from "./progress/poller";
+import { syncStage } from "./progress/stage-sync";
 
 // Progressive enhancement for job progress. The pages already show the current state and a
 // "Check again" link, so they are correct without this file. It polls the owner-scoped status
@@ -109,6 +110,7 @@ function readAutoOpenState(): AutoOpenState {
 function renderHandoff(el: HTMLElement, body: unknown): { settled: boolean } | null {
   const payload = parseProcessingPayload(body);
   if (!payload) return null;
+  syncStage(payload.meetingStatus);
   const link = el.querySelector<HTMLAnchorElement>('a[data-field="link"]');
   const deps: AutoOpenDeps = {
     readState: readAutoOpenState,
@@ -156,7 +158,9 @@ const renderers: Record<string, Render> = {
     // Only the live note has a link to the review (its href is in the page, built from the
     // meeting id it renders); the review page itself does not.
     const withLink = fieldNode(el, "link", el.id) !== null;
-    return payload ? show(el, processingProgress(payload, withLink)) : null;
+    if (!payload) return null;
+    syncStage(payload.meetingStatus);
+    return show(el, processingProgress(payload, withLink));
   },
   regeneration: (el, body) => {
     const payload = parseProcessingPayload(body);

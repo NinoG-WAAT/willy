@@ -191,10 +191,15 @@ export class SqliteMeetingCatalog
   findDetail(ownerId: string, meetingId: string): Promise<MeetingDetail | null> {
     const r = this.db
       .prepare(
-        `SELECT id, title, status, agenda, rough_notes, scheduled_start_at, scheduled_end_at, timezone,
-                consent_confirmed_at, capture_started_at, updated_at
-           FROM meeting
-          WHERE owner_id = ? AND id = ? AND status NOT IN ('deleting', 'deleted')`,
+        `SELECT m.id, m.title, m.status, m.agenda, m.rough_notes, m.scheduled_start_at,
+                m.scheduled_end_at, m.timezone, m.consent_confirmed_at, m.capture_started_at,
+                m.updated_at, m.template_id, t.name AS template_name,
+                n.status AS note_status, n.folder_id, f.name AS folder_name
+           FROM meeting m
+           LEFT JOIN template t ON t.owner_id = m.owner_id AND t.id = m.template_id
+           LEFT JOIN note n ON n.owner_id = m.owner_id AND n.meeting_id = m.id
+           LEFT JOIN folder f ON f.owner_id = n.owner_id AND f.id = n.folder_id
+          WHERE m.owner_id = ? AND m.id = ? AND m.status NOT IN ('deleting', 'deleted')`,
       )
       .get(ownerId, meetingId);
     if (!r) return Promise.resolve(null);
@@ -217,6 +222,20 @@ export class SqliteMeetingCatalog
       consentConfirmedAt: text(r["consent_confirmed_at"]),
       captureStartedAt: text(r["capture_started_at"]),
       updatedAt: String(r["updated_at"]),
+      folder:
+        text(r["folder_id"]) !== null && text(r["folder_name"]) !== null
+          ? { id: String(r["folder_id"]), name: String(r["folder_name"]) }
+          : null,
+      template:
+        text(r["template_id"]) !== null && text(r["template_name"]) !== null
+          ? { id: String(r["template_id"]), name: String(r["template_name"]) }
+          : null,
+      noteStatus:
+        r["note_status"] === "published"
+          ? "published"
+          : r["note_status"] === "draft"
+            ? "draft"
+            : null,
     });
   }
 
