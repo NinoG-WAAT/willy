@@ -8,7 +8,7 @@ const next = safeNextPath(Astro.url.searchParams.get("next"));
 const signInHref = next === "/" ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`;
 ---
 
-<Base title="Session expired">
+<Base title="Session expired" standalone>
   <h1>Your session expired</h1>
   <p>For your security you were signed out after a period of inactivity. Your notes are safe.</p>
   <p>

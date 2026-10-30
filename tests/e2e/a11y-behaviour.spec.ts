@@ -58,7 +58,7 @@ test.describe("keyboard-only journeys", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByText("Signed in as")).toBeVisible();
 
-    await tabTo(page, page.getByRole("link", { name: "New note" }));
+    await tabTo(page, page.getByRole("main").getByRole("link", { name: "New note" }));
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/meetings\/new$/);
 
@@ -174,12 +174,12 @@ test.describe("focus, navigation and motion", () => {
     await page.goto("/search");
     const nav = page.getByRole("navigation", { name: "Main" });
     await expect(nav.getByRole("link", { name: "Search" })).toHaveAttribute("aria-current", "page");
-    await expect(nav.getByRole("link", { name: "Meetings" })).not.toHaveAttribute("aria-current");
+    await expect(nav.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
     const decoration = await nav
       .getByRole("link", { name: "Search" })
       .evaluate((el) => getComputedStyle(el).textDecorationLine + getComputedStyle(el).fontWeight);
     const other = await nav
-      .getByRole("link", { name: "Meetings" })
+      .getByRole("link", { name: "Home" })
       .evaluate((el) => getComputedStyle(el).textDecorationLine + getComputedStyle(el).fontWeight);
     expect(decoration).not.toBe(other);
   });
@@ -230,26 +230,33 @@ test.describe("reflow and phone layout", () => {
     });
   }
 
-  test("the phone header is one compact bar plus one row of navigation", async ({ page }) => {
+  // Replaces "one compact bar plus one row of navigation" (#70): on a phone the navigation is now
+  // the bottom tab bar, so the top is just the brand and New note, and the tabs are one row.
+  test("the phone shell is one compact top bar plus one row of tabs at the bottom", async ({
+    page,
+  }) => {
     test.skip(!isPhone(page), "phone layout only");
     await page.goto("/");
     const brand = await page.locator(".brand").boundingBox();
-    const signOut = await page.getByRole("button", { name: "Sign out" }).boundingBox();
+    const newNote = await page
+      .getByRole("banner")
+      .getByRole("link", { name: "New note" })
+      .boundingBox();
     const nav = await page.getByRole("navigation", { name: "Main" }).boundingBox();
     const header = await page.getByRole("banner").boundingBox();
-    if (!brand || !signOut || !nav || !header) throw new Error("header boxes are missing");
-    // Brand and sign-out share a row; navigation is a single row below; no wrapping to a third.
-    expect(Math.abs(brand.y + brand.height / 2 - (signOut.y + signOut.height / 2))).toBeLessThan(
+    if (!brand || !newNote || !nav || !header) throw new Error("shell boxes are missing");
+    // Brand and New note share the top row; the bar is a single row of 44px targets.
+    expect(Math.abs(brand.y + brand.height / 2 - (newNote.y + newNote.height / 2))).toBeLessThan(
       12,
     );
-    expect(nav.y).toBeGreaterThanOrEqual(brand.y + brand.height - 1);
-    // At most two rows of 44px links, and never a sideways scroll that hides one.
+    expect(header.height).toBeLessThanOrEqual(72);
+    // The navigation sits below the content's start, at the bottom, in one row, never scrolling sideways.
+    expect(nav.y).toBeGreaterThan(header.y + header.height);
     expect(nav.height).toBeLessThanOrEqual(96);
     const hidden = await page
       .getByRole("navigation", { name: "Main" })
       .evaluate((el) => el.scrollWidth - el.clientWidth);
     expect(hidden).toBeLessThanOrEqual(0);
-    expect(header.height).toBeLessThanOrEqual(170);
   });
 
   test("on a phone, fields and primary buttons use the full width", async ({ page }) => {

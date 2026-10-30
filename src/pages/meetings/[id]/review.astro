@@ -134,7 +134,10 @@ const statusLabel =
 const regeneration = progress?.regeneration ?? null;
 ---
 
-<Base title={`Review: ${meeting.title}`}>
+<Base
+  title={`Review: ${meeting.title}`}
+  noteFolderId={note?.status === "published" ? note.folderId : null}
+>
   <div class="page-head">
     <div>
       <h1>{meeting.title}</h1>

@@ -370,6 +370,31 @@ test.describe("owner screens", () => {
     await context.close();
   });
 
+  // The app shell (#70): every scan above already includes it. These are its own states.
+  test("shell: the More menu of the phone tab bar, open", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1280) >= 600, "the tab bar is a phone layout");
+    await page.goto("/settings");
+    await page.locator(".tabbar summary").click();
+    await expect(page.locator(".tabbar").getByRole("button", { name: "Sign out" })).toBeVisible();
+    await audit(page);
+  });
+
+  test("shell: no folders, and more folders than the sidebar lists", async ({ browser }) => {
+    const none = createFreshOwner();
+    const many = createFreshOwner();
+    for (let i = 1; i <= 10; i += 1) {
+      createFolderWithNotes(many.id, `Folder ${String(i).padStart(2, "0")}`, []);
+    }
+    for (const owner of [none, many]) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await signIn(page, owner.email);
+      await page.goto("/");
+      await audit(page);
+      await context.close();
+    }
+  });
+
   test("template form validation errors", async ({ page }) => {
     await page.goto("/settings/templates/new");
     await page.getByLabel("Template name").fill("   ");

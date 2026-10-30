@@ -31,7 +31,8 @@ const nothingToShow = home.total === 0;
   <div class="page-head">
     <h1>Meetings</h1>
     <div class="row-actions">
-      <a class="button button-primary" href="/meetings/new">
+      {/* The shell's New note is the lime action here; this one is the same action, so it is a default button. */}
+      <a class="button" href="/meetings/new">
         New note
       </a>
       <form
