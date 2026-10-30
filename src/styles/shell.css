@@ -1,0 +1,404 @@
+/*
+ * The app shell (issue #70): the persistent frame of every signed-in page. Below 60rem it is a
+ * compact top bar (brand and New note) plus a bottom tab bar; from 60rem it is a sticky sidebar
+ * beside the content. One header element serves both, so there is one skip link, one banner and
+ * one set of links in the order a person meets them; the tab bar is a second `nav` that only
+ * one of the two layouts shows. Pure HTML and CSS: nothing here needs a script.
+ *
+ * Bent conventions, recorded in README "Design" and docs/PLAN.md 3.3: DESIGN.md has no sidebar
+ * and a 1200px page, and the redesign needs a sidebar, so the 1200px column now measures the
+ * content beside it. Colours, type, radii and spacing still come only from tokens.css.
+ */
+
+:root {
+  --sidebar-width: 15rem;
+  --tabbar-height: 3.5rem;
+  --tab-mark: 3px;
+}
+
+.app,
+.app-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Top bar (phone and tablet): the brand, and New note within thumb reach of the corner. */
+.shell-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding-block: var(--spacing-4);
+  padding-inline: max(var(--gutter), env(safe-area-inset-left))
+    max(var(--gutter), env(safe-area-inset-right));
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-void);
+}
+
+.shell-new {
+  margin-inline-start: auto;
+}
+
+/*
+ * New note is the one acid-lime action of the shell. DESIGN.md allows one lime action per view, so
+ * it steps back to the default button when the page brings its own primary action (a form's
+ * submit, a page's "New template"): then the page's action is the lime one. Without :has() support
+ * it simply stays a default button, never a second lime one.
+ */
+body:not(:has(main .button-primary)) .shell-new {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--action-text);
+}
+
+body:not(:has(main .button-primary)) .shell-new:hover {
+  border-color: var(--action);
+  background: color-mix(in srgb, var(--action) 88%, var(--text-strong));
+  color: var(--action-text);
+}
+
+/* The sidebar's list is for the desktop layout; the tab bar replaces it on a phone. */
+.side-nav {
+  display: none;
+}
+
+/* Who is signed in stays available to screen readers; Sign out lives in the More menu here. */
+.session-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.session form {
+  display: none;
+}
+
+.has-shell main {
+  padding-inline: max(var(--gutter), env(safe-area-inset-left))
+    max(var(--gutter), env(safe-area-inset-right));
+}
+
+.has-shell .site-footer {
+  padding-inline: max(var(--gutter), env(safe-area-inset-left))
+    max(var(--gutter), env(safe-area-inset-right));
+}
+
+/* Room under the content for the fixed tab bar, so no page bottom hides behind it. */
+.has-shell {
+  padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+}
+
+/* A focused control scrolled into view must not end up under the bar (WCAG 2.4.11). */
+html:has(.tabbar) {
+  scroll-padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+}
+
+/* Bottom tab bar (phone and tablet). */
+.tabbar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  border-top: 1px solid var(--line-strong);
+  background: var(--surface-obsidian);
+}
+
+.tabbar-list,
+.more-panel,
+.nav-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tabbar-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tabbar-list > li {
+  min-width: 0;
+}
+
+.icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  width: 100%;
+  /* The bar's 1px top edge is part of --tabbar-height, so the room left under the page is exact. */
+  min-height: calc(var(--tabbar-height) - 1px);
+  /* The current tab gets a bar on top; every tab keeps the same height with this padding. */
+  padding: calc(var(--spacing-4) + var(--tab-mark)) var(--spacing-4) var(--spacing-4);
+  color: var(--text);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+/* Current: a bar on top, bright text, weight and an underline, so it never relies on colour. */
+.tab[aria-current] {
+  padding-top: var(--spacing-4);
+  border-top: var(--tab-mark) solid var(--text-strong);
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w590);
+}
+
+.tab[aria-current] .tab-label {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+/* "More" is a disclosure: its summary looks like a tab, without the global details marker. */
+.more > summary {
+  list-style: none;
+  text-decoration: none;
+}
+
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.more > summary::before,
+.more[open] > summary::before {
+  content: none;
+}
+
+.more[open] > summary {
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+.more-panel {
+  position: absolute;
+  right: max(var(--gutter), env(safe-area-inset-right));
+  bottom: calc(100% + var(--spacing-8));
+  min-width: 14rem;
+  padding: var(--spacing-8);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-cards);
+  background: var(--surface-obsidian);
+  box-shadow: var(--shadow-xl);
+}
+
+.more-panel form {
+  margin: 0;
+}
+
+.more-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--hit);
+  padding: var(--spacing-8) var(--spacing-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.more-item:hover {
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+.more-item[aria-current] {
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w590);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+/* Sidebar rows and the folder list. */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  min-height: var(--hit);
+  padding: var(--spacing-8) var(--spacing-12);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  text-decoration: none;
+}
+
+.nav-item:hover {
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+/* Current: a bar at the edge, fill, bright text and weight, never colour alone. */
+.nav-item[aria-current] {
+  padding-inline-start: calc(var(--spacing-12) - var(--tab-mark));
+  border-inline-start: var(--tab-mark) solid var(--text-strong);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  background: var(--fill-soft);
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w590);
+}
+
+.nav-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nav-count {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-label {
+  display: block;
+  padding: var(--spacing-12) var(--spacing-12) var(--spacing-4);
+  color: var(--text-muted);
+  font-size: var(--text-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav-empty {
+  padding: var(--spacing-4) var(--spacing-12);
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.nav-all {
+  color: var(--text-muted);
+}
+
+/* The sidebar (desktop): a sticky column, the header element itself, beside the content. */
+@media (min-width: 60rem) {
+  .has-shell {
+    padding-bottom: 0;
+  }
+
+  html:has(.tabbar) {
+    scroll-padding-bottom: 0;
+  }
+
+  .has-shell .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .shell-header {
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-8);
+    height: 100vh;
+    height: 100dvh;
+    padding: var(--spacing-12);
+    overflow-y: auto;
+    border-bottom: 0;
+    border-inline-end: 1px solid var(--line);
+  }
+
+  .shell-new {
+    margin-inline-start: 0;
+    width: 100%;
+  }
+
+  .side-nav {
+    display: block;
+    flex: 1;
+  }
+
+  .tabbar {
+    display: none;
+  }
+
+  /* The signed-in name and Sign out close the sidebar; the name is text again. */
+  /* Sticky inside the scrolling sidebar, so Sign out stays reachable however many folders it lists. */
+  .session {
+    position: sticky;
+    bottom: calc(var(--spacing-12) * -1);
+    margin-bottom: calc(var(--spacing-12) * -1);
+    padding-block: var(--spacing-12);
+    border-top: 1px solid var(--line);
+    background: var(--surface-void);
+  }
+
+  .session-name {
+    position: static;
+    display: block;
+    width: auto;
+    height: auto;
+    margin: 0 0 var(--spacing-8);
+    padding-inline: var(--spacing-4);
+    overflow: visible;
+    clip-path: none;
+    color: var(--text-muted);
+    font-size: var(--text-caption);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .session form {
+    display: block;
+    margin: 0;
+  }
+
+  .session .button {
+    width: 100%;
+  }
+
+  .app-body {
+    min-height: 100vh;
+  }
+
+  /* The content column keeps its readable width, left-aligned against the sidebar. */
+  .has-shell main {
+    margin-inline: 0;
+    padding-inline: var(--spacing-32);
+  }
+
+  .has-shell .site-footer {
+    padding-inline: var(--spacing-32);
+  }
+}
+
+/* High-contrast (forced colours) mode: borders and text decoration carry the state, as they do
+   in normal colours; the lime fill is replaced by the system button colours. */
+@media (forced-colors: active) {
+  body:not(:has(main .button-primary)) .shell-new {
+    border-color: ButtonText;
+  }
+}

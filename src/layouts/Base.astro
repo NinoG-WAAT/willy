@@ -1,59 +1,182 @@
 ---
 import "../styles/global.css";
+import ShellIcon from "../components/ShellIcon.astro";
 import { pageTitle } from "../components/page-title";
-import { NAV_LINKS, currentNavHref } from "../components/nav-current";
+import { NAV_LINKS, currentNavHref, shellFolderState } from "../components/nav-current";
+import { loadShellFolders } from "../app/notes/shell-folders";
+import { getNotesDeps } from "../composition";
 
 interface Props {
   title?: string;
+  /**
+   * A standalone page (sign-in, signed-out, session-expired) is a bare frame: brand, content and
+   * the consent line, no navigation, even if a session happens to exist.
+   */
+  standalone?: boolean;
+  /** The folder of the note this page shows, when the page knows it (highlights it in the sidebar). */
+  noteFolderId?: string | null;
 }
 
-const { title } = Astro.props;
-const owner = Astro.locals.owner;
+const { title, standalone = false, noteFolderId = null } = Astro.props;
+const owner = standalone ? undefined : Astro.locals.owner;
+const shell = owner !== undefined;
 const csrfToken = Astro.locals.csrfToken ?? "";
-const current = currentNavHref(Astro.url.pathname);
+const pathname = Astro.url.pathname;
+const current = currentNavHref(pathname);
+
+// The sidebar's folder list: loaded here, on the server, for the owner of the session only.
+const folders = owner ? await loadShellFolders(getNotesDeps(), owner.id) : [];
+const activeFolder = shellFolderState(pathname, noteFolderId);
+// "All folders" is the page itself only on the index; on a folder's pages that folder is current.
+const allFoldersCurrent = current === "/folders" && activeFolder === null;
+const markCurrent = (href: string): "page" | undefined => (href === current ? "page" : undefined);
+const moreCurrent = current === "/settings/templates" || current === "/settings";
+const TAB_LINKS = NAV_LINKS.filter((l) => ["/", "/search", "/folders"].includes(l.href));
+const MORE_LINKS = NAV_LINKS.filter((l) => ["/settings/templates", "/settings"].includes(l.href));
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- viewport-fit=cover lets the tab bar own the bottom safe area (home indicator) itself. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{pageTitle(title)}</title>
   </head>
-  <body>
+  <body class={shell ? "has-shell" : "standalone"}>
     <a class="skip-link" href="#main">
       Skip to main content
     </a>
-    <header class="site-header">
-      <a class="brand" href="/">
-        Willycrumbs
-      </a>
-      {owner && (
-        <nav class="site-nav" aria-label="Main">
-          {NAV_LINKS.map((link) => (
-            <a href={link.href} aria-current={link.href === current ? "page" : undefined}>
-              {link.label}
-            </a>
+    <div class="app">
+      {owner ? (
+        <header class="shell-header">
+          <a class="brand" href="/">
+            Willycrumbs
+          </a>
+          {/* The one lime action of the shell. It steps back to a default button when the page
+              brings its own primary action (see shell.css), so a view never has two. */}
+          <a class="button shell-new" href="/meetings/new">
+            New note
+          </a>
+          <nav class="side-nav" aria-label="Main">
+            <ul class="nav-list">
+              {NAV_LINKS.map((link) =>
+                link.href === "/folders" ? (
+                  <li class="nav-group">
+                    <span class="nav-label">Folders</span>
+                    <ul class="nav-list">
+                      {folders.map((f) => (
+                        <li>
+                          <a
+                            class="nav-item"
+                            href={`/folders/${f.id}`}
+                            aria-current={
+                              activeFolder?.id === f.id ? activeFolder.current : undefined
+                            }
+                          >
+                            <ShellIcon name="folder" />
+                            <span class="nav-name">{f.name}</span>
+                            <span class="nav-count">
+                              {f.publishedCount}
+                              <span class="sr-only">
+                                {" "}
+                                {f.publishedCount === 1 ? "note" : "notes"}
+                              </span>
+                            </span>
+                          </a>
+                        </li>
+                      ))}
+                      {folders.length === 0 && <li class="nav-empty">No folders yet</li>}
+                      <li>
+                        <a
+                          class="nav-item nav-all"
+                          href="/folders"
+                          aria-current={allFoldersCurrent ? "page" : undefined}
+                        >
+                          All folders
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                ) : (
+                  <li>
+                    <a class="nav-item" href={link.href} aria-current={markCurrent(link.href)}>
+                      {link.href === "/" && <ShellIcon name="home" />}
+                      {link.href === "/search" && <ShellIcon name="search" />}
+                      {link.label}
+                    </a>
+                  </li>
+                ),
+              )}
+            </ul>
+          </nav>
+          <div class="session">
+            <span class="session-name">Signed in as {owner.displayName}</span>
+            <form method="post" action="/sign-out">
+              <input type="hidden" name="csrf_token" value={csrfToken} />
+              <button class="button button-quiet" type="submit">
+                Sign out
+              </button>
+            </form>
+          </div>
+        </header>
+      ) : (
+        <header class="site-header">
+          <a class="brand" href="/">
+            Willycrumbs
+          </a>
+        </header>
+      )}
+      <div class="app-body">
+        <main id="main" tabindex="-1">
+          <slot />
+        </main>
+        <footer class="site-footer">
+          <p>Capture only with everyone's consent.</p>
+        </footer>
+      </div>
+    </div>
+    {owner && (
+      <nav class="tabbar" aria-label="Main">
+        <ul class="tabbar-list">
+          {TAB_LINKS.map((link) => (
+            <li>
+              <a class="tab" href={link.href} aria-current={markCurrent(link.href)}>
+                <ShellIcon
+                  name={link.href === "/" ? "home" : link.href === "/search" ? "search" : "folder"}
+                />
+                <span class="tab-label">{link.label}</span>
+              </a>
+            </li>
           ))}
-        </nav>
-      )}
-      {owner && (
-        <div class="session">
-          <span class="session-name">Signed in as {owner.displayName}</span>
-          <form method="post" action="/sign-out">
-            <input type="hidden" name="csrf_token" value={csrfToken} />
-            <button class="button button-quiet" type="submit">
-              Sign out
-            </button>
-          </form>
-        </div>
-      )}
-    </header>
-    <main id="main" tabindex="-1">
-      <slot />
-    </main>
-    <footer class="site-footer">
-      <p>Capture only with everyone's consent.</p>
-    </footer>
+          <li>
+            {/* A disclosure, not a menu widget: it opens and closes without any script. */}
+            <details class="more">
+              <summary class="tab" aria-current={moreCurrent ? "true" : undefined}>
+                <ShellIcon name="more" />
+                <span class="tab-label">More</span>
+              </summary>
+              <ul class="more-panel">
+                {MORE_LINKS.map((link) => (
+                  <li>
+                    <a class="more-item" href={link.href} aria-current={markCurrent(link.href)}>
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+                <li>
+                  <form method="post" action="/sign-out">
+                    <input type="hidden" name="csrf_token" value={csrfToken} />
+                    <button class="more-item" type="submit">
+                      Sign out
+                    </button>
+                  </form>
+                </li>
+              </ul>
+            </details>
+          </li>
+        </ul>
+      </nav>
+    )}
   </body>
 </html>

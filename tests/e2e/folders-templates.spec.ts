@@ -15,8 +15,9 @@ function unique(label: string, info: TestInfo): string {
   return `${label} ${info.project.name} ${String(info.workerIndex)} ${String(Date.now())}`;
 }
 
+// In the page, not the shell: the sidebar lists the same folders (#70).
 function row(page: Page, name: string) {
-  return page.getByRole("listitem").filter({ hasText: name });
+  return page.getByRole("main").getByRole("listitem").filter({ hasText: name });
 }
 
 async function noHorizontalScroll(page: Page): Promise<void> {

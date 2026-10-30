@@ -32,7 +32,8 @@ test.describe("browsing folders (read-only)", () => {
       page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Folders" }),
     ).toHaveAttribute("aria-current", "page");
 
-    const card = page.getByRole("listitem").filter({ hasText: "Board updates" });
+    // In the page, not the shell: the sidebar lists the same folders (#70).
+    const card = page.getByRole("main").getByRole("listitem").filter({ hasText: "Board updates" });
     await expect(card).toContainText("1 note");
     await card.getByRole("link", { name: "Board updates", exact: true }).click();
 
@@ -42,7 +43,9 @@ test.describe("browsing folders (read-only)", () => {
     const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
     await expect(crumbs.getByRole("link", { name: "Folders" })).toHaveAttribute("href", "/folders");
     await expect(crumbs.getByText("Board updates")).toHaveAttribute("aria-current", "page");
-    await expect(page.getByText("1 note", { exact: false }).first()).toBeVisible();
+    await expect(
+      page.getByRole("main").getByText("1 note", { exact: false }).first(),
+    ).toBeVisible();
     await noHorizontalScroll(page);
 
     await page.getByRole("link", { name: /^Open note/ }).click();
@@ -75,16 +78,18 @@ test.describe("browsing folders (read-only)", () => {
     ]);
     await signIn(page, owner.email);
     await page.goto("/folders");
-    await expect(page.getByRole("listitem").filter({ hasText: "Customers" })).toContainText(
-      "3 notes",
-    );
+    await expect(
+      page.getByRole("main").getByRole("listitem").filter({ hasText: "Customers" }),
+    ).toContainText("3 notes");
 
     await page.goto(`/folders/${folderId}`);
     const titles = await page.locator(".rows .row-title").allTextContents();
     expect(titles.map((t) => t.trim())).toEqual(["Newest call", "Middle call", "Oldest call"]);
     await expect(page.getByText("Archived call")).toHaveCount(0);
     await expect(page.getByText("Secret deletion call")).toHaveCount(0);
-    await expect(page.getByText("3 notes", { exact: false }).first()).toBeVisible();
+    await expect(
+      page.getByRole("main").getByText("3 notes", { exact: false }).first(),
+    ).toBeVisible();
   });
 
   test("an empty folder says what to do next", async ({ page }) => {
@@ -112,7 +117,9 @@ test.describe("browsing folders (read-only)", () => {
     await signIn(page, owner.email);
     await page.goto(`/folders/${folderId}`);
     await expect(page.locator(".rows > li")).toHaveCount(25);
-    await expect(page.getByText("27 notes", { exact: false }).first()).toBeVisible();
+    await expect(
+      page.getByRole("main").getByText("27 notes", { exact: false }).first(),
+    ).toBeVisible();
     const pager = page.getByRole("navigation", { name: "Pages of notes" });
     await expect(pager).toContainText("Page 1 of 2");
     await expect(pager.getByRole("link", { name: /Previous/ })).toHaveCount(0);

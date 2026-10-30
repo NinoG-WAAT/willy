@@ -122,7 +122,7 @@ test.describe("meetings home", () => {
     const search = page.getByRole("search");
     await expect(search.getByLabel("Search your notes")).toBeVisible();
     await expect(search.getByRole("button", { name: "Search" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "New note" })).toHaveAttribute(
+    await expect(page.getByRole("main").getByRole("link", { name: "New note" })).toHaveAttribute(
       "href",
       "/meetings/new",
     );
@@ -159,7 +159,7 @@ test.describe("calendar import", () => {
     await expect(page.getByRole("alert")).toContainText("create a note manually");
     await expect(card(page, DEMO)).toHaveCount(0);
     await expect(card(page, "Ben's confidential roadmap review")).toBeVisible();
-    await expect(page.getByRole("link", { name: "New note" })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("link", { name: "New note" })).toBeVisible();
   });
 });
 
@@ -169,7 +169,7 @@ test.describe("new note", () => {
   }, info) => {
     const title = unique("Board prep", info);
     await signIn(page, "ada@example.test");
-    await page.getByRole("link", { name: "New note" }).click();
+    await page.getByRole("main").getByRole("link", { name: "New note" }).click();
     await expect(page).toHaveTitle("New note - Willycrumbs");
     await noHorizontalScroll(page);
 

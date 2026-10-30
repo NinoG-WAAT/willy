@@ -28,10 +28,14 @@ function toFolder(row: Record<string, unknown>): FolderWithCount {
 export class SqliteFolderRepository implements FolderRepository {
   constructor(private readonly db: DatabaseSync) {}
 
-  list(ownerId: string): Promise<FolderWithCount[]> {
+  list(ownerId: string, limit?: number): Promise<FolderWithCount[]> {
+    // -1 is SQLite's "no limit"; the bound value is always an integer, never built into the SQL.
+    const cap = limit === undefined ? -1 : Math.max(0, Math.floor(limit));
     const rows = this.db
-      .prepare(`${SELECT_WITH_COUNT} WHERE f.owner_id = ? ORDER BY f.name COLLATE NOCASE, f.id`)
-      .all(ownerId);
+      .prepare(
+        `${SELECT_WITH_COUNT} WHERE f.owner_id = ? ORDER BY f.name COLLATE NOCASE, f.id LIMIT ?`,
+      )
+      .all(ownerId, cap);
     return Promise.resolve(rows.map(toFolder));
   }
 

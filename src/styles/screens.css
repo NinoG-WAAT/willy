@@ -63,7 +63,12 @@
   }
 }
 
-@media (min-width: 56rem) {
+/*
+ * Two columns need about 56rem of content. The page has that from a 56rem screen while the shell
+ * is a top bar and a tab bar (up to 60rem), and again from 75rem once the 15rem sidebar has taken
+ * its share; in between the columns stack.
+ */
+@media (min-width: 56rem) and (max-width: 59.9375rem), (min-width: 75rem) {
   .two-col {
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   }
@@ -192,7 +197,8 @@
   min-height: var(--hit);
 }
 
-@media (min-width: 56rem) {
+/* The same range as .two-col above: the transcript is beside the summary exactly then. */
+@media (min-width: 56rem) and (max-width: 59.9375rem), (min-width: 75rem) {
   .jump-link {
     display: none;
   }

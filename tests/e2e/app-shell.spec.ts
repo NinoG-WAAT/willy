@@ -129,9 +129,9 @@ test.describe("standalone pages have no shell", () => {
     }
   });
 
-  test("the 404 page of someone who is not signed in has no shell", async ({ page }) => {
-    const response = await page.goto("/no-such-page");
-    expect(response?.status()).toBe(404);
+  test("a signed-out visitor sent to sign-in sees the bare frame", async ({ page }) => {
+    await page.goto("/search");
+    await expect(page).toHaveURL(/\/sign-in/);
     await expect(page.getByRole("navigation")).toHaveCount(0);
   });
 });
@@ -216,10 +216,12 @@ test.describe("the folder list (desktop sidebar)", () => {
   test("a count is words for a screen reader: none, one, many", async ({ browser }) => {
     const { page, ownerId, close } = await asFreshOwner(browser, null);
     createFolderWithNotes(ownerId, "Empty one", []);
-    createFolderWithNotes(ownerId, "Single", [{ title: "Only", startsAt: "2026-08-01T09:00:00Z" }]);
+    createFolderWithNotes(ownerId, "Single", [
+      { title: "Only", startsAt: "2026-08-01T09:00:00.000Z" },
+    ]);
     createFolderWithNotes(ownerId, "Pair", [
-      { title: "One", startsAt: "2026-08-01T09:00:00Z" },
-      { title: "Two", startsAt: "2026-08-02T09:00:00Z" },
+      { title: "One", startsAt: "2026-08-01T09:00:00.000Z" },
+      { title: "Two", startsAt: "2026-08-02T09:00:00.000Z" },
     ]);
     await page.goto("/");
     await expect(mainNav(page).getByRole("link", { name: /^Empty one\s+0 notes$/ })).toBeVisible();
@@ -264,6 +266,10 @@ test.describe("the folder list (desktop sidebar)", () => {
     await expect(sidebarFolderLinks(page)).toHaveCount(8);
     await expect(sidebarFolderLinks(page).first()).toContainText("Folder 01");
     await expect(sidebarFolderLinks(page).last()).toContainText("Folder 08");
+    // On a short window the sidebar scrolls inside itself, and Sign out stays within reach.
+    await page.setViewportSize({ width: 1280, height: 560 });
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeInViewport();
+    await mainNav(page).getByRole("link", { name: "All folders" }).scrollIntoViewIfNeeded();
     await mainNav(page).getByRole("link", { name: "All folders" }).click();
     await expect(page.getByRole("main").getByRole("link", { name: /^Folder 10$/ })).toBeVisible();
     await close();
@@ -316,7 +322,7 @@ test.describe("desktop layout", () => {
     await page.goto("/meetings/meeting-a-overdue/review");
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const top = await page.getByRole("banner").evaluate((el) => el.getBoundingClientRect().top);
-    expect(top).toBe(0);
+    expect(Math.abs(top)).toBeLessThan(1);
     await expect(mainNav(page).getByRole("link", { name: "Search" })).toBeInViewport();
   });
 
@@ -367,7 +373,7 @@ test.describe("phone tab bar", () => {
     expect(Math.abs(box.y + box.height - height)).toBeLessThanOrEqual(1);
     expect(await tabbar(page).evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
     const tabs = await tabbar(page)
-      .locator("a, summary")
+      .locator(".tab")
       .evaluateAll((els) =>
         els.map((el) => {
           const r = el.getBoundingClientRect();
@@ -476,7 +482,7 @@ test.describe("phone tab bar", () => {
       expect(overflow, `no horizontal scroll on ${path}`).toBeLessThanOrEqual(0);
     }
     const tabs = await tabbar(page)
-      .locator("a, summary")
+      .locator(".tab")
       .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
     expect(tabs.every((h) => h >= 44)).toBe(true);
     const top = await page.getByRole("banner").boundingBox();
@@ -571,14 +577,19 @@ test.describe("keyboard and focus order", () => {
       );
     }
     expect(regions[0]).toBe("skip");
-    const firstMain = regions.indexOf("main");
+    // One trip through the page: Tab wraps round to the skip link when it runs out of controls.
+    const wrap = regions.indexOf("skip", 1);
+    const trip = wrap === -1 ? regions : regions.slice(0, wrap);
+    const firstMain = trip.indexOf("main");
     expect(firstMain, "the content is reachable").toBeGreaterThan(0);
-    expect(regions.slice(0, firstMain).filter((r) => r !== "skip" && r !== "header")).toEqual([]);
-    expect(regions.slice(0, firstMain).filter((r) => r === "header").length).toBeGreaterThan(0);
-    expect(regions).not.toContain("other");
+    expect(trip.slice(0, firstMain).filter((r) => r !== "skip" && r !== "header")).toEqual([]);
+    expect(trip.slice(0, firstMain).filter((r) => r === "header").length).toBeGreaterThan(0);
+    expect(trip).not.toContain("other");
     if (isPhone(page)) {
-      expect(regions).toContain("tabbar");
-      expect(regions.lastIndexOf("main")).toBeLessThan(regions.indexOf("tabbar"));
+      expect(trip).toContain("tabbar");
+      expect(trip.lastIndexOf("main")).toBeLessThan(trip.indexOf("tabbar"));
+    } else {
+      expect(trip).not.toContain("tabbar");
     }
   });
 

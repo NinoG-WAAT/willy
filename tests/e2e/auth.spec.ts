@@ -54,6 +54,8 @@ test("signing in shows the owner, survives a refresh, and signing out ends the s
   await page.reload();
   await expect(page.getByText("Signed in as Ada Founder")).toBeVisible();
 
+  // On a phone Sign out lives in the tab bar's More menu (#70); on desktop it is in the sidebar.
+  if ((page.viewportSize()?.width ?? 1280) < 600) await page.locator(".tabbar summary").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/signed-out$/);
   await expect(page.getByRole("heading", { level: 1, name: "You are signed out" })).toBeVisible();

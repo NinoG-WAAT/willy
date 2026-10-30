@@ -16,7 +16,8 @@ export interface FolderWithCount extends Folder {
 
 /** Every method is scoped by `ownerId`; another owner's folder behaves exactly like a missing one. */
 export interface FolderRepository {
-  list(ownerId: string): Promise<FolderWithCount[]>;
+  /** By name; `limit` keeps a caller that shows only a few (the sidebar) from counting them all. */
+  list(ownerId: string, limit?: number): Promise<FolderWithCount[]>;
   find(ownerId: string, id: string): Promise<FolderWithCount | null>;
   create(ownerId: string, folder: Folder): Promise<Result<void, "name_taken">>;
   rename(
