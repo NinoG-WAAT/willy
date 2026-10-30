@@ -28,7 +28,7 @@
 .seg {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--spacing-4);
+  gap: 0;
   margin: 0;
   padding: var(--spacing-4);
   border: 1px solid var(--line-strong);
@@ -40,7 +40,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--hit);
-  padding: var(--spacing-4) var(--spacing-16);
+  padding: var(--spacing-4) var(--spacing-12);
   border: 1px solid transparent;
   border-radius: var(--radius-pills);
   color: var(--text);
