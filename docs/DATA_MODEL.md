@@ -62,7 +62,7 @@ Other meeting constraints: `UNIQUE (owner_id, id)`; partial `UNIQUE (owner_id, c
 | Table | Purpose | PK | Key attributes / constraints |
 |---|---|---|---|
 | `job` | Background job state. | `id` | `kind` (`transcribe`, `summarize`, `delete`, `retention`, `calendar_sync`), `job_key` **UNIQUE** (for example `transcribe:<meetingId>`; stop-capture twice enqueues exactly one), `status` (`pending`, `running`, `succeeded`, `retrying`, `failed`), `attempts <= max_attempts`, `next_run_at`, `last_error_code` (a code, never content), `payload_json` (ids only). Index `(status, next_run_at)` for runners and `(owner_id, meeting_id)` for status polling. |
-| `audit_event` | Append-only history: consent confirmation, every state transition, deletion record. | `id` | `kind`, `actor` (`owner`, `system`), `detail_json` (ids and states only), `occurred_at`. **Triggers abort UPDATE and DELETE.** `meeting_id` has no FK so a content-free record survives forever; it holds no title or text. Index `(owner_id, meeting_id, occurred_at)`. |
+| `audit_event` | Append-only history: consent confirmation, every state transition, deletion record, and a Published note moved to another folder (`kind = 'note.moved'`, `actor = 'owner'`, `detail_json = {"fromFolderId", "toFolderId"}`; #76). | `id` | `kind`, `actor` (`owner`, `system`), `detail_json` (ids and states only), `occurred_at`. **Triggers abort UPDATE and DELETE.** `meeting_id` has no FK so a content-free record survives forever; it holds no title or text. Index `(owner_id, meeting_id, occurred_at)`. |
 | `provider_event` | Inbound webhook dedupe. | `id` | `UNIQUE (provider, event_id)`; `owner_id` nullable until resolved from the stored connection. |
 | `idempotency_key` | Submission dedupe (create meeting, publish, delete, import). | `(owner_id, scope, key)` | `resource_id` the first outcome points at, `created_at`, `expires_at`. |
 | `provider_token` | Encrypted OAuth tokens. | `id` | `UNIQUE (owner_id, provider)`, `access_ciphertext`, `refresh_ciphertext`, `key_id`, `expires_at`. |
@@ -124,6 +124,7 @@ Who triggers: only the Owner via a POST, or the system via a job. Terminal: `del
 | Transcribe one chunk | segments insert (unique per chunk and index) + chunk `state = 'transcribed'`; the raw object is purged afterwards and `purged_at` set |
 | Save summary draft | `note`, sections, decisions, action items, FTS rows, `meeting.status -> review`, `audit_event` |
 | Publish | `note.status/published_at/folder_id` + `meeting.status -> published` + `audit_event` |
+| Move a Published note (#76) | `note.folder_id` + `note.updated_at` (guarded by `status = 'published'` and the old folder) + `audit_event` `note.moved`; no meeting status change, no revision change, no migration |
 | Speaker relabel | all affected `transcript_segment` rows |
 | Request deletion | status -> `deleting` + FTS purge (trigger) + `job` + `audit_event` |
 | Finish deletion | cascade deletes + tombstone scrub + `deleted` status + `audit_event` |
