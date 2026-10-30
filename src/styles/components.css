@@ -362,6 +362,86 @@ fieldset {
   color: var(--text-danger);
 }
 
+/* Folder chips: each is a link to the folder, with its note count in words for a screen reader. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.folder-nav {
+  margin: var(--spacing-16) 0;
+}
+
+.page-head + .row-meta {
+  margin-bottom: var(--spacing-16);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  min-height: var(--hit);
+  padding: var(--spacing-4) var(--spacing-16);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pills);
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  text-decoration: none;
+}
+
+.chip:hover {
+  border-color: var(--text-muted);
+  background: var(--fill-soft);
+  color: var(--text-strong);
+}
+
+.chip-count {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+/* Breadcrumb: a trail of links, the current page last and not a link. */
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumb li + li::before {
+  content: "/" / "";
+  padding-inline: var(--spacing-8);
+  color: var(--text-muted);
+}
+
+.breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+}
+
+.breadcrumb [aria-current="page"] {
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+/* Previous / next page of a long list. */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-8) var(--spacing-16);
+  max-width: var(--measure-list);
+  margin: var(--spacing-16) 0;
+}
+
 /* Alerts and notices: a left bar, a shape marker and the words carry the state, not the colour. */
 .alert,
 .notice {

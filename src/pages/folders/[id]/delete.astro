@@ -1,9 +1,9 @@
 ---
-import Base from "../../../../layouts/Base.astro";
-import { requireOwner } from "../../../../app/identity/require-owner";
-import { deleteFolder, findFolderForDelete } from "../../../../app/notes/folders";
-import { readFormFields } from "../../../../app/platform/form";
-import { getNotesDeps } from "../../../../composition";
+import Base from "../../../layouts/Base.astro";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { deleteFolder, findFolderForDelete } from "../../../app/notes/folders";
+import { readFormFields } from "../../../app/platform/form";
+import { getNotesDeps } from "../../../composition";
 
 export const prerender = false;
 
@@ -22,7 +22,7 @@ if (Astro.request.method === "POST") {
     return new Response("Bad request", { status: 400 });
   }
   const result = await deleteFolder(deps, owner.id, id);
-  if (result.ok) return Astro.redirect("/settings/folders?notice=folder_deleted", 303);
+  if (result.ok) return Astro.redirect("/folders?notice=folder_deleted", 303);
   if (result.error.kind === "not_found") return Astro.rewrite("/404");
   blockedMessage = result.error.kind === "blocked" ? result.error.message : null;
   Astro.response.status = 409;
@@ -53,17 +53,17 @@ const blocked = blockedMessage ?? (folder.noteCount > 0 ? "blocked" : null);
 
   {blocked !== null ? (
     <p>
-      <a class="button button-quiet" href="/settings/folders">
+      <a class="button button-quiet" href="/folders">
         Back to folders
       </a>
     </p>
   ) : (
-    <form class="row-actions" method="post" action={`/settings/folders/${folder.id}/delete`}>
+    <form class="row-actions" method="post" action={`/folders/${folder.id}/delete`}>
       <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
       <button class="button button-danger" type="submit">
         Delete folder
       </button>
-      <a href="/settings/folders">Cancel</a>
+      <a href="/folders">Cancel</a>
     </form>
   )}
 </Base>

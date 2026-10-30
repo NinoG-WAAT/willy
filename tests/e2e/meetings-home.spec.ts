@@ -103,7 +103,7 @@ test.describe("meetings home", () => {
     await expect(card(page, "Intro call (not started)")).toHaveCount(0);
 
     const folder = unique("Empty folder", info);
-    await page.goto("/settings/folders");
+    await page.goto("/folders");
     await page.getByLabel("Folder name", { exact: true }).fill(folder);
     await page.getByRole("button", { name: "Create folder" }).click();
     await page.goto("/");

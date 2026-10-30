@@ -8,8 +8,10 @@ export interface Folder {
 }
 
 export interface FolderWithCount extends Folder {
-  /** Notes (drafts and published) currently filed in this folder. */
+  /** Every note (draft or published, even of a hidden meeting) filed here: the delete guard. */
   noteCount: number;
+  /** Published notes the owner can open in the folder view: what a card's count must show. */
+  publishedCount: number;
 }
 
 /** Every method is scoped by `ownerId`; another owner's folder behaves exactly like a missing one. */

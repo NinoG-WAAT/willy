@@ -20,6 +20,7 @@ import type {
   MeetingListItem,
   MeetingListQuery,
 } from "../../ports/meeting-list";
+import { MEETING_CARD_COLUMNS, toMeetingListItem } from "./meeting-list-row";
 import { reindexMeetingRow } from "./search-rows";
 import { inTransaction, settle } from "./transaction";
 
@@ -28,23 +29,6 @@ const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const CREATE_SCOPE = "create_meeting";
 
 const text = (value: unknown): string | null => (typeof value === "string" ? value : null);
-
-function toItem(r: Record<string, unknown>): MeetingListItem {
-  const noteStatus = text(r["note_status"]);
-  return {
-    id: String(r["id"]),
-    title: String(r["title"]),
-    status: String(r["status"]) as MeetingStatus,
-    scheduledStartAt: String(r["scheduled_start_at"]),
-    scheduledEndAt: text(r["scheduled_end_at"]),
-    timezone: String(r["timezone"]),
-    calendarProvider: text(r["calendar_provider"]),
-    consentConfirmedAt: text(r["consent_confirmed_at"]),
-    attendeeCount: Number(r["attendee_count"]),
-    folderName: text(r["folder_name"]),
-    noteStatus: noteStatus === "draft" || noteStatus === "published" ? noteStatus : null,
-  };
-}
 
 /**
  * Meetings as seen by the home screen and the creation paths (manual form, calendar import).
@@ -74,10 +58,7 @@ export class SqliteMeetingCatalog
     }
     const rows = this.db
       .prepare(
-        `SELECT m.id, m.title, m.status, m.scheduled_start_at, m.scheduled_end_at, m.timezone,
-                m.calendar_provider, m.consent_confirmed_at,
-                (SELECT COUNT(*) FROM attendee a WHERE a.owner_id = m.owner_id AND a.meeting_id = m.id) AS attendee_count,
-                f.name AS folder_name, n.status AS note_status
+        `SELECT ${MEETING_CARD_COLUMNS}
            FROM meeting m
            LEFT JOIN note n ON n.owner_id = m.owner_id AND n.meeting_id = m.id
            LEFT JOIN folder f ON f.owner_id = n.owner_id AND f.id = n.folder_id
@@ -86,7 +67,7 @@ export class SqliteMeetingCatalog
           LIMIT ${String(LIST_LIMIT)}`,
       )
       .all(...params);
-    return Promise.resolve(rows.map(toItem));
+    return Promise.resolve(rows.map(toMeetingListItem));
   }
 
   create(

@@ -16,7 +16,7 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | Database schema, migrations, seeds, envelope encryption | done |
 | Calendar import adapter (fake + Google, webhooks, OAuth, encrypted tokens) | done (domain and adapters; screens come later) |
 | Sign-in and sessions, meeting lifecycle, STT/LLM/storage adapters, jobs, deletion job | in progress |
-| Folders and templates (settings pages: create, edit, default, delete) | done |
+| Folders (`/folders`: create, rename, delete, and browse a folder's published notes at `/folders/:id`) and templates (settings pages: create, edit, default, delete) | done |
 | Screen 1: meetings home, new note, calendar import (demo calendar; Google connect flow pending) | done |
 | ICS calendar file import (Outlook / Teams export; no Entra, Google or API keys needed) | done |
 | Screen 2: live note (consent, capture, rough notes, recording state, failure recovery) | done |

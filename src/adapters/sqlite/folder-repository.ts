@@ -3,9 +3,15 @@ import { err, ok, type Result } from "../../domain/platform/result";
 import type { Folder, FolderRepository, FolderWithCount } from "../../ports/folder-repository";
 import { isUniqueViolation } from "./transaction";
 
+// published_count is what the owner can open: the same rule as SqliteFolderNotes. note_count is
+// every note filed here, including ones whose meeting is hidden, because the delete guard must
+// see them (the foreign key would refuse the delete anyway).
 const SELECT_WITH_COUNT = `
   SELECT f.id, f.name, f.created_at, f.updated_at,
-         (SELECT COUNT(*) FROM note n WHERE n.owner_id = f.owner_id AND n.folder_id = f.id) AS note_count
+         (SELECT COUNT(*) FROM note n WHERE n.owner_id = f.owner_id AND n.folder_id = f.id) AS note_count,
+         (SELECT COUNT(*) FROM note n JOIN meeting m ON m.owner_id = n.owner_id AND m.id = n.meeting_id
+           WHERE n.owner_id = f.owner_id AND n.folder_id = f.id AND n.status = 'published'
+             AND m.status NOT IN ('archived', 'deleting', 'deleted')) AS published_count
     FROM folder f`;
 
 function toFolder(row: Record<string, unknown>): FolderWithCount {
@@ -15,6 +21,7 @@ function toFolder(row: Record<string, unknown>): FolderWithCount {
     createdAt: String(row["created_at"]),
     updatedAt: String(row["updated_at"]),
     noteCount: Number(row["note_count"]),
+    publishedCount: Number(row["published_count"]),
   };
 }
 

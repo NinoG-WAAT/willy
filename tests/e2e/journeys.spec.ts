@@ -179,7 +179,7 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
     const token = await signIn(page, owner);
 
     // A private folder to publish into.
-    await page.goto("/settings/folders");
+    await page.goto("/folders");
     await page.getByLabel("Folder name", { exact: true }).fill("Board updates");
     await page.getByRole("button", { name: "Create folder" }).click();
     await expect(page.getByRole("status")).toHaveText("Folder created.");

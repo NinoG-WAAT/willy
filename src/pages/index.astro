@@ -63,6 +63,25 @@ const nothingToShow = home.total === 0;
     </p>
   )}
 
+  {home.folders.length > 0 && (
+    <nav class="folder-nav" aria-label="Folders">
+      <p class="row-meta">Open a folder</p>
+      <ul class="chips">
+        {home.folders.map((f) => (
+          <li>
+            <a class="chip" href={`/folders/${f.id}`}>
+              {f.name}
+              <span class="chip-count">
+                {f.publishedCount}
+                <span class="sr-only"> {f.publishedCount === 1 ? "note" : "notes"}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )}
+
   <div class="toolbar">
     <form class="inline-form" role="search" method="get" action="/search">
       <div class="field">

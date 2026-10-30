@@ -85,7 +85,7 @@ test.describe("overview and retention", () => {
     );
     await expect(page.getByRole("link", { name: "Manage folders" })).toHaveAttribute(
       "href",
-      "/settings/folders",
+      "/folders",
     );
     const exportSection = page.getByRole("region", { name: "Export" });
     await expect(exportSection).toContainText("Markdown");

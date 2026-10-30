@@ -26,6 +26,7 @@ import { SqliteNoteReader } from "./adapters/sqlite/note-reader";
 import { SqliteSearchIndex } from "./adapters/sqlite/search-index";
 import { SqliteNoteRepository } from "./adapters/sqlite/note-repository";
 import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
+import { SqliteFolderNotes } from "./adapters/sqlite/folder-notes";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
 import { SqliteSettingsRepository } from "./adapters/sqlite/settings-repository";
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
@@ -66,6 +67,7 @@ import { err } from "./domain/platform/result";
 import type { CalendarImportRepository } from "./ports/calendar-import-repository";
 import type { CalendarSource } from "./ports/calendar-source";
 import type { NotesDeps } from "./app/notes/deps";
+import type { FolderViewDeps } from "./app/notes/folder-view";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
 import type { JobRepository } from "./ports/job-repository";
 import type { Logger } from "./ports/logger";
@@ -126,6 +128,10 @@ export function getNotesDeps(): NotesDeps {
     };
   }
   return notes;
+}
+
+export function getFolderViewDeps(): FolderViewDeps {
+  return { folders: getNotesDeps().folders, notes: new SqliteFolderNotes(getDatabase()) };
 }
 
 /** Defaults are production-safe; SIGN_IN_CLIENT_LIMIT exists so end-to-end runs from one address work. */

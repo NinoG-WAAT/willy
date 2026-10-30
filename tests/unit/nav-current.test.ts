@@ -10,7 +10,9 @@ describe("currentNavHref", () => {
 
   it("marks the section a nested page belongs to, preferring the longest match", () => {
     expect(currentNavHref("/settings/templates/new")).toBe("/settings/templates");
-    expect(currentNavHref("/settings/folders/folder-1/delete")).toBe("/settings/folders");
+    expect(currentNavHref("/folders")).toBe("/folders");
+    expect(currentNavHref("/folders/folder-1")).toBe("/folders");
+    expect(currentNavHref("/folders/folder-1/delete")).toBe("/folders");
     expect(currentNavHref("/settings/deletions/x")).toBe("/settings");
   });
 
@@ -34,7 +36,7 @@ describe("currentNavHref", () => {
       "/",
       "/search",
       "/settings/templates",
-      "/settings/folders",
+      "/folders",
       "/settings",
     ]);
   });

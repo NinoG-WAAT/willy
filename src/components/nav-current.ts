@@ -2,7 +2,7 @@ export const NAV_LINKS: readonly { href: string; label: string }[] = [
   { href: "/", label: "Meetings" },
   { href: "/search", label: "Search" },
   { href: "/settings/templates", label: "Templates" },
-  { href: "/settings/folders", label: "Folders" },
+  { href: "/folders", label: "Folders" },
   { href: "/settings", label: "Settings" },
 ];
 

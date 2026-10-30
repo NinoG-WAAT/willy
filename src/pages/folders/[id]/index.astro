@@ -1,0 +1,89 @@
+---
+import Base from "../../../layouts/Base.astro";
+import MeetingCard from "../../../components/MeetingCard.astro";
+import { requireOwner } from "../../../app/identity/require-owner";
+import { loadFolderView } from "../../../app/notes/folder-view";
+import { getFolderViewDeps } from "../../../composition";
+
+export const prerender = false;
+
+// Owner route (middleware default-deny). Read-only: no form, no mutation. The owner id comes from
+// the session only; the folder id and page number from the URL are untrusted.
+const owner = requireOwner(Astro.locals);
+Astro.response.headers.set("Cache-Control", "no-store");
+
+const result = await loadFolderView(
+  getFolderViewDeps(),
+  owner.id,
+  Astro.params.id ?? "",
+  Astro.url.searchParams.get("page"),
+);
+// One 404 for an unknown folder and for another owner's folder.
+if (!result.ok) return Astro.rewrite("/404");
+
+const { folder, items, page } = result.value;
+const noteCount = `${String(folder.publishedCount)} ${folder.publishedCount === 1 ? "note" : "notes"}`;
+const pageHref = (n: number): string =>
+  n === 1 ? `/folders/${folder.id}` : `/folders/${folder.id}?page=${String(n)}`;
+---
+
+<Base title={folder.name}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <ol>
+      <li>
+        <a href="/folders">Folders</a>
+      </li>
+      <li>
+        <span aria-current="page">{folder.name}</span>
+      </li>
+    </ol>
+  </nav>
+
+  <div class="page-head">
+    <h1>{folder.name}</h1>
+  </div>
+  <p class="row-meta">{noteCount} · Private to you</p>
+
+  {items.length === 0 ? (
+    <section aria-labelledby="empty-heading" class="empty">
+      <h2 id="empty-heading">Nothing published here yet</h2>
+      <p>Publish a note to this folder from its review.</p>
+      <p>
+        <a class="button button-quiet" href="/">
+          Go to your meetings
+        </a>
+      </p>
+    </section>
+  ) : (
+    <section aria-labelledby="notes-heading">
+      <h2 id="notes-heading">Notes</h2>
+      <ul class="rows">
+        {items.map((item) => (
+          <MeetingCard item={item} />
+        ))}
+      </ul>
+    </section>
+  )}
+
+  {page.pageCount > 1 && (
+    <nav class="pager" aria-label="Pages of notes">
+      {page.hasPrevious ? (
+        <a class="button button-quiet" href={pageHref(page.page - 1)} rel="prev">
+          Previous page
+        </a>
+      ) : (
+        <span></span>
+      )}
+      <span>
+        Page {page.page} of {page.pageCount}
+      </span>
+      {page.hasNext ? (
+        <a class="button button-quiet" href={pageHref(page.page + 1)} rel="next">
+          Next page
+        </a>
+      ) : (
+        <span></span>
+      )}
+    </nav>
+  )}
+</Base>
