@@ -87,13 +87,19 @@ export function createCapturingMeeting(
   return id;
 }
 
-/** Attaches one of the seeded templates to a meeting the test created (the template chip). */
-export function setMeetingTemplate(meetingId: string, templateId: string): void {
-  writable((db) => {
-    const result = db
-      .prepare("UPDATE meeting SET template_id = ? WHERE id = ?")
-      .run(templateId, meetingId);
-    if (result.changes !== 1) throw new Error("meeting to attach the template to was not found");
+/** Gives a meeting the test created a template of its owner's (the template chip). Returns its id. */
+export function attachNewTemplate(meetingId: string, name: string): string {
+  return writable((db) => {
+    const row = db.prepare("SELECT owner_id FROM meeting WHERE id = ?").get(meetingId);
+    if (!row) throw new Error("meeting to attach the template to was not found");
+    const id = `tpl-${Math.random().toString(36).slice(2, 10)}`;
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO template (id, owner_id, name, sections_json, created_at, updated_at)
+       VALUES (?, ?, ?, '[]', ?, ?)`,
+    ).run(id, String(row["owner_id"]), name, now, now);
+    db.prepare("UPDATE meeting SET template_id = ? WHERE id = ?").run(id, meetingId);
+    return id;
   });
 }
 

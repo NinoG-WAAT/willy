@@ -4,9 +4,10 @@ import {
   advanceProcessing,
   createCapturingMeeting,
   createReviewMeeting,
-  setMeetingTemplate,
+  attachNewTemplate,
 } from "../support/e2e-db";
 import { installFakeMicrophone } from "../support/fake-microphone";
+import { createFreshOwner } from "../support/journey-db";
 
 /**
  * Issue #73: one meeting header, shared by the live note and the review, with the status stepper
@@ -46,6 +47,22 @@ async function audit(page: Page): Promise<void> {
   ).toEqual([]);
 }
 
+/**
+ * Meetings a test creates belong to a fresh owner, so they never crowd the Inbox, the search results
+ * or the sidebar of the seeded owner that other specs read. Seeded rows are read as owner A.
+ */
+async function signInFresh(page: Page): Promise<string> {
+  const owner = createFreshOwner();
+  await signIn(page, owner.email);
+  return owner.id;
+}
+
+async function signInFor(page: Page, c: StageCase): Promise<string> {
+  if (c.seeded !== true) return signInFresh(page);
+  await signIn(page);
+  return "owner-ada";
+}
+
 const header = (page: Page) => page.locator("header.meeting-header");
 const stepper = (page: Page) => header(page).getByRole("list", { name: "Note stage" });
 const pill = (page: Page) => header(page).locator("[data-stage-label]");
@@ -77,8 +94,10 @@ const isPhone = (page: Page): boolean => (page.viewportSize()?.width ?? 1280) < 
 
 interface StageCase {
   name: string;
-  /** Creates (or names) the meeting and returns the path to open. */
-  open: () => string;
+  /** Creates (or names) the meeting for this owner and returns the path to open. */
+  open: (owner: string) => string;
+  /** Reads a seeded row of owner A instead of creating a meeting of its own. */
+  seeded?: boolean;
   /** The five steps' labels never change; these are what differs per stage. */
   current: string;
   pill: string;
@@ -98,7 +117,7 @@ const review = (id: string) => `/meetings/${id}/review`;
 const LIVE_CASES: StageCase[] = [
   {
     name: "scheduled",
-    open: () => live(createCapturingMeeting("owner-ada", "scheduled", "Header scheduled")),
+    open: (owner) => live(createCapturingMeeting(owner, "scheduled", "Header scheduled")),
     current: "Scheduled",
     pill: "Scheduled",
     summary: "Step 1 of 5: Scheduled",
@@ -107,7 +126,7 @@ const LIVE_CASES: StageCase[] = [
   },
   {
     name: "capturing",
-    open: () => live(createCapturingMeeting("owner-ada", "capturing", "Header capturing")),
+    open: (owner) => live(createCapturingMeeting(owner, "capturing", "Header capturing")),
     current: "Capturing",
     pill: "Recording",
     summary: "Step 2 of 5: Capturing",
@@ -115,7 +134,7 @@ const LIVE_CASES: StageCase[] = [
   },
   {
     name: "paused",
-    open: () => live(createCapturingMeeting("owner-ada", "paused", "Header paused")),
+    open: (owner) => live(createCapturingMeeting(owner, "paused", "Header paused")),
     current: "Capturing",
     pill: "Recording paused",
     summary: "Step 2 of 5: Capturing, paused",
@@ -123,7 +142,7 @@ const LIVE_CASES: StageCase[] = [
   },
   {
     name: "processing",
-    open: () => live(createCapturingMeeting("owner-ada", "processing", "Header processing")),
+    open: (owner) => live(createCapturingMeeting(owner, "processing", "Header processing")),
     current: "Processing",
     pill: "Processing",
     summary: "Step 3 of 5: Processing",
@@ -131,7 +150,7 @@ const LIVE_CASES: StageCase[] = [
   },
   {
     name: "failed",
-    open: () => live(createCapturingMeeting("owner-ada", "failed", "Header failed")),
+    open: (owner) => live(createCapturingMeeting(owner, "failed", "Header failed")),
     current: "Processing",
     pill: "Needs attention",
     summary: "Step 3 of 5: Processing, needs attention",
@@ -154,6 +173,7 @@ const LIVE_CASES: StageCase[] = [
   {
     name: "published",
     open: () => live(PUBLISHED),
+    seeded: true,
     current: "Published",
     pill: "Published",
     summary: "Step 5 of 5: Published",
@@ -165,7 +185,7 @@ const LIVE_CASES: StageCase[] = [
 const REVIEW_CASES: StageCase[] = [
   {
     name: "processing",
-    open: () => review(createCapturingMeeting("owner-ada", "processing", "Header review wait")),
+    open: (owner) => review(createCapturingMeeting(owner, "processing", "Header review wait")),
     current: "Processing",
     pill: "Processing",
     summary: "Step 3 of 5: Processing",
@@ -173,7 +193,7 @@ const REVIEW_CASES: StageCase[] = [
   },
   {
     name: "failed",
-    open: () => review(createCapturingMeeting("owner-ada", "failed", "Header review failed")),
+    open: (owner) => review(createCapturingMeeting(owner, "failed", "Header review failed")),
     current: "Processing",
     pill: "Needs attention",
     summary: "Step 3 of 5: Processing, needs attention",
@@ -191,6 +211,7 @@ const REVIEW_CASES: StageCase[] = [
   {
     name: "overdue draft",
     open: () => review(OVERDUE_DRAFT),
+    seeded: true,
     current: "Draft",
     pill: "Draft",
     summary: "Step 4 of 5: Draft",
@@ -200,6 +221,7 @@ const REVIEW_CASES: StageCase[] = [
   {
     name: "published",
     open: () => review(PUBLISHED),
+    seeded: true,
     current: "Published",
     pill: "Published",
     summary: "Step 5 of 5: Published",
@@ -209,9 +231,9 @@ const REVIEW_CASES: StageCase[] = [
 ];
 
 /** Draft cases need a meeting in review, which is created per test. */
-async function pathFor(c: StageCase, page: "live" | "review"): Promise<string> {
-  if (c.name !== "draft") return c.open();
-  const id = await createReviewMeeting("owner-ada");
+async function pathFor(c: StageCase, page: "live" | "review", owner: string): Promise<string> {
+  if (c.name !== "draft") return c.open(owner);
+  const id = await createReviewMeeting(owner);
   return page === "live" ? live(id) : review(id);
 }
 
@@ -237,8 +259,8 @@ async function expectStage(page: Page, c: StageCase): Promise<void> {
 for (const c of LIVE_CASES) {
   test(`live note, ${c.name}: header, stepper, one lime action`, async ({ page }) => {
     await installFakeMicrophone(page);
-    await signIn(page);
-    const path = await pathFor(c, "live");
+    const owner = await signInFor(page, c);
+    const path = await pathFor(c, "live", owner);
     await page.goto(path);
     await expectStage(page, c);
     expect(await limeActions(page)).toEqual(c.lime === null ? [] : [c.lime]);
@@ -255,8 +277,8 @@ for (const c of LIVE_CASES) {
 
 for (const c of REVIEW_CASES) {
   test(`review, ${c.name}: header, stepper, one lime action`, async ({ page }) => {
-    await signIn(page);
-    const path = await pathFor(c, "review");
+    const owner = await signInFor(page, c);
+    const path = await pathFor(c, "review", owner);
     await page.goto(path);
     await expectStage(page, c);
     expect(await limeActions(page)).toEqual(c.lime === null ? [] : [c.lime]);
@@ -273,8 +295,8 @@ for (const c of REVIEW_CASES) {
 test("the same meeting says the same status words on the live note and on the review", async ({
   page,
 }) => {
-  await signIn(page);
-  const id = await createReviewMeeting("owner-ada");
+  const owner = await signInFresh(page);
+  const id = await createReviewMeeting(owner);
   await page.goto(live(id));
   const onLive = await pill(page).innerText();
   const stepOnLive = await summary(page).innerText();
@@ -312,8 +334,8 @@ test.describe("chips", () => {
   test("a draft has no folder chip yet, and no template chip when none is set", async ({
     page,
   }) => {
-    await signIn(page);
-    const id = await createReviewMeeting("owner-ada");
+    const owner = await signInFresh(page);
+    const id = await createReviewMeeting(owner);
     for (const path of [live(id), review(id)]) {
       await page.goto(path);
       await expect(header(page).getByRole("link", { name: /^Folder:/ })).toHaveCount(0);
@@ -322,9 +344,9 @@ test.describe("chips", () => {
   });
 
   test("a template shows before anything is published", async ({ page }) => {
-    await signIn(page);
-    const id = createCapturingMeeting("owner-ada", "scheduled", "Header template");
-    setMeetingTemplate(id, "template-a-weekly");
+    const owner = await signInFresh(page);
+    const id = createCapturingMeeting(owner, "scheduled", "Header template");
+    attachNewTemplate(id, "Weekly sync");
     await page.goto(live(id));
     await expect(header(page).getByRole("link", { name: "Template: Weekly sync" })).toBeVisible();
     await expect(header(page).getByRole("link", { name: /^Folder:/ })).toHaveCount(0);
@@ -365,8 +387,8 @@ test.describe("stepper accessibility", () => {
   });
 
   test("failed is spelled out on the Processing step, not shown by colour", async ({ page }) => {
-    await signIn(page);
-    const id = createCapturingMeeting("owner-ada", "failed", "Header attention");
+    const owner = await signInFresh(page);
+    const id = createCapturingMeeting(owner, "failed", "Header attention");
     await page.goto(review(id));
     const processing = stepper(page).getByRole("listitem").nth(2);
     await expect(processing).toHaveAttribute("aria-current", "step");
@@ -405,13 +427,13 @@ test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
   test("the header, the stepper and the actions are server-rendered", async ({ page }) => {
-    await signIn(page);
-    const scheduled = createCapturingMeeting("owner-ada", "scheduled", "Header no JS");
+    const owner = await signInFresh(page);
+    const scheduled = createCapturingMeeting(owner, "scheduled", "Header no JS");
     await page.goto(live(scheduled));
     await expect(stepper(page).locator('[aria-current="step"]')).toContainText("Scheduled");
     await expect(header(page).getByRole("link", { name: "Start capture" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Start capture" })).toBeVisible();
-    const id = await createReviewMeeting("owner-ada");
+    const id = await createReviewMeeting(owner);
     await page.goto(review(id));
     await expect(stepper(page).locator('[aria-current="step"]')).toContainText("Draft");
     await expect(header(page).getByRole("link", { name: "Publish to folder" })).toBeVisible();
@@ -426,21 +448,21 @@ test.describe("one primary action, and the buttons that stay where they were", (
   test("the start button and the publish button keep their own forms, just not lime", async ({
     page,
   }) => {
-    await signIn(page);
-    const scheduled = createCapturingMeeting("owner-ada", "scheduled", "Header start form");
+    const owner = await signInFresh(page);
+    const scheduled = createCapturingMeeting(owner, "scheduled", "Header start form");
     await page.goto(live(scheduled));
     const start = page.getByRole("button", { name: "Start capture" });
     await expect(start).toBeVisible();
     expect(await start.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(LIME);
-    const id = await createReviewMeeting("owner-ada");
+    const id = await createReviewMeeting(owner);
     await page.goto(review(id));
     const publish = page.getByRole("button", { name: "Publish to folder" });
     expect(await publish.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(LIME);
   });
 
   test("the header link to the consent statement reaches the checkbox", async ({ page }) => {
-    await signIn(page);
-    const scheduled = createCapturingMeeting("owner-ada", "scheduled", "Header consent link");
+    const owner = await signInFresh(page);
+    const scheduled = createCapturingMeeting(owner, "scheduled", "Header consent link");
     await page.goto(live(scheduled));
     await header(page).getByRole("link", { name: "Start capture" }).click();
     await expect(page).toHaveURL(/#consent$/);
@@ -450,8 +472,8 @@ test.describe("one primary action, and the buttons that stay where they were", (
 
 test.describe("the stepper follows the work", () => {
   test("moves from Processing to Draft in place when the draft is ready", async ({ page }) => {
-    await signIn(page);
-    const id = createCapturingMeeting("owner-ada", "processing", "Header follows");
+    const owner = await signInFresh(page);
+    const id = createCapturingMeeting(owner, "processing", "Header follows");
     advanceProcessing(id, { meeting: "processing", transcription: "running" });
     await page.goto(live(id));
     // Typing keeps the page where it is: the draft is not opened by itself.
@@ -471,8 +493,8 @@ test.describe("the stepper follows the work", () => {
   });
 
   test("shows Needs attention on the Processing step when processing fails", async ({ page }) => {
-    await signIn(page);
-    const id = createCapturingMeeting("owner-ada", "processing", "Header follows failure");
+    const owner = await signInFresh(page);
+    const id = createCapturingMeeting(owner, "processing", "Header follows failure");
     advanceProcessing(id, { meeting: "processing", transcription: "running" });
     await page.goto(live(id));
     await page.getByLabel("Your notes (saved as you type)").focus();
