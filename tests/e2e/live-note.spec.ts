@@ -80,6 +80,12 @@ test.describe("journey 1: consent, capture, rough notes, recording state until s
   test("capture stays disabled until consent is ticked; then a persistent recording state shows until stop, which queues exactly one job", async ({
     page,
   }, info) => {
+    // Issue #65: this test drives a real MediaRecorder and AudioContext twice, so at eight workers
+    // the default 5 s per expectation and 30 s per test were too tight on a loaded machine (the
+    // waits below are on state, never sleeps). The product race behind the first failures is
+    // fixed and has its own deterministic test further down.
+    test.slow();
+    const LOADED = { timeout: 15_000 };
     await signIn(page, "ada@example.test");
     const title = unique("Customer call", info);
     const id = await openNewNote(page, title);
@@ -99,13 +105,17 @@ test.describe("journey 1: consent, capture, rough notes, recording state until s
     await start.click();
 
     // Unmistakable, persistent recording state: text, a shape and a live timer.
-    await expect(banner(page)).toBeVisible();
+    await expect(banner(page)).toBeVisible(LOADED);
     await expect(page.locator("#rec-label")).toHaveText("Recording");
-    await expect(page.locator("#rec-detail")).toContainText("microphone is on in this browser");
-    await expect(page.locator("#level")).toBeVisible();
+    await expect(page.locator("#rec-detail")).toContainText(
+      "microphone is on in this browser",
+      LOADED,
+    );
+    await expect(page.locator("#level")).toBeVisible(LOADED);
     await expect.poll(async () => page.locator("#rec-timer").textContent()).not.toBe("00:00:00");
     await expect(page.locator("#upload-status")).toHaveText(
       /All recorded audio is uploaded|Uploading audio/,
+      LOADED,
     );
     await expect(page.locator("#upload-status")).toHaveText("All recorded audio is uploaded.", {
       timeout: 15_000,
@@ -116,13 +126,16 @@ test.describe("journey 1: consent, capture, rough notes, recording state until s
     // A reload does not lose the state: still recording, still visible.
     await page.reload();
     await expect(page.locator("#rec-label")).toHaveText("Recording");
-    await expect(page.locator("#rec-detail")).toContainText("microphone is on in this browser");
+    await expect(page.locator("#rec-detail")).toContainText(
+      "microphone is on in this browser",
+      LOADED,
+    );
 
     // Rough notes are editable and autosaved while recording.
     await page
       .getByLabel("Your notes (saved as you type)")
       .fill("Decision: ship the beta in November");
-    await expect(page.locator("#notes-status")).toContainText("Saved at");
+    await expect(page.locator("#notes-status")).toContainText("Saved at", LOADED);
 
     // The banner follows the owner while they scroll.
     expect(await banner(page).evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
@@ -131,7 +144,7 @@ test.describe("journey 1: consent, capture, rough notes, recording state until s
     await page.getByRole("button", { name: "Stop capture" }).click();
     await expect(
       page.getByText("Recording finished. Preparing the transcript.").first(),
-    ).toBeVisible();
+    ).toBeVisible(LOADED);
     await expect(banner(page)).toHaveCount(0);
     expect(meetingStatus(id)).toBe("processing");
     expect(countTranscribeJobs(id)).toBe(1);
