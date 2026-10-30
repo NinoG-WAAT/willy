@@ -21,11 +21,11 @@ function item(id: string, overrides: Partial<MeetingListItem> = {}): MeetingList
 
 describe("describeMeeting", () => {
   it.each([
-    ["scheduled", {}, "Not started", "Start note", "/meetings/m1"],
+    ["scheduled", {}, "Scheduled", "Start note", "/meetings/m1"],
     ["capturing", {}, "Recording", "Return to recording", "/meetings/m1"],
     ["paused", {}, "Recording paused", "Resume note", "/meetings/m1"],
-    ["processing", {}, "Transcribing", "View progress", "/meetings/m1/review"],
-    ["review", {}, "Draft ready for review", "Review note", "/meetings/m1/review"],
+    ["processing", {}, "Processing", "View progress", "/meetings/m1/review"],
+    ["review", {}, "Draft", "Review note", "/meetings/m1/review"],
     [
       "published",
       { folderName: "Board updates" },
@@ -34,7 +34,7 @@ describe("describeMeeting", () => {
       "/meetings/m1/review",
     ],
     ["published", {}, "Published", "Open note", "/meetings/m1/review"],
-    ["failed", {}, "Needs attention: processing failed", "Open and retry", "/meetings/m1/review"],
+    ["failed", {}, "Needs attention", "Open and retry", "/meetings/m1/review"],
     ["archived", {}, "Archived", "Open note", "/meetings/m1"],
   ] as const)("describes %s %j", (status, extra, label, action, href) => {
     expect(describeMeeting(item("m1", { status, ...extra }))).toMatchObject({

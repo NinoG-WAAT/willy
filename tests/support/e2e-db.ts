@@ -54,7 +54,7 @@ export function meetingStatus(meetingId: string): string {
  */
 export function createCapturingMeeting(
   ownerId: string,
-  status: "capturing" | "scheduled" | "failed" | "processing" = "capturing",
+  status: "capturing" | "scheduled" | "paused" | "failed" | "processing" = "capturing",
   title = "E2E meeting",
 ): string {
   const dir = process.env["E2E_DATA_DIR"];
@@ -85,6 +85,16 @@ export function createCapturingMeeting(
     db.close();
   }
   return id;
+}
+
+/** Attaches one of the seeded templates to a meeting the test created (the template chip). */
+export function setMeetingTemplate(meetingId: string, templateId: string): void {
+  writable((db) => {
+    const result = db
+      .prepare("UPDATE meeting SET template_id = ? WHERE id = ?")
+      .run(templateId, meetingId);
+    if (result.changes !== 1) throw new Error("meeting to attach the template to was not found");
+  });
 }
 
 /**
