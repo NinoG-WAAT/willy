@@ -127,9 +127,19 @@ function setup(root: HTMLElement): void {
         credentials: "same-origin",
       });
       const retryAfter = Number(response.headers.get("Retry-After"));
+      // 409 has two meanings (capture ended, or the sequence number holds other audio): the code
+      // in the body tells them apart.
+      let error: string | null = null;
+      if (response.status === 409) {
+        const body: unknown = await response.json().catch(() => null);
+        const code =
+          typeof body === "object" && body !== null ? (body as { error?: unknown }).error : null;
+        error = typeof code === "string" ? code : null;
+      }
       return {
         status: response.status,
         retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null,
+        error,
       };
     },
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -142,7 +152,10 @@ function setup(root: HTMLElement): void {
     maxAttempts: 6,
     onEvent: (event) => {
       renderUploadStatus();
-      if (event.kind === "stalled") {
+      if (event.kind === "renumbered") {
+        // Later segments must not reuse a number the queue has just moved past.
+        nextSeq = Math.max(nextSeq, event.to + 1);
+      } else if (event.kind === "stalled") {
         showProblem(
           "Audio is waiting to upload. Check your connection. Your notes are safe and nothing recorded so far has been lost.",
           { upload: true },

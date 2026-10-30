@@ -35,6 +35,10 @@ export function startSegmentedRecorder(
 ): SegmentedRecorder {
   const mimeType = pickMimeType();
   let current: MediaRecorder | null = null;
+  // True from start() until the recorder's stop event has delivered its segment. A recorder reads
+  // "inactive" as soon as stop() is called, but its last audio only arrives with the stop event a
+  // moment later, so `state` cannot tell whether the segment has been handed over yet.
+  let segmentOpen = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopping = false;
   let finished: (() => void) | undefined;
@@ -49,10 +53,12 @@ export function startSegmentedRecorder(
     recorder.onstop = () => {
       const blob = new Blob(parts, { type: recorder.mimeType || mimeType || "audio/webm" });
       if (blob.size > 0) onSegment(blob, Math.max(1, Math.round(performance.now() - startedAt)));
+      segmentOpen = false;
       if (stopping) finished?.();
       else begin();
     };
     recorder.start();
+    segmentOpen = true;
     current = recorder;
     timer = setTimeout(() => {
       if (recorder.state === "recording") recorder.stop();
@@ -66,9 +72,14 @@ export function startSegmentedRecorder(
       stopping = true;
       clearTimeout(timer);
       return new Promise((resolve) => {
+        if (!segmentOpen) {
+          resolve();
+          return;
+        }
+        // Either this stops the segment, or the segment timer already did and its stop event is
+        // on its way: in both cases resolve only once the audio has reached `onSegment`.
         finished = resolve;
-        if (current && current.state === "recording") current.stop();
-        else resolve();
+        if (current?.state === "recording") current.stop();
       });
     },
   };
