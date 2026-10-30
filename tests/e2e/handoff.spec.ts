@@ -100,7 +100,15 @@ test.describe("after Stop: live counts, in place", () => {
     await page.evaluate(() => {
       (window as unknown as { sameDocument: boolean }).sameDocument = true;
     });
-    setChunkStates(id, ["purged", "purged", "purged", "purged", "uploaded", "uploaded", "uploaded"]);
+    setChunkStates(id, [
+      "purged",
+      "purged",
+      "purged",
+      "purged",
+      "uploaded",
+      "uploaded",
+      "uploaded",
+    ]);
     await expect(region(page).locator('[data-field="transcribe"]')).toHaveText(
       "Transcribing: 4 of 7 parts",
       WAIT,
@@ -110,7 +118,11 @@ test.describe("after Stop: live counts, in place", () => {
     await expect(announce(page)).toHaveText("");
 
     setChunkStates(id, Array<"purged">(7).fill("purged"));
-    advanceProcessing(id, { meeting: "processing", transcription: "succeeded", summary: "running" });
+    advanceProcessing(id, {
+      meeting: "processing",
+      transcription: "succeeded",
+      summary: "running",
+    });
     await expect(region(page).locator('[data-field="transcribe"]')).toHaveText(
       "Transcribing: Done, 7 parts",
       WAIT,
@@ -142,7 +154,7 @@ test.describe("when the draft is ready", () => {
     await expect(announce(page)).toHaveText("Draft ready, opening it.", WAIT);
     await expect(announce(page)).toHaveAttribute("role", "status");
     await expect(page).toHaveURL(`/meetings/${id}/review`, WAIT);
-    await expect(page.locator("#note-status")).toHaveText("Draft: not published");
+    await expect(page.getByRole("heading", { level: 1, name: "Hand-off auto open" })).toBeVisible();
   });
 
   test("stays a single primary button while focus is in the rough notes, and never takes focus", async ({
@@ -231,14 +243,24 @@ test.describe("when processing fails", () => {
     const id = processingWithParts("Hand-off failure");
     await signIn(page);
     await page.goto(`/meetings/${id}`);
-    setChunkStates(id, ["purged", "purged", "purged", "failed", "uploaded", "uploaded", "uploaded"]);
+    setChunkStates(id, [
+      "purged",
+      "purged",
+      "purged",
+      "failed",
+      "uploaded",
+      "uploaded",
+      "uploaded",
+    ]);
     advanceProcessing(id, { meeting: "failed", transcription: "failed" });
 
     const retry = page.getByRole("link", { name: "See what happened and retry" });
     await expect(retry).toBeVisible(WAIT);
     await expect(retry).toHaveAttribute("href", `/meetings/${id}/review`);
     await expect(retry).toHaveClass(/button-primary/);
-    await expect(region(page)).toContainText("Processing did not finish. Your rough notes are kept.");
+    await expect(region(page)).toContainText(
+      "Processing did not finish. Your rough notes are kept.",
+    );
     await expect(region(page).locator('[data-field="transcribe"]')).toHaveText(
       "Transcribing: Failed after 5 attempts (stt_unavailable)",
     );

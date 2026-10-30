@@ -33,12 +33,23 @@ const MEETING_STATUSES: readonly string[] = [
   "deleted",
 ] satisfies MeetingStatus[];
 
+/** How many audio parts (chunks) are in each state. Counts only. */
+export interface ChunkCounts {
+  total: number;
+  uploaded: number;
+  transcribed: number;
+  failed: number;
+  purged: number;
+}
+
 export interface ProcessingPayload {
   meetingStatus: MeetingStatus;
   /** Transcription. */
   job: JobProgress | null;
   summary: JobProgress | null;
   regeneration: (JobProgress & { sectionId: string }) | null;
+  /** Null when the answer carried no counts. */
+  chunks: ChunkCounts | null;
 }
 
 export interface DeletionProgressRow extends Omit<JobProgress, "status"> {
@@ -202,6 +213,18 @@ function parseJob(value: unknown): JobProgress | null | undefined {
   return { status: status as JobState, attempts, maxAttempts, nextRunAt, lastErrorCode };
 }
 
+function parseChunks(value: unknown): ChunkCounts | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value)) return undefined;
+  const counts = { total: 0, uploaded: 0, transcribed: 0, failed: 0, purged: 0 };
+  for (const key of Object.keys(counts) as (keyof ChunkCounts)[]) {
+    const count = value[key];
+    if (typeof count !== "number" || !Number.isInteger(count) || count < 0) return undefined;
+    counts[key] = count;
+  }
+  return counts;
+}
+
 /** Checks the meeting status endpoint's answer; anything unexpected is null, never a guess. */
 export function parseProcessingPayload(body: unknown): ProcessingPayload | null {
   if (!isRecord(body)) return null;
@@ -211,7 +234,9 @@ export function parseProcessingPayload(body: unknown): ProcessingPayload | null 
   const summary = parseJob(body["summary"]);
   const regenerationRaw = body["regeneration"];
   const regeneration = parseJob(regenerationRaw);
+  const chunks = parseChunks(body["chunks"]);
   if (job === undefined || summary === undefined || regeneration === undefined) return null;
+  if (chunks === undefined) return null;
   const sectionId = isRecord(regenerationRaw) ? regenerationRaw["sectionId"] : null;
   if (regeneration !== null && typeof sectionId !== "string") return null;
   return {
@@ -219,6 +244,7 @@ export function parseProcessingPayload(body: unknown): ProcessingPayload | null 
     job,
     summary,
     regeneration: regeneration === null ? null : { ...regeneration, sectionId: String(sectionId) },
+    chunks,
   };
 }
 

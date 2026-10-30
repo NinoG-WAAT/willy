@@ -138,7 +138,8 @@ test.describe("live note, after capture stopped", () => {
     await signIn(page);
     await page.goto(`/meetings/${id}`);
     const region = page.locator("#processing-progress");
-    await expect(region).toContainText("Transcribing: Running");
+    // The seeded meeting has two audio parts, both already transcribed.
+    await expect(region).toContainText("Transcribing: 2 of 2 parts");
     await expect(page.getByRole("link", { name: "Open the draft" })).toBeHidden();
     // Focus in the notes keeps the hand-off from opening the draft (#66, tested in handoff.spec).
     await page.getByLabel("Your notes (saved as you type)").click();

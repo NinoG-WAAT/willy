@@ -74,7 +74,9 @@ describe("handoffProgress while transcribing", () => {
   });
 
   it("says part, not parts, for one", () => {
-    const view = handoffProgress(payload({ chunks: chunks({ total: 1, transcribed: 0, purged: 0 }) }));
+    const view = handoffProgress(
+      payload({ chunks: chunks({ total: 1, transcribed: 0, purged: 0 }) }),
+    );
     expect(view.fields["transcribe"]).toBe("Transcribing: 0 of 1 part");
   });
 
@@ -111,7 +113,11 @@ describe("handoffProgress while transcribing", () => {
 
 describe("handoffProgress while writing the draft", () => {
   const writing = (summary: JobProgress | null = job({ status: "running" })) =>
-    payload({ job: job({ status: "succeeded" }), summary, chunks: chunks({ transcribed: 0, purged: 7 }) });
+    payload({
+      job: job({ status: "succeeded" }),
+      summary,
+      chunks: chunks({ transcribed: 0, purged: 7 }),
+    });
 
   it("shows the transcript as done and the draft as running, without a bar", () => {
     const view = handoffProgress(writing());
@@ -124,7 +130,9 @@ describe("handoffProgress while writing the draft", () => {
   });
 
   it("calls a summary job that is not queued yet waiting, not 'not started'", () => {
-    expect(handoffProgress(writing(null)).fields["draft"]).toBe("Writing the draft: Waiting to start");
+    expect(handoffProgress(writing(null)).fields["draft"]).toBe(
+      "Writing the draft: Waiting to start",
+    );
   });
 
   it("shows a summary retry in the draft line", () => {
@@ -176,7 +184,9 @@ describe("handoffProgress when processing failed", () => {
     expect(view.stage).toBe("failed");
     expect(view.settled).toBe(true);
     expect(view.fields["headline"]).toBe("Recording finished, but processing needs attention.");
-    expect(view.fields["transcribe"]).toBe("Transcribing: Failed after 5 attempts (stt_unavailable)");
+    expect(view.fields["transcribe"]).toBe(
+      "Transcribing: Failed after 5 attempts (stt_unavailable)",
+    );
     expect(view.fields["note"]).toBe("1 part could not be transcribed. 3 parts are kept.");
     expect(view.fields["outcome"]).toBe("Processing did not finish. Your rough notes are kept.");
     expect(view.fields["link"]).toBe("See what happened and retry");
@@ -239,10 +249,19 @@ describe("isTypingTarget", () => {
 });
 
 describe("decideAutoOpen", () => {
-  const idle = { stage: "ready", focusInTextField: false, unsavedNotes: false, reducedMotion: false } as const;
+  const idle = {
+    stage: "ready",
+    focusInTextField: false,
+    unsavedNotes: false,
+    reducedMotion: false,
+  } as const;
 
   it("opens the draft by itself when it is ready and the owner is not typing", () => {
-    expect(decideAutoOpen(idle)).toEqual({ open: true, delayMs: AUTO_OPEN_DELAY_MS, animate: true });
+    expect(decideAutoOpen(idle)).toEqual({
+      open: true,
+      delayMs: AUTO_OPEN_DELAY_MS,
+      animate: true,
+    });
   });
 
   it("leaves time for the announcement to be heard before navigating", () => {

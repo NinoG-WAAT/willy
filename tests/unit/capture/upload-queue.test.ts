@@ -4,9 +4,7 @@ import {
   type UploadQueueEvent,
 } from "../../../src/scripts/capture/upload-queue";
 
-type Reply =
-  | { status: number; headers?: Record<string, string>; error?: string }
-  | "network-error";
+type Reply = { status: number; headers?: Record<string, string>; error?: string } | "network-error";
 
 function setup(replies: Reply[], options: { maxAttempts?: number } = {}) {
   const calls: { url: string; bytes: number; headers: Record<string, string> }[] = [];

@@ -86,7 +86,10 @@ test.describe("keyboard-only journeys", () => {
     await typeInto(page, page.getByLabel(/Your notes/), "Typed with the keyboard");
     await tabTo(page, page.getByRole("button", { name: "Stop capture" }));
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("status").filter({ hasText: /Recording finished/ })).toBeVisible();
+    // The hand-off block says where things stand, and keeps a polite status region of its own for
+    // the stages (#66; its announcements are asserted in handoff.spec.ts).
+    await expect(page.locator("#processing-progress")).toContainText(/Recording finished/);
+    await expect(page.locator("#handoff-announce")).toHaveAttribute("role", "status");
   });
 
   test("review: rename a speaker and publish with the keyboard", async ({ page }) => {
