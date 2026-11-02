@@ -304,6 +304,24 @@ export class SqliteReviewRepository implements ReviewRepository {
     });
   }
 
+  setActionItemDone(
+    ownerId: string,
+    meetingId: string,
+    itemId: string,
+    done: boolean,
+    now: Date,
+  ): Promise<EditOutcome> {
+    return this.editDraft(ownerId, meetingId, now, (noteId, iso) => {
+      const changed = this.db
+        .prepare(
+          `UPDATE action_item SET status = ?, updated_at = ?
+            WHERE id = ? AND owner_id = ? AND note_id = ?`,
+        )
+        .run(done ? "done" : "open", iso, itemId, ownerId, noteId).changes;
+      return changed === 1 ? "saved" : "missing";
+    });
+  }
+
   renameSpeaker(
     ownerId: string,
     meetingId: string,

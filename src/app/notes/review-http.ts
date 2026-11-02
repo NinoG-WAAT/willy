@@ -15,6 +15,7 @@ import {
   publishNote,
   renameSpeaker,
   reopenNote,
+  setActionItemDone,
   type ReviewDeps,
   type ReviewError,
 } from "./review";
@@ -45,6 +46,8 @@ const NOTICES: Readonly<Record<string, string>> = {
   action_saved: "Action item saved.",
   action_added: "Action item added.",
   action_removed: "Action item removed from the draft.",
+  action_done: "Action item marked as done.",
+  action_reopened: "Action item reopened.",
   speaker_renamed: "Speaker renamed on every line of the transcript.",
   speakers_merged: "Speakers merged on every line of the transcript.",
   published: "Published. This note is no longer a draft.",
@@ -154,6 +157,14 @@ export async function handleReviewForm(
         notice: "action_removed",
         anchor: "action-items",
       });
+    case "set_action_item_done": {
+      // An unticked checkbox sends no field: absent means open, so the request is idempotent.
+      const done = item.done;
+      return finish(await setActionItemDone(r, ownerId, meetingId, id, done), {
+        notice: done ? "action_done" : "action_reopened",
+        anchor: `action-${id}`,
+      });
+    }
     case "rename_speaker":
     case "merge_speaker":
       return finish(await renameSpeaker(r, ownerId, meetingId, value("from"), value("to")), {
