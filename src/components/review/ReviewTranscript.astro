@@ -3,17 +3,29 @@ import { formatOffset } from "../../domain/notes/review";
 import type { ReviewSegmentText } from "../../app/notes/review";
 import type { InSource } from "./types";
 
-/** The transcript lines. A line cited by the highlighted source range is marked "Cited". */
+/**
+ * The transcript lines, in a disclosure that is closed by default: the page is a document to
+ * read, the transcript is there on demand. A native <details>, so it works without JavaScript;
+ * the page opens it on the server when a source link or a search hit cites lines (`open`), and
+ * src/scripts/review.ts opens it when a source chip is followed in place. A line cited by the
+ * highlighted source range is marked "Cited".
+ */
 interface Props {
   segments: readonly ReviewSegmentText[];
   inSource: InSource;
+  open: boolean;
+  /** The line the closed panel shows, from transcriptSummary: "Transcript, 18:20, 281 lines". */
+  summary: string;
 }
 
-const { segments, inSource } = Astro.props;
+const { segments, inSource, open, summary } = Astro.props;
 ---
 
-<section class="panel" aria-labelledby="lines-heading">
-  <h3 id="lines-heading">Lines</h3>
+<details class="transcript-panel" id="transcript-panel" open={open}>
+  <summary>{summary}</summary>
+  <p class="transcript-back">
+    <a href="#summary">Back to the summary</a>
+  </p>
   {segments.length === 0 ? (
     <p>No transcript lines were produced for this meeting.</p>
   ) : (
@@ -25,7 +37,8 @@ const { segments, inSource } = Astro.props;
           tabindex="-1"
           class:list={[{ "is-source": inSource(s.position) }]}
         >
-          <span class="seg-time">{formatOffset(s.startMs)}</span> <strong>{s.speaker}</strong>{" "}
+          <span class="seg-time">{formatOffset(s.startMs)}</span>
+          <strong class="seg-speaker">{s.speaker}</strong>
           <span class="seg-flag" hidden={!inSource(s.position)}>
             Cited
           </span>
@@ -35,4 +48,4 @@ const { segments, inSource } = Astro.props;
       ))}
     </ol>
   )}
-</section>
+</details>

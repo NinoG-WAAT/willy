@@ -12,6 +12,7 @@ import { createFolderWithNotes } from "../support/folder-fixtures";
 import { createFolder, createNotes } from "../support/notes-fixtures";
 import { installFakeMicrophone } from "../support/fake-microphone";
 import { createFreshOwner } from "../support/journey-db";
+import { restStickyBar } from "../support/sticky-bar";
 
 /**
  * Accessibility pass (issue #21): every screen is scanned with axe-core at the desktop viewport
@@ -32,6 +33,7 @@ async function signIn(page: Page, email = "ada@example.test"): Promise<void> {
 }
 
 async function expectNoViolations(page: Page): Promise<void> {
+  await restStickyBar(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   const summary = results.violations.map((v) => ({
     rule: v.id,

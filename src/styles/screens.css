@@ -182,60 +182,6 @@
   text-underline-offset: 0.15em;
 }
 
-/* Review screen: summary beside the transcript on wide screens, stacked on phones. */
-.review-grid {
-  align-items: start;
-}
-
-.review-transcript {
-  min-width: 0;
-}
-
-.jump-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--hit);
-}
-
-/* The same range as .two-col above: the transcript is beside the summary exactly then. */
-@media (min-width: 56rem) and (max-width: 59.9375rem), (min-width: 75rem) {
-  .jump-link {
-    display: none;
-  }
-
-  .review-transcript {
-    position: sticky;
-    top: var(--spacing-16);
-    max-height: calc(100vh - 2 * var(--spacing-16));
-    overflow-y: auto;
-  }
-}
-
-.transcript {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.transcript li {
-  padding: var(--spacing-8) var(--spacing-8) var(--spacing-8) var(--spacing-12);
-  border-left: 4px solid transparent;
-  overflow-wrap: anywhere;
-}
-
-/* Marked by a thick edge and a "Cited" tag as well as the background, never colour alone. */
-.transcript li.is-source {
-  border-left-color: var(--text-strong);
-  background: var(--fill-mark);
-}
-
-.seg-time {
-  color: var(--text-muted);
-  font-family: var(--font-berkeley-mono);
-  font-size: var(--text-caption);
-  font-variant-numeric: tabular-nums;
-}
-
 .review-item.is-hit {
   border-left: 6px solid var(--text-strong);
 }

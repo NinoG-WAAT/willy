@@ -17,6 +17,12 @@ import { getReviewDeps, getStatusDeps } from "../../../composition";
 import { sourceLabel } from "../../../domain/notes/outline";
 import { formatOffset, resolveHighlight } from "../../../domain/notes/review";
 import type { HighlightableItem } from "../../../domain/notes/review";
+import {
+  speakerFormsOpen,
+  speakerLines,
+  transcriptPanelOpen,
+  transcriptSummary,
+} from "../../../domain/notes/transcript-panel";
 import { describeJob } from "../../../domain/progress/text";
 import { isValidStorageId } from "../../../domain/storage/object-key";
 
@@ -115,10 +121,8 @@ const sourceLink: SourceLinkFor = (from, to) => {
   };
 };
 
-const speakers = [...new Set(segments.map((s) => s.speaker))].map((name) => ({
-  name,
-  lines: segments.filter((s) => s.speaker === name).length,
-}));
+const speakers = speakerLines(segments);
+const transcript = transcriptSummary(segments);
 
 // The one section (or item) open for editing. Only an id that the owner's own note has opens a
 // form, and nothing from the URL is ever printed.
@@ -131,6 +135,10 @@ const errorsFor: ErrorsFor = (key, field) =>
   problem !== null && echo?.itemId === key ? problem.errors.filter((e) => e.field === field) : [];
 const checked: Checked = (key, name, fallback) =>
   echo?.itemId === key ? name in echo.values : fallback;
+
+// A draft that can be published gets the sticky bar; its form stays open after a rejection.
+const publishBar = editable && note?.status === "draft" && folders.length > 0;
+const publishRejected = echo?.itemId === "publish";
 
 // The move notices name the folder the note is in now: read from the database, never the URL.
 const notice = reviewNoticeText(Astro.url.searchParams.get("notice"), note?.folderName ?? null);
@@ -248,24 +256,28 @@ const draftRegeneration =
   )}
 
   {note !== null && (
-    <div class="two-col review-grid">
-      <div id="summary">
-        <p>
-          <a class="jump-link" href="#transcript">
+    <div class="review-grid review-cols">
+      <div id="summary" class="review-column">
+        <p class="jump-link-row">
+          <a class="jump-link" href="#transcript-panel">
             Jump to the transcript
           </a>
         </p>
 
-        <ReviewPublish
-          base={base}
-          csrf={csrf}
-          editable={editable}
-          note={note}
-          meeting={meeting}
-          folders={folders}
-          typed={typed}
-          errorsFor={errorsFor}
-        />
+        {!publishBar && (
+          <ReviewPublish
+            base={base}
+            csrf={csrf}
+            editable={editable}
+            bar={false}
+            formOpen={false}
+            note={note}
+            meeting={meeting}
+            folders={folders}
+            typed={typed}
+            errorsFor={errorsFor}
+          />
+        )}
 
         <ReviewSummary
           meetingId={meeting.id}
@@ -311,18 +323,39 @@ const draftRegeneration =
         />
       </div>
 
-      <aside class="review-transcript" id="transcript" aria-labelledby="transcript-heading">
+      <aside class="review-transcript" id="transcript" aria-label="Transcript and speakers">
         <ReviewSpeakers
           base={base}
           csrf={csrf}
           editable={editable}
           speakers={speakers}
+          formsOpen={speakerFormsOpen(echo?.itemId ?? null)}
           typed={typed}
           errorsFor={errorsFor}
         />
-        <ReviewTranscript segments={segments} inSource={inSource} />
+        <ReviewTranscript
+          segments={segments}
+          inSource={inSource}
+          open={transcriptPanelOpen(highlight)}
+          summary={transcript.text}
+        />
       </aside>
     </div>
+  )}
+
+  {note !== null && publishBar && (
+    <ReviewPublish
+      base={base}
+      csrf={csrf}
+      editable={editable}
+      bar={true}
+      formOpen={publishRejected}
+      note={note}
+      meeting={meeting}
+      folders={folders}
+      typed={typed}
+      errorsFor={errorsFor}
+    />
   )}
 
   {note === null && segments.length > 0 && (

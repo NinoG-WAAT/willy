@@ -1,0 +1,316 @@
+/*
+ * The review page as a document (#99): one reading column of about 72ch, hairline separators in
+ * place of a card per section, the transcript and the speakers as a quiet secondary column (or a
+ * disclosure below the summary on a phone), and the publish controls as a bar that stays at the
+ * bottom of the viewport. Tokens only; see tokens.css. The summary, decisions and action items
+ * style their own content (review-outline.css, review-lists.css); this file only places them.
+ */
+
+:root {
+  --review-measure: 72ch;
+  /* The bar's closed height with its margin, so a focused control is scrolled clear of it. */
+  --publish-bar-room: 6rem;
+  /* An open publish form is taller (and scrolls inside itself past this height). */
+  --publish-bar-open-height: min(32rem, calc(100dvh - var(--publish-bar-room) - var(--spacing-32)));
+  /* Where the bar rests: above the phone tab bar, or just above the window edge beside the sidebar. */
+  --publish-bar-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-8));
+}
+
+/* The reading column and the transcript column share one grid, so the bar lines up with them. */
+.review-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-32) var(--spacing-48);
+  justify-content: center;
+  align-items: start;
+}
+
+.review-column,
+.publish-details {
+  width: 100%;
+  min-width: 0;
+  max-width: var(--review-measure);
+  margin-inline: auto;
+}
+
+/* The same range as before: the transcript sits beside the summary exactly when there is room. */
+@media (min-width: 56rem) and (max-width: 59.9375rem), (min-width: 75rem) {
+  .review-cols {
+    grid-template-columns: minmax(0, var(--review-measure)) minmax(16rem, 24rem);
+  }
+
+  .review-column,
+  .publish-details {
+    margin-inline: 0;
+  }
+
+  .jump-link-row {
+    display: none;
+  }
+
+  .review-transcript {
+    position: sticky;
+    top: var(--spacing-16);
+    /* Leaves room for the publish bar, which rests at the bottom of the window. */
+    max-height: calc(100vh - 2 * var(--spacing-16) - var(--publish-bar-room));
+    max-height: calc(100dvh - 2 * var(--spacing-16) - var(--publish-bar-room));
+    overflow-y: auto;
+    /* A focus ring at the edge of a scrolling region is not clipped. */
+    padding: var(--spacing-4);
+    margin: calc(var(--spacing-4) * -1);
+  }
+}
+
+.jump-link-row {
+  margin: 0 0 var(--spacing-8);
+}
+
+.jump-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+}
+
+/* Sections are hairline-separated parts of one document, not cards. */
+.review-column .panel {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.review-column > section + section {
+  margin-top: var(--spacing-24);
+  padding-top: var(--spacing-24);
+  border-top: 1px solid var(--line);
+}
+
+/* Published, or a draft that cannot be published yet: a quiet block above the summary. */
+.review-status {
+  margin: 0 0 var(--spacing-24);
+  padding-bottom: var(--spacing-16);
+  border-bottom: 1px solid var(--line);
+}
+
+.review-status h2 {
+  margin-top: 0;
+}
+
+/* Speakers: one line of chips; the forms are behind a disclosure. */
+.review-transcript {
+  min-width: 0;
+}
+
+.review-speakers {
+  margin: 0 0 var(--spacing-16);
+}
+
+.review-label {
+  margin: 0 0 var(--spacing-8);
+  color: var(--text-muted);
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-w510);
+  letter-spacing: 0.04em;
+  line-height: var(--leading-label);
+  text-transform: uppercase;
+}
+
+.speaker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.speaker-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4) var(--spacing-12);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pills);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.speaker-lines {
+  color: var(--text-muted);
+}
+
+.speaker-forms {
+  margin-top: var(--spacing-4);
+}
+
+.speaker-forms > summary,
+.transcript-panel > summary {
+  font-size: var(--text-body-sm);
+}
+
+.speaker-forms .form {
+  margin-top: var(--spacing-12);
+  padding-top: var(--spacing-12);
+  border-top: 1px solid var(--line);
+}
+
+/* The transcript: a disclosure, closed until it is asked for or a source link cites lines. */
+.transcript-panel {
+  border-top: 1px solid var(--line);
+}
+
+.transcript-panel > summary {
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w510);
+}
+
+.transcript-back {
+  margin: 0 0 var(--spacing-8);
+}
+
+.transcript {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transcript li {
+  padding: var(--spacing-8) var(--spacing-8) var(--spacing-8) var(--spacing-12);
+  border-left: 4px solid transparent;
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-body-sm);
+  overflow-wrap: anywhere;
+  /* A source jump lands on the line: leave it clear of the top edge. */
+  scroll-margin-block: var(--spacing-64);
+}
+
+/* Marked by a thick edge and a "Cited" tag as well as the background, never colour alone. */
+.transcript li.is-source {
+  border-left-color: var(--text-strong);
+  background: var(--fill-mark);
+}
+
+.seg-time {
+  margin-inline-end: var(--spacing-8);
+  color: var(--text-muted);
+  font-family: var(--font-berkeley-mono);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.seg-speaker {
+  margin-inline-end: var(--spacing-8);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-w510);
+}
+
+/*
+ * The publish bar. It is the last thing in the page and sticks to the bottom of the viewport
+ * while the page scrolls, so at the end of the page it rests below the last line instead of over
+ * it. On a phone it sits above the fixed tab bar. The card is the <details>: closed it is one row
+ * (the state and the action), open it holds the form.
+ */
+.publish-bar {
+  position: sticky;
+  z-index: 5;
+  bottom: var(--publish-bar-bottom);
+  margin-top: var(--spacing-32);
+  pointer-events: none;
+}
+
+.publish-details {
+  pointer-events: auto;
+  padding-inline: var(--spacing-16);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-cards);
+  background: var(--surface-obsidian);
+  box-shadow: var(--shadow-xl);
+}
+
+.publish-details[open] {
+  max-height: var(--publish-bar-open-height);
+  overflow-y: auto;
+}
+
+.publish-details > summary {
+  justify-content: space-between;
+  gap: var(--spacing-16);
+  min-height: 3.5rem;
+  text-decoration: none;
+}
+
+/* The action carries its own arrow; the disclosure's marker would be a second one. */
+.publish-details > summary::before,
+.publish-details[open] > summary::before {
+  content: none;
+}
+
+.publish-state {
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.publish-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  min-height: var(--hit);
+  padding: var(--spacing-8) var(--spacing-16);
+  border: 1px solid var(--text-strong);
+  border-radius: var(--radius-buttons);
+  color: var(--text-strong);
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-w510);
+  line-height: var(--leading-caption);
+  white-space: nowrap;
+}
+
+.publish-action::after {
+  content: "\25B4" / "";
+}
+
+.publish-details[open] .publish-action::after {
+  content: "\25BE" / "";
+}
+
+.publish-details > summary:hover .publish-action {
+  background: var(--fill-soft);
+}
+
+.publish-form {
+  padding: var(--spacing-12) 0 var(--spacing-16);
+  border-top: 1px solid var(--line);
+}
+
+/* A focused control is scrolled clear of the bar (and of the tab bar under it on a phone). */
+html:has(.publish-bar) {
+  scroll-padding-bottom: calc(
+    var(--tabbar-height) + env(safe-area-inset-bottom) + var(--publish-bar-room)
+  );
+}
+
+html:has(.publish-bar .publish-details[open]) {
+  scroll-padding-bottom: calc(
+    var(--publish-bar-bottom) + var(--publish-bar-open-height) + var(--spacing-8)
+  );
+}
+
+@media (min-width: 60rem) {
+  :root {
+    --publish-bar-bottom: var(--spacing-16);
+  }
+
+  html:has(.publish-bar) {
+    scroll-padding-bottom: var(--publish-bar-room);
+  }
+}
+
+@media (max-width: 40rem) {
+  .publish-state {
+    font-size: var(--text-caption);
+  }
+}
