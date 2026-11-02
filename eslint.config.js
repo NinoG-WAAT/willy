@@ -12,6 +12,8 @@ export default tseslint.config(
       "playwright-report/",
       "test-results/",
       "coverage/",
+      // Agent worktrees: whole copies of the repo that would be linted a second time.
+      ".claude/",
     ],
   },
   js.configs.recommended,
