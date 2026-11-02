@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  archiveMeeting,
   createReviewMeeting,
   sectionEdited,
   setSectionText,
@@ -7,6 +8,18 @@ import {
 } from "../support/e2e-db";
 
 const PASSWORD = "willy-dev-password";
+
+// A worker runs one test at a time, so this holds the current test's meetings. They are archived
+// afterwards: the Inbox is paged and this spec adds a lot of drafts for the seeded owners.
+const created: string[] = [];
+async function reviewMeeting(ownerId: string): Promise<string> {
+  const id = await createReviewMeeting(ownerId);
+  created.push(id);
+  return id;
+}
+test.afterEach(() => {
+  for (const id of created.splice(0)) archiveMeeting(id);
+});
 
 async function signIn(page: Page, email: string): Promise<void> {
   await page.goto("/sign-in");
@@ -26,7 +39,7 @@ const RISKS = [
 
 /** A review meeting whose Summary cites 2:10 to 3:45 and whose Risks is a dash-prefixed list. */
 async function weeklyReview(page: Page): Promise<string> {
-  const id = await createReviewMeeting("owner-ada");
+  const id = await reviewMeeting("owner-ada");
   setSegmentStarts(id, { 0: 130_000, 1: 150_000, 10_000: 225_000 });
   setSectionText(id, 1, RISKS, { from: 1, to: 10_000 });
   await signIn(page, "ada@example.test");
@@ -240,8 +253,8 @@ test.describe("another owner", () => {
   test("cannot open ?edit= on owner A's meeting or use A's section id on their own", async ({
     page,
   }) => {
-    const id = await createReviewMeeting("owner-ada");
-    const own = await createReviewMeeting("owner-ben");
+    const id = await reviewMeeting("owner-ada");
+    const own = await reviewMeeting("owner-ben");
     await signIn(page, "ben@example.test");
 
     // A's meeting looks exactly like an unknown one, edit parameter or not.

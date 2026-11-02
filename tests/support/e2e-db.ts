@@ -345,6 +345,18 @@ export function advanceDeletion(
 }
 
 /**
+ * Archives a throwaway meeting so it leaves the Inbox: the Inbox is paged, and a spec that adds
+ * many drafts for a seeded owner would otherwise push the seeded ones onto a later page.
+ */
+export function archiveMeeting(meetingId: string): void {
+  writable((db) => {
+    db.prepare(
+      "UPDATE meeting SET status_before_archive = status, status = 'archived' WHERE id = ?",
+    ).run(meetingId);
+  });
+}
+
+/**
  * Gives one section of a review meeting's draft (position 0 is "Summary", 1 is "Risks") a new
  * text and, optionally, source range, as the summary job would have written it: not edited.
  */
