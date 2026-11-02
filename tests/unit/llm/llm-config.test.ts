@@ -35,6 +35,54 @@ describe("readLlmConfig", () => {
     });
   });
 
+  describe("claude-code (the owner's own Claude Code CLI, no API key)", () => {
+    it("needs no key, defaults to the claude command, the CLI's own model and a long timeout", () => {
+      expect(readLlmConfig({ LLM_PROVIDER: "claude-code" })).toEqual({
+        ok: true,
+        value: { mode: "claude-code", claudeBin: "claude", model: null, timeoutMs: 180000 },
+      });
+    });
+
+    it("accepts a command name or absolute path, a model alias and a bounded timeout", () => {
+      expect(
+        readLlmConfig({
+          LLM_PROVIDER: "claude-code",
+          LLM_CLAUDE_BIN: "/Users/me/.local/bin/claude",
+          LLM_MODEL: "sonnet",
+          LLM_TIMEOUT_MS: "240000",
+        }),
+      ).toEqual({
+        ok: true,
+        value: {
+          mode: "claude-code",
+          claudeBin: "/Users/me/.local/bin/claude",
+          model: "sonnet",
+          timeoutMs: 240000,
+        },
+      });
+    });
+
+    it("ignores LLM_API_KEY: the login of the machine is the only credential", () => {
+      const result = readLlmConfig({ LLM_PROVIDER: "claude-code", LLM_API_KEY: "k" });
+      expect(JSON.stringify(result)).not.toContain('"k"');
+    });
+
+    it.each([
+      [{ LLM_CLAUDE_BIN: "relative/claude" }, /LLM_CLAUDE_BIN/],
+      [{ LLM_CLAUDE_BIN: "-p" }, /LLM_CLAUDE_BIN/],
+      [{ LLM_CLAUDE_BIN: "claude; id" }, /LLM_CLAUDE_BIN/],
+      [{ LLM_MODEL: "bad model!" }, /LLM_MODEL/],
+      [{ LLM_TIMEOUT_MS: "5" }, /LLM_TIMEOUT_MS/],
+    ])("rejects %j naming the variable, never its value", (env, pattern) => {
+      const result = readLlmConfig({ LLM_PROVIDER: "claude-code", ...env });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toMatch(pattern);
+        expect(result.error).not.toContain("claude; id");
+      }
+    });
+  });
+
   it.each([
     [{ LLM_PROVIDER: "gpt" }, /LLM_PROVIDER/],
     [{ LLM_PROVIDER: "anthropic" }, /LLM_API_KEY/],
