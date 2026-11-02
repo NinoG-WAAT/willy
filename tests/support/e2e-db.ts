@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { openDatabase } from "../../src/adapters/sqlite/database";
+import { T0, insert } from "./db-fixtures";
 import { seedReviewMeeting } from "./review-fixtures";
 
 /** Moves one session's idle expiry into the past in the e2e server's database (no waiting). */
@@ -198,6 +199,69 @@ export async function createReviewMeeting(ownerId: string): Promise<string> {
     db.close();
   }
   return id;
+}
+
+/**
+ * Adds to a `createReviewMeeting` draft what a real summary has: more decisions (one the owner
+ * added, with no transcript source) and action items with an owner and a due date, a done one,
+ * and one that is overdue whatever day the suite runs (due in 2020; the others in 2099). Ids are
+ * `<meeting>-dec-1/2` and `<meeting>-act-1/2/3`.
+ */
+export function addOutlineItems(meetingId: string): void {
+  writable((db) => {
+    const ownerId = String(
+      db.prepare("SELECT owner_id FROM meeting WHERE id = ?").get(meetingId)?.["owner_id"],
+    );
+    const noteId = `${meetingId}-note`;
+    const decisions: [number, string, number | null][] = [
+      [1, "Hire a product designer in the first quarter", 0],
+      [2, "Move the launch review to Fridays", null],
+    ];
+    for (const [n, text, from] of decisions) {
+      insert(db, "decision", {
+        id: `${meetingId}-dec-${String(n)}`,
+        owner_id: ownerId,
+        note_id: noteId,
+        position: n,
+        text,
+        source_from: from,
+        source_to: from === null ? null : 1,
+        created_at: T0,
+        updated_at: T0,
+      });
+    }
+    const items: [number, string, string | null, string | null, "open" | "done"][] = [
+      [1, "Book the venue for the offsite", `${meetingId}-a2`, "2099-03-13T22:59:59.000Z", "open"],
+      [2, "Share the pricing sheet with the board", null, null, "done"],
+      [3, "Renew the office licence", `${meetingId}-a1`, "2020-01-15T22:59:59.000Z", "open"],
+    ];
+    for (const [n, text, assignee, dueAt, status] of items) {
+      insert(db, "action_item", {
+        id: `${meetingId}-act-${String(n)}`,
+        owner_id: ownerId,
+        meeting_id: meetingId,
+        note_id: noteId,
+        position: n,
+        text,
+        assignee_attendee_id: assignee,
+        due_at: dueAt,
+        due_timezone: dueAt === null ? null : "Europe/Paris",
+        status,
+        source_from: 10000,
+        source_to: 10000,
+        created_at: T0,
+        updated_at: T0,
+      });
+    }
+  });
+}
+
+/** The stored status and "edited" marker of one action item (read-only). */
+export function actionItemState(itemId: string): { status: string; edited: number } {
+  return readOnly((db) => {
+    const row = db.prepare("SELECT status, edited FROM action_item WHERE id = ?").get(itemId);
+    return { status: String(row?.["status"]), edited: Number(row?.["edited"]) };
+  });
 }
 
 /** The name of the private folder `createReviewMeeting` creates for a meeting. */

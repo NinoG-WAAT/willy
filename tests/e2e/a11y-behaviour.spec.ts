@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import {
+  actionItemState,
+  addOutlineItems,
   createCapturingMeeting,
   createReviewMeeting,
   meetingStatus,
@@ -161,6 +163,59 @@ test.describe("keyboard-only journeys", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
     expect(meetingStatus(id)).toBe("published");
+  });
+
+  test("review: tick, edit and add decisions and action items with the keyboard", async ({
+    browser,
+  }) => {
+    // A brand-new Owner: the shared one's Inbox must not grow (other specs read its first page).
+    const owner = createFreshOwner();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await signIn(page, owner.email);
+    const id = await createReviewMeeting(owner.id);
+    addOutlineItems(id);
+    await page.goto(`/meetings/${id}/review`);
+
+    // The done checkbox is a stop of its own and Space ticks it (a tick submits the tiny form).
+    const venue = page.locator(`#action-${id}-act-1`);
+    await tabTo(page, venue.getByRole("checkbox"));
+    await page.keyboard.press("Space");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Action item marked as done." }),
+    ).toBeVisible();
+    expect(actionItemState(`${id}-act-1`).status).toBe("done");
+
+    // Edit is a link: Enter opens that item with focus in its first field; Cancel is the way back.
+    await tabTo(page, venue.getByRole("link", { name: /^Edit/ }));
+    await page.keyboard.press("Enter");
+    await expect(page.locator(`#act-text-${id}-act-1`)).toBeFocused();
+    await page.keyboard.press("ControlOrMeta+A");
+    await page.keyboard.type("Book the offsite venue");
+    await tabTo(page, page.getByRole("button", { name: /Save action item/ }));
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("status").filter({ hasText: "Action item saved" })).toBeVisible();
+    await expect(venue).toContainText("Book the offsite venue");
+
+    await tabTo(page, page.locator(`#decision-${id}-dec-1`).getByRole("link", { name: /^Edit/ }));
+    await page.keyboard.press("Enter");
+    await tabTo(page, page.getByRole("link", { name: /^Cancel/ }));
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#decisions li input[type=text]")).toHaveCount(0);
+
+    // Add is a disclosure: Enter on its summary opens it, the field is the next stop.
+    await tabTo(page, page.locator("#decisions").getByText("Add a decision"));
+    await page.keyboard.press("Enter");
+    await typeInto(
+      page,
+      page.locator("#decisions").getByLabel("Decision"),
+      "Pilot with two customers",
+    );
+    await tabTo(page, page.getByRole("button", { name: "Add decision" }));
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("status").filter({ hasText: "Decision added." })).toBeVisible();
+    await expect(page.locator("#decisions")).toContainText("Pilot with two customers");
+    await context.close();
   });
 
   test("search, open a result and reach the delete confirmation", async ({ page }) => {

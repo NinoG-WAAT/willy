@@ -139,6 +139,17 @@ export interface ReviewRepository {
     itemId: string,
     now: Date,
   ): Promise<EditOutcome>;
+  /**
+   * Sets the status of one action item and nothing else (the text is not "edited by you"). The
+   * value is explicit, so repeating the request is a no-op.
+   */
+  setActionItemDone(
+    ownerId: string,
+    meetingId: string,
+    itemId: string,
+    done: boolean,
+    now: Date,
+  ): Promise<EditOutcome>;
 
   /**
    * Gives every segment of this meeting that carries the label `from` the label `to`. Renaming

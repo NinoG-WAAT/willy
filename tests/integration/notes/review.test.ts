@@ -19,6 +19,7 @@ import {
   publishNote,
   renameSpeaker,
   reopenNote,
+  setActionItemDone,
   type ReviewDeps,
 } from "../../../src/app/notes/review";
 import { defined } from "../../support/assert";
@@ -314,6 +315,47 @@ describe("action items", () => {
     expect(count(db, "search_index", "kind = 'action_item' AND meeting_id = 'm1'")).toBe(1);
     expect((await deleteActionItem(deps, "A", "m1", "m1-act-0")).ok).toBe(true);
     expect(count(db, "action_item", "note_id = 'm1-note'")).toBe(1);
+  });
+
+  it("ticks and unticks done without touching the text or the edited marker", async () => {
+    expect((await setActionItemDone(deps, "A", "m1", "m1-act-0", true)).ok).toBe(true);
+    const columns =
+      "SELECT text, assignee_attendee_id AS who, due_at, status, edited FROM action_item WHERE id = 'm1-act-0'";
+    expect(row(columns)).toMatchObject({
+      text: "Send the deck",
+      who: "m1-a1",
+      due_at: "2026-10-30T22:59:59.000Z",
+      status: "done",
+      edited: 0,
+    });
+    expect((await setActionItemDone(deps, "A", "m1", "m1-act-0", false)).ok).toBe(true);
+    expect(row(columns)["status"]).toBe("open");
+  });
+
+  it("is idempotent: the same value twice is the same state", async () => {
+    await setActionItemDone(deps, "A", "m1", "m1-act-0", true);
+    expect((await setActionItemDone(deps, "A", "m1", "m1-act-0", true)).ok).toBe(true);
+    expect(row("SELECT status FROM action_item WHERE id = 'm1-act-0'")["status"]).toBe("done");
+  });
+
+  it("cannot tick an item of a note that is not an editable draft", async () => {
+    await seedMeeting("A", "m3", "published");
+    expect(await setActionItemDone(deps, "A", "m3", "m3-act-0", true)).toMatchObject({
+      ok: false,
+      error: { kind: "not_editable" },
+    });
+    expect(row("SELECT status FROM action_item WHERE id = 'm3-act-0'")["status"]).toBe("open");
+  });
+
+  it("owner A cannot tick owner B's action items, nor a guessed id", async () => {
+    for (const result of [
+      await setActionItemDone(deps, "A", "m2", "m2-act-0", true),
+      await setActionItemDone(deps, "A", "m1", "m2-act-0", true),
+      await setActionItemDone(deps, "A", "m1", "guess", true),
+    ]) {
+      expect(result).toMatchObject({ ok: false, error: { kind: "not_found" } });
+    }
+    expect(row("SELECT status FROM action_item WHERE id = 'm2-act-0'")["status"]).toBe("open");
   });
 
   it("owner A cannot touch owner B's action items", async () => {

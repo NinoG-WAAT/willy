@@ -162,6 +162,34 @@ describe("handleReviewForm", () => {
     expect(count(db, "audit_event", "kind = 'note.moved'")).toBe(0);
   });
 
+  it("ticks and unticks an action item from the checkbox form, back at the item", async () => {
+    expectRedirect(
+      await submit("A", "m1", { intent: "set_action_item_done", id: "m1-act-0", done: "on" }),
+      "action_done",
+      "action-m1-act-0",
+    );
+    expect(db.prepare("SELECT status FROM action_item WHERE id = 'm1-act-0'").get()).toEqual({
+      status: "done",
+    });
+    // An unticked checkbox sends no field at all: that means open again.
+    expectRedirect(
+      await submit("A", "m1", { intent: "set_action_item_done", id: "m1-act-0" }),
+      "action_reopened",
+      "action-m1-act-0",
+    );
+    expect(db.prepare("SELECT status FROM action_item WHERE id = 'm1-act-0'").get()).toEqual({
+      status: "open",
+    });
+    expect(reviewNoticeText("action_done")).toBe("Action item marked as done.");
+    expect(reviewNoticeText("action_reopened")).toBe("Action item reopened.");
+  });
+
+  it("does not tick an item without an id", async () => {
+    expect(await submit("A", "m1", { intent: "set_action_item_done", done: "on" })).toEqual({
+      kind: "not_found",
+    });
+  });
+
   it("reports a validation problem with 422 and echoes what was typed, without saving", async () => {
     const result = await submit("A", "m1", {
       intent: "edit_action_item",
@@ -212,6 +240,7 @@ describe("handleReviewForm", () => {
       { intent: "delete_decision", id: "m2-dec-0" },
       { intent: "edit_action_item", id: "m2-act-0", text: "x" },
       { intent: "delete_action_item", id: "m2-act-0" },
+      { intent: "set_action_item_done", id: "m2-act-0", done: "on" },
       { intent: "rename_speaker", from: "Speaker 1", to: "x" },
       { intent: "publish", folder: "folder-A", confirm: "on" },
       { intent: "reopen" },

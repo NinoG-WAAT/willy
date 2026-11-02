@@ -1,0 +1,173 @@
+/*
+ * The review outline for Decisions and Action items (issue #98): plain lines with hairline
+ * separators, quiet chips, and one disclosure each for adding. Nothing here is a card or a form
+ * until the owner opens one item. Status is always words (a checked box, "Done", "Overdue"), never
+ * colour alone; every control keeps the 44px hit area.
+ */
+
+.review-lists .rl-list {
+  max-width: var(--measure-list);
+  margin: 0 0 var(--spacing-8);
+  padding: 0;
+  list-style: none;
+}
+
+/* Decisions are real bullets; the marker sits in the gutter, the hairlines run under the text. */
+.review-lists .rl-bullets {
+  list-style: disc;
+  padding-inline-start: var(--spacing-20);
+}
+
+.review-lists .rl-bullets > .rl-item::marker {
+  color: var(--text-muted);
+}
+
+.review-lists .rl-bullets > .rl-item.is-editing {
+  list-style: none;
+}
+
+.rl-item {
+  padding: 0;
+}
+
+.rl-item + .rl-item {
+  border-top: 1px solid var(--line);
+}
+
+/* A search hit is marked by a thick edge and the words "Search match", not by colour. */
+.rl-item.is-hit {
+  border-left: 6px solid var(--text-strong);
+  padding-inline-start: var(--spacing-8);
+}
+
+.rl-item.is-editing {
+  padding-block: var(--spacing-12);
+}
+
+/* One line of an outline: the text, then the chips and Edit on the same line when there is room,
+   under it when there is not. */
+.rl-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--spacing-16);
+  min-height: var(--hit);
+}
+
+/* A checklist row: the box in its own column, the text above its chips, both in the next one. */
+.rl-checklist .rl-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--spacing-8);
+}
+
+.rl-checklist .rl-meta {
+  grid-column: 2;
+  margin-top: calc(var(--spacing-4) * -1);
+  padding-bottom: var(--spacing-4);
+}
+
+.rl-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding-block: var(--spacing-8);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.rl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--spacing-8);
+}
+
+.rl-chip {
+  display: inline-block;
+  padding: 0 var(--spacing-8);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pills);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  white-space: nowrap;
+}
+
+/* Source chips are styled in review-outline.css; the Edit link keeps a 44px hit area. */
+.rl-edit {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding-inline: var(--spacing-4);
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.rl-edit:hover {
+  color: var(--text-strong);
+}
+
+/* Overdue is said in words; the coral edge and text are a second cue. */
+.rl-chip-overdue {
+  border-color: var(--line-danger);
+  color: var(--text-danger);
+  font-weight: var(--font-weight-w510);
+}
+
+.rl-state {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+/* The done checkbox: a tiny form of its own, 44px high, with a Save button when there is no JS. */
+.rl-done {
+  gap: var(--spacing-4);
+  margin: 0;
+}
+
+.rl-done .rl-done-box {
+  margin: 0 var(--spacing-8);
+  cursor: pointer;
+}
+
+.rl-done .rl-done-save {
+  min-height: var(--hit);
+  padding-block: var(--spacing-4);
+  font-size: var(--text-caption);
+}
+
+.rl-done[data-auto] .rl-done-save {
+  display: none;
+}
+
+.rl-item.is-done .rl-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.rl-remove,
+.rl-add {
+  max-width: var(--measure-list);
+}
+
+.rl-remove {
+  margin-top: var(--spacing-8);
+}
+
+.rl-add {
+  margin-top: var(--spacing-4);
+  border-top: 1px solid var(--line);
+}
+
+.rl-add > summary {
+  color: var(--text-muted);
+}
+
+.rl-add > summary:hover {
+  color: var(--text-strong);
+}
+
+.rl-add[open] {
+  padding-bottom: var(--spacing-8);
+}

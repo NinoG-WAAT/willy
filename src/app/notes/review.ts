@@ -243,6 +243,20 @@ export async function deleteActionItem(
   );
 }
 
+export async function setActionItemDone(
+  deps: ReviewDeps,
+  ownerId: string,
+  meetingId: string,
+  itemId: string,
+  done: boolean,
+): Promise<Result<void, ReviewError>> {
+  const gate = await editableMeeting(deps, ownerId, meetingId);
+  if (!gate.ok) return gate;
+  return toResult(
+    await deps.reviews.setActionItemDone(ownerId, meetingId, itemId, done, deps.clock.now()),
+  );
+}
+
 /**
  * Renames a speaker label on every segment of the meeting. Giving a speaker the name of another
  * one merges them. The label as first transcribed stays on each segment.
