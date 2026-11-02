@@ -184,7 +184,7 @@ export function getTranscriber(): Transcriber {
 let summarizer: Summarizer | undefined;
 
 /**
- * LLM summaries with retries. The fake is the default; LLM_PROVIDER=anthropic needs LLM_API_KEY.
+ * LLM summaries with retries. The fake is the default; LLM_PROVIDER=anthropic needs LLM_API_KEY; LLM_PROVIDER=claude-code uses the owner's local Claude Code login and needs no key.
  * A bad configuration fails fast here, naming variables but never their values.
  */
 export function getSummarizer(): Summarizer {

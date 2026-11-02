@@ -163,6 +163,22 @@ Limits and behavior to know:
 
 Paid cloud service: **audio is sent to Deepgram.** Set `STT_PROVIDER=deepgram` and `STT_API_KEY` (server-side secret). The host is fixed to `https://api.deepgram.com` unless you set an https `STT_API_BASE_URL`; the model is `nova-2` with diarization. Untested against the real service (stub server only).
 
+### Summaries with your own Claude Code login (`LLM_PROVIDER=claude-code`)
+
+For people who have a Claude licence (work seat) but no API key. The server runs your local `claude` CLI headless for each summary, so **it uses the login of whoever runs the app**, and each collaborator runs their own copy with their own login. Nothing is stored and no key is read (`LLM_API_KEY` is ignored).
+
+1. Install Claude Code and log in once: run `claude` in a terminal and sign in.
+2. In `.env`: `LLM_PROVIDER=claude-code` (optional: `LLM_CLAUDE_BIN`, `LLM_MODEL` as an alias such as `sonnet`, `LLM_TIMEOUT_MS`, default 180000). Restart the server.
+3. Check Settings or `GET /diagnostics`: summaries show `claude-code`.
+
+What it does and does not do:
+
+- The CLI runs with **no tools**, no saved session, none of your settings, hooks or MCP servers, and in a private empty temp directory, so transcript text can never run or read anything. The meeting goes in on stdin as one JSON document; instructions are in `--system-prompt`. The answer passes the same schema and grounding checks as every provider and stays a draft.
+- The CLI gets only `PATH`, `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG` and `CLAUDE_CONFIG_DIR` from the server's environment, never `ENCRYPTION_KEYS` or other secrets, and no `ANTHROPIC_*` variable.
+- **Limits.** Node only (a Cloudflare Worker cannot start a process). One person's login: do not point a shared or hosted server at it, and do not route other people's requests through your seat. Calls count against your seat's usage limits. The transcript text is sent to Anthropic under your licence: check your organisation's AI policy before using it on meetings with customer data.
+- **Honest status.** Tested against stub scripts and, once, against the real CLI with synthetic text (CLI 2.1.316). Re-run the opt-in smoke test after upgrading the CLI: `LLM_PROVIDER=claude-code npx vitest run tests/integration/llm/claude-code-smoke` (sends a short synthetic transcript, counts as a small request on your seat).
+- A summary that fails because you are not logged in says so (`claude is not logged in`), without echoing the CLI's text.
+
 ### Anthropic summaries (`LLM_PROVIDER=anthropic`)
 
 Set `LLM_PROVIDER=anthropic` and `LLM_API_KEY`; optionally `LLM_MODEL` (default `claude-sonnet-5-5`) and `LLM_TIMEOUT_MS`. Transcript text is sent to Anthropic to write the draft summary; it is treated as untrusted input and the result stays a draft until you publish it. Untested against the real service (stub server only).

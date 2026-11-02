@@ -15,8 +15,12 @@ const SYSTEM_PROMPT = [
   '- Only the attendees listed in "attendees" exist. assignee_id must be one of their ids, or null when the owner of a task is unclear. Never put a name or an email in assignee_id.',
   "- due_date only when a date is stated explicitly, formatted YYYY-MM-DD; otherwise null.",
   '- Write exactly the sections listed in "sections", using each prompt only as a description of what to cover. If "regenerate_only" is true, write only that single section and return empty decisions and action_items.',
-  "- Reply only by calling submit_summary.",
 ].join("\n");
+
+/** How the answer must be delivered; depends on how the provider takes structured output. */
+export const REPLY_BY_TOOL_CALL = "- Reply only by calling submit_summary.";
+export const REPLY_BY_STRUCTURED_OUTPUT =
+  "- Reply only with the structured output that matches the provided JSON schema.";
 
 /**
  * Builds the model prompt. Instructions live only in `system`; everything that came from the
@@ -24,7 +28,10 @@ const SYSTEM_PROMPT = [
  * "system:" line in the transcript can never escape the data block. Attendees are reduced to
  * id and name (no emails): the minimum the model needs.
  */
-export function buildSummaryPrompt(input: SummarizerInput): { system: string; user: string } {
+export function buildSummaryPrompt(
+  input: SummarizerInput,
+  reply: string = REPLY_BY_TOOL_CALL,
+): { system: string; user: string } {
   const sections = input.only
     ? [{ heading: input.only.heading, prompt: input.only.prompt }]
     : input.template && input.template.sections.length > 0
@@ -41,7 +48,7 @@ export function buildSummaryPrompt(input: SummarizerInput): { system: string; us
     sections,
     regenerate_only: input.only !== null,
   });
-  return { system: SYSTEM_PROMPT, user };
+  return { system: `${SYSTEM_PROMPT}\n${reply}`, user };
 }
 
 /** Headings the verified output may contain: the template's, or the default section. */
