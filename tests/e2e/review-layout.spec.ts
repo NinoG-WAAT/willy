@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createReviewMeeting, meetingStatus, reviewFolderName } from "../support/e2e-db";
+import { createFreshOwner } from "../support/journey-db";
 
 /**
  * Issue #99: the review as a document. One reading column, the transcript on demand (closed until
@@ -13,9 +14,9 @@ const PASSWORD = "willy-dev-password";
 const EXTRA_LINES = 278;
 const TOTAL_LINES = EXTRA_LINES + 3;
 
-async function signIn(page: Page): Promise<void> {
+async function signIn(page: Page, email = "ada@example.test"): Promise<void> {
   await page.goto("/sign-in");
-  await page.getByLabel("Email").fill("ada@example.test");
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL("/");
@@ -32,9 +33,14 @@ async function box(locator: Locator): Promise<{ x: number; y: number; w: number;
   return { x: b.x, y: b.y, w: b.width, h: b.height };
 }
 
+/**
+ * A fresh owner with a long draft of their own: the Inbox lists at most 50 drafts per owner, and
+ * a spec that piled drafts onto the seeded owner would push the seeded one out of its page.
+ */
 async function longMeeting(page: Page): Promise<string> {
-  await signIn(page);
-  return createReviewMeeting("owner-ada", EXTRA_LINES);
+  const owner = createFreshOwner();
+  await signIn(page, owner.email);
+  return createReviewMeeting(owner.id, EXTRA_LINES);
 }
 
 test.describe("the transcript panel", () => {
