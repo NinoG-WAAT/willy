@@ -31,6 +31,7 @@ export interface NewChunk {
 export interface NewSegment {
   id: string;
   segIndex: number;
+  /** Milliseconds from the start of the meeting's audio (not of this chunk). */
   startMs: number;
   endMs: number;
   speaker: string;

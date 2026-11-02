@@ -1,4 +1,5 @@
 import { canViewMeeting } from "../../domain/authz/predicates";
+import { chunkStartOffsets, shiftToMeetingTime } from "../../domain/transcription/chunk-offsets";
 import { segmentTextContext } from "../../domain/transcription/encryption-context";
 import type { ChunkRepository, ChunkRow } from "../../ports/chunk-repository";
 import type { Clock } from "../../ports/clock";
@@ -67,14 +68,25 @@ async function runTranscription(
   const failures: ChunkFailure[] = [];
   let transcribed = 0;
 
-  for (const chunk of await deps.chunks.listByMeeting(ownerId, meetingId)) {
+  const allChunks = await deps.chunks.listByMeeting(ownerId, meetingId);
+  // Built from every chunk row, whatever its state, so a retried chunk lands where it belongs.
+  const offsets = chunkStartOffsets(allChunks);
+
+  for (const chunk of allChunks) {
     if (chunk.state === "purged") continue;
     if (chunk.state === "transcribed") {
       // A previous run finished the text but may have stopped before deleting the audio.
       if (retentionHours === 0) await purgeChunkAudio(deps, log, ownerId, chunk);
       continue;
     }
-    const failure = await transcribeChunk(deps, log, ownerId, meetingId, chunk);
+    const failure = await transcribeChunk(
+      deps,
+      log,
+      ownerId,
+      meetingId,
+      chunk,
+      offsets.get(chunk.seq) ?? 0,
+    );
     if (failure) {
       failures.push(failure);
       await deps.chunks.markFailed(ownerId, meetingId, chunk.seq, failure.code);
@@ -126,6 +138,7 @@ async function transcribeChunk(
   ownerId: string,
   meetingId: string,
   chunk: ChunkRow,
+  offsetMs: number,
 ): Promise<ChunkFailure | null> {
   const stored = await deps.chunkStore.getChunk(ownerId, meetingId, chunk.seq);
   if (!stored.ok) {
@@ -156,7 +169,8 @@ async function transcribeChunk(
   }
 
   const segments = [];
-  for (const [segIndex, s] of result.value.entries()) {
+  // Transcribers report times relative to the chunk's own audio; stored times are meeting-relative.
+  for (const [segIndex, s] of shiftToMeetingTime(result.value, offsetMs).entries()) {
     const id = deps.ids.newId();
     const sealed = await deps.textCipher.encrypt(s.text, segmentTextContext(id));
     segments.push({

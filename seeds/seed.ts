@@ -86,6 +86,8 @@ function insertAttendee(
   });
 }
 
+const CHUNK_MS = 10_000;
+
 async function insertTranscript(
   db: DatabaseSync,
   cipher: TextCipher,
@@ -103,7 +105,7 @@ async function insertTranscript(
       seq,
       state,
       byte_size: 48_000,
-      duration_ms: 10_000,
+      duration_ms: CHUNK_MS,
       content_type: "audio/webm",
       sha256: String(seq + 1)
         .repeat(64)
@@ -125,8 +127,9 @@ async function insertTranscript(
         meeting_id: meetingId,
         chunk_seq: seq,
         seg_index: index,
-        start_ms: index * 5000,
-        end_ms: index * 5000 + 4000,
+        // Meeting-relative: the chunk's own offset (every seeded chunk lasts CHUNK_MS) + its place in it.
+        start_ms: seq * CHUNK_MS + index * 5000,
+        end_ms: seq * CHUNK_MS + index * 5000 + 4000,
         speaker_label: index % 2 === 0 ? "Speaker 1" : "Speaker 2",
         speaker_label_original: index % 2 === 0 ? "Speaker 1" : "Speaker 2",
         text_ciphertext: sealed.ciphertext,

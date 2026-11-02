@@ -28,7 +28,11 @@ const unexpected = (): ProviderError =>
 const toMs = (seconds: unknown): number =>
   typeof seconds === "number" ? Math.round(seconds * 1000) : Number.NaN;
 
-/** Extracts raw segments from a Deepgram prerecorded response, or null if the shape is wrong. */
+/**
+ * Extracts raw segments from a Deepgram prerecorded response, or null if the shape is wrong.
+ * Deepgram times count from the start of the audio it was sent, which is one chunk, so they stay
+ * chunk-relative here (the transcription job adds the chunk's offset in the meeting).
+ */
 function rawSegments(body: unknown): RawSegment[] | null {
   if (!isObject(body) || !isObject(body["results"])) return null;
   const results = body["results"];
