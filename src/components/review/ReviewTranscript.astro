@@ -1,0 +1,38 @@
+---
+import { formatOffset } from "../../domain/notes/review";
+import type { ReviewSegmentText } from "../../app/notes/review";
+import type { InSource } from "./types";
+
+/** The transcript lines. A line cited by the highlighted source range is marked "Cited". */
+interface Props {
+  segments: readonly ReviewSegmentText[];
+  inSource: InSource;
+}
+
+const { segments, inSource } = Astro.props;
+---
+
+<section class="panel" aria-labelledby="lines-heading">
+  <h3 id="lines-heading">Lines</h3>
+  {segments.length === 0 ? (
+    <p>No transcript lines were produced for this meeting.</p>
+  ) : (
+    <ol class="transcript" aria-label="Transcript lines">
+      {segments.map((s) => (
+        <li
+          id={`seg-${s.position}`}
+          data-pos={s.position}
+          tabindex="-1"
+          class:list={[{ "is-source": inSource(s.position) }]}
+        >
+          <span class="seg-time">{formatOffset(s.startMs)}</span> <strong>{s.speaker}</strong>{" "}
+          <span class="seg-flag" hidden={!inSource(s.position)}>
+            Cited
+          </span>
+          <span class="sr-only">:</span>
+          {s.text === null ? <em>This line could not be read.</em> : s.text}
+        </li>
+      ))}
+    </ol>
+  )}
+</section>

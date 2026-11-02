@@ -1,0 +1,242 @@
+---
+import { formatSchedule } from "../format-schedule";
+import { dueDateInputValue, isOverdue } from "../../domain/notes/review";
+import type { ReviewActionItem } from "../../ports/review-repository";
+import ReviewSource from "./ReviewSource.astro";
+import type { Checked, ErrorsFor, IsHit, SourceLinkFor, Typed } from "./types";
+
+/**
+ * The action items of the note: one list item each (status, due date, overdue flag), with its
+ * edit and remove forms, and an add form. Owners are the meeting's Attendees.
+ */
+interface Props {
+  /** The review page's own path: the target of every form. */
+  base: string;
+  csrf: string;
+  editable: boolean;
+  actionItems: readonly ReviewActionItem[];
+  attendees: readonly { id: string; name: string }[];
+  /** The meeting's IANA zone: the default zone of a due date. */
+  timezone: string;
+  /** The page's clock, so overdue is decided once per request and never read here. */
+  now: Date;
+  isHit: IsHit;
+  sourceLink: SourceLinkFor;
+  typed: Typed;
+  checked: Checked;
+  errorsFor: ErrorsFor;
+}
+
+const {
+  base,
+  csrf,
+  editable,
+  actionItems,
+  attendees,
+  timezone,
+  now,
+  isHit,
+  sourceLink,
+  typed,
+  checked,
+  errorsFor,
+} = Astro.props;
+
+const attendeeName = new Map(attendees.map((a) => [a.id, a.name]));
+---
+
+<section class="panel" id="action-items" aria-labelledby="actions-heading">
+  <h2 id="actions-heading">Action items</h2>
+  {actionItems.length === 0 && <p>No action items were recorded.</p>}
+  <ul class="review-list">
+    {actionItems.map((a) => {
+      const source = sourceLink(a.sourceFrom, a.sourceTo);
+      const zone = a.dueTimezone ?? timezone;
+      const overdue = isOverdue(a, now);
+      const key = a.id;
+      return (
+        <li id={`action-${a.id}`} class:list={[{ "is-hit": isHit("action_item", a.id) }]}>
+          <p>
+            {isHit("action_item", a.id) && <span class="badge">Search match</span>}
+            <strong>{a.status === "done" ? "Done" : "Open"}</strong>{" "}
+            {a.dueAt !== null && (
+              <span>
+                · Due <time datetime={a.dueAt}>{formatSchedule(a.dueAt, zone)}</time>
+              </span>
+            )}
+            {overdue && (
+              <span>
+                {" "}
+                <span class="overdue-flag">Overdue</span>
+              </span>
+            )}
+          </p>
+          {editable ? (
+            <>
+              <form method="post" action={base} class="form form-wide">
+                <input type="hidden" name="csrf_token" value={csrf} />
+                <input type="hidden" name="intent" value="edit_action_item" />
+                <input type="hidden" name="id" value={a.id} />
+                <div class="field field-wide">
+                  <label for={`act-text-${a.id}`}>Action</label>
+                  <input
+                    id={`act-text-${a.id}`}
+                    name="text"
+                    type="text"
+                    maxlength="2000"
+                    value={typed(key, "text", a.text)}
+                    aria-invalid={errorsFor(key, "text").length > 0 ? "true" : undefined}
+                    aria-describedby={`act-text-error-${a.id}`}
+                  />
+                  {errorsFor(key, "text").map((e) => (
+                    <p class="field-error" id={`act-text-error-${a.id}`}>
+                      {e.message}
+                    </p>
+                  ))}
+                </div>
+                <div class="field-group">
+                  <div class="field">
+                    <label for={`act-owner-${a.id}`}>Owner</label>
+                    <select
+                      id={`act-owner-${a.id}`}
+                      name="assignee"
+                      aria-describedby={`act-owner-error-${a.id}`}
+                    >
+                      <option value="" selected={typed(key, "assignee", a.assigneeId ?? "") === ""}>
+                        No owner
+                      </option>
+                      {attendees.map((p) => (
+                        <option
+                          value={p.id}
+                          selected={typed(key, "assignee", a.assigneeId ?? "") === p.id}
+                        >
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errorsFor(key, "assignee").map((e) => (
+                      <p class="field-error" id={`act-owner-error-${a.id}`}>
+                        {e.message}
+                      </p>
+                    ))}
+                  </div>
+                  <div class="field">
+                    <label for={`act-due-${a.id}`}>Due date ({timezone})</label>
+                    <input
+                      id={`act-due-${a.id}`}
+                      name="due"
+                      type="date"
+                      value={typed(key, "due", dueDateInputValue(a.dueAt, zone))}
+                      aria-describedby={`act-due-error-${a.id}`}
+                    />
+                    {errorsFor(key, "due").map((e) => (
+                      <p class="field-error" id={`act-due-error-${a.id}`}>
+                        {e.message}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                <div class="check">
+                  <input
+                    id={`act-done-${a.id}`}
+                    name="done"
+                    type="checkbox"
+                    checked={checked(key, "done", a.status === "done")}
+                  />
+                  <label for={`act-done-${a.id}`}>Done</label>
+                </div>
+                <div class="row-actions">
+                  <button class="button" type="submit">
+                    Save action item<span class="sr-only">: {a.text}</span>
+                  </button>
+                </div>
+              </form>
+              <details>
+                <summary>Remove this action item</summary>
+                <form method="post" action={base} class="form">
+                  <input type="hidden" name="csrf_token" value={csrf} />
+                  <input type="hidden" name="intent" value="delete_action_item" />
+                  <input type="hidden" name="id" value={a.id} />
+                  <p class="help">
+                    Removes only this action item from the draft. The transcript is untouched.
+                  </p>
+                  <div class="row-actions">
+                    <button class="button button-danger" type="submit">
+                      Confirm: remove action item
+                    </button>
+                  </div>
+                </form>
+              </details>
+            </>
+          ) : (
+            <p>
+              {a.text}
+              <span class="row-meta">
+                {" "}
+                · Owner:{" "}
+                {a.assigneeId !== null ? (attendeeName.get(a.assigneeId) ?? "Unknown") : "none"}
+              </span>
+            </p>
+          )}
+          {a.edited && <p class="row-meta">Edited by you</p>}
+          <ReviewSource source={source} />
+        </li>
+      );
+    })}
+  </ul>
+  {editable && (
+    <form method="post" action={base} class="form form-wide">
+      <input type="hidden" name="csrf_token" value={csrf} />
+      <input type="hidden" name="intent" value="add_action_item" />
+      <div class="field field-wide">
+        <label for="new-action">Add an action item</label>
+        <input
+          id="new-action"
+          name="text"
+          type="text"
+          maxlength="2000"
+          value={typed("add_action_item", "text", "")}
+        />
+        {errorsFor("add_action_item", "text").map((e) => (
+          <p class="field-error">{e.message}</p>
+        ))}
+      </div>
+      <div class="field-group">
+        <div class="field">
+          <label for="new-action-owner">Owner</label>
+          <select id="new-action-owner" name="assignee">
+            <option value="">No owner</option>
+            {attendees.map((p) => (
+              <option value={p.id} selected={typed("add_action_item", "assignee", "") === p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          {errorsFor("add_action_item", "assignee").map((e) => (
+            <p class="field-error">{e.message}</p>
+          ))}
+        </div>
+        <div class="field">
+          <label for="new-action-due">Due date ({timezone})</label>
+          <input
+            id="new-action-due"
+            name="due"
+            type="date"
+            value={typed("add_action_item", "due", "")}
+          />
+          {errorsFor("add_action_item", "due").map((e) => (
+            <p class="field-error">{e.message}</p>
+          ))}
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="button button-quiet" type="submit">
+          Add action item
+        </button>
+      </div>
+    </form>
+  )}
+  {attendees.length === 0 && editable && (
+    <p class="help">This meeting has no attendees, so action items cannot have an owner.</p>
+  )}
+</section>

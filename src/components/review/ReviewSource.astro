@@ -1,0 +1,24 @@
+---
+import type { SourceLink } from "./types";
+
+/**
+ * The source line under a summary item: a link to the transcript lines it was written from, or
+ * the note that the owner added it. One place, so sections, decisions and action items all say
+ * the same thing.
+ */
+interface Props {
+  source: SourceLink | null;
+}
+
+const { source } = Astro.props;
+---
+
+{source !== null ? (
+  <p class="row-meta">
+    <a href={source.href} data-source-from={source.from} data-source-to={source.to}>
+      {source.label}
+    </a>
+  </p>
+) : (
+  <p class="row-meta">Added by you: no transcript source.</p>
+)}

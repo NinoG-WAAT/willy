@@ -1,0 +1,110 @@
+---
+import type { ReviewDecision } from "../../ports/review-repository";
+import ReviewSource from "./ReviewSource.astro";
+import type { ErrorsFor, IsHit, SourceLinkFor, Typed } from "./types";
+
+/** The decisions of the note: one list item each, with its edit and remove forms, and an add form. */
+interface Props {
+  /** The review page's own path: the target of every form. */
+  base: string;
+  csrf: string;
+  editable: boolean;
+  decisions: readonly ReviewDecision[];
+  isHit: IsHit;
+  sourceLink: SourceLinkFor;
+  typed: Typed;
+  errorsFor: ErrorsFor;
+}
+
+const { base, csrf, editable, decisions, isHit, sourceLink, typed, errorsFor } = Astro.props;
+---
+
+<section class="panel" id="decisions" aria-labelledby="decisions-heading">
+  <h2 id="decisions-heading">Decisions</h2>
+  {decisions.length === 0 && <p>No decisions were recorded.</p>}
+  <ul class="review-list">
+    {decisions.map((d) => {
+      const source = sourceLink(d.sourceFrom, d.sourceTo);
+      return (
+        <li id={`decision-${d.id}`} class:list={[{ "is-hit": isHit("decision", d.id) }]}>
+          {isHit("decision", d.id) && <span class="badge">Search match</span>}
+          {editable ? (
+            <>
+              <form method="post" action={base} class="form form-wide">
+                <input type="hidden" name="csrf_token" value={csrf} />
+                <input type="hidden" name="intent" value="edit_decision" />
+                <input type="hidden" name="id" value={d.id} />
+                <div class="field field-wide">
+                  <label for={`decision-text-${d.id}`}>Decision</label>
+                  <input
+                    id={`decision-text-${d.id}`}
+                    name="text"
+                    type="text"
+                    maxlength="2000"
+                    value={typed(d.id, "text", d.text)}
+                    aria-invalid={errorsFor(d.id, "text").length > 0 ? "true" : undefined}
+                    aria-describedby={`decision-error-${d.id}`}
+                  />
+                  {errorsFor(d.id, "text").map((e) => (
+                    <p class="field-error" id={`decision-error-${d.id}`}>
+                      {e.message}
+                    </p>
+                  ))}
+                </div>
+                <div class="row-actions">
+                  <button class="button" type="submit">
+                    Save decision<span class="sr-only">: {d.text}</span>
+                  </button>
+                </div>
+              </form>
+              <details>
+                <summary>Remove this decision</summary>
+                <form method="post" action={base} class="form">
+                  <input type="hidden" name="csrf_token" value={csrf} />
+                  <input type="hidden" name="intent" value="delete_decision" />
+                  <input type="hidden" name="id" value={d.id} />
+                  <p class="help">
+                    Removes only this decision from the draft. The transcript is untouched.
+                  </p>
+                  <div class="row-actions">
+                    <button class="button button-danger" type="submit">
+                      Confirm: remove decision
+                    </button>
+                  </div>
+                </form>
+              </details>
+            </>
+          ) : (
+            <p>{d.text}</p>
+          )}
+          {d.edited && <p class="row-meta">Edited by you</p>}
+          <ReviewSource source={source} />
+        </li>
+      );
+    })}
+  </ul>
+  {editable && (
+    <form method="post" action={base} class="form form-wide">
+      <input type="hidden" name="csrf_token" value={csrf} />
+      <input type="hidden" name="intent" value="add_decision" />
+      <div class="field field-wide">
+        <label for="new-decision">Add a decision</label>
+        <input
+          id="new-decision"
+          name="text"
+          type="text"
+          maxlength="2000"
+          value={typed("add_decision", "text", "")}
+        />
+        {errorsFor("add_decision", "text").map((e) => (
+          <p class="field-error">{e.message}</p>
+        ))}
+      </div>
+      <div class="row-actions">
+        <button class="button button-quiet" type="submit">
+          Add decision
+        </button>
+      </div>
+    </form>
+  )}
+</section>
