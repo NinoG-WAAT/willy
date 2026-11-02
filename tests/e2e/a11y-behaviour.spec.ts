@@ -147,20 +147,32 @@ test.describe("focus, navigation and motion", () => {
       await page.goto(path);
       const seen = new Set<string>();
       const missing: string[] = [];
+      // Under parallel load every Tab + evaluate round trip costs real time, so stop as soon as focus
+      // wraps to the first control instead of always pressing Tab 80 times. Wrap is detected by
+      // element identity: two controls can share a label, so a text key would stop too early.
+      test.setTimeout(60_000);
       for (let i = 0; i < 80; i += 1) {
         await page.keyboard.press("Tab");
         const info = await page.evaluate(() => {
           const el = document.activeElement;
           if (!el || el === document.body) return null;
+          const first = (window as unknown as { __firstFocused?: Element }).__firstFocused;
+          if (first === undefined) {
+            (window as unknown as { __firstFocused?: Element }).__firstFocused = el;
+          } else if (first === el) {
+            return { wrapped: true as const };
+          }
           const style = getComputedStyle(el);
           const box = el.getBoundingClientRect();
           return {
+            wrapped: false as const,
             key: `${el.tagName}#${el.id}.${el.getAttribute("name") ?? ""}.${el.textContent.slice(0, 20)}`,
             outlineWidth: parseFloat(style.outlineWidth),
             outlineStyle: style.outlineStyle,
             visible: box.width > 0 && box.height > 0,
           };
         });
+        if (info?.wrapped) break;
         if (!info || seen.has(info.key)) continue;
         seen.add(info.key);
         if (info.visible && (info.outlineStyle === "none" || info.outlineWidth < 2)) {
