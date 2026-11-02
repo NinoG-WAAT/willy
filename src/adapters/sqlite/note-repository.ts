@@ -2,7 +2,12 @@ import type { DatabaseSync } from "node:sqlite";
 import type { Meeting, TransitionOutcome } from "../../domain/meetings/lifecycle";
 import type { NewDraft } from "../../domain/notes/draft";
 import type { IdGenerator } from "../../ports/id-generator";
-import type { NoteRepository, SectionRef, SummaryContext } from "../../ports/note-repository";
+import type {
+  NoteRef,
+  NoteRepository,
+  SectionRef,
+  SummaryContext,
+} from "../../ports/note-repository";
 import { applyTransitionRows } from "./meeting-transition";
 import { inTransaction } from "./transaction";
 
@@ -144,6 +149,82 @@ export class SqliteNoteRepository implements NoteRepository {
     }
   }
 
+  findNote(ownerId: string, meetingId: string): Promise<NoteRef | null> {
+    const row = this.db
+      .prepare("SELECT id, status, revision FROM note WHERE owner_id = ? AND meeting_id = ?")
+      .get(ownerId, meetingId);
+    if (!row) return Promise.resolve(null);
+    return Promise.resolve({
+      noteId: String(row["id"]),
+      noteStatus: row["status"] === "published" ? "published" : "draft",
+      noteRevision: Number(row["revision"]),
+    });
+  }
+
+  replaceDraft(
+    ownerId: string,
+    meetingId: string,
+    expectedRevision: number,
+    draft: NewDraft,
+    now: Date,
+  ): Promise<"replaced" | "stale"> {
+    const iso = now.toISOString();
+    try {
+      inTransaction(this.db, () => {
+        const note = this.db
+          .prepare(
+            `UPDATE note SET revision = revision + 1, generated_at = ?, updated_at = ?
+             WHERE owner_id = ? AND meeting_id = ? AND status = 'draft' AND revision = ?
+               AND EXISTS (SELECT 1 FROM meeting m
+                            WHERE m.owner_id = note.owner_id AND m.id = note.meeting_id
+                              AND m.status = 'review')`,
+          )
+          .run(iso, iso, ownerId, meetingId, expectedRevision);
+        if (note.changes !== 1) throw new StaleRevision();
+        const noteId = String(
+          this.db
+            .prepare("SELECT id FROM note WHERE owner_id = ? AND meeting_id = ?")
+            .get(ownerId, meetingId)?.["id"],
+        );
+        // Search rows go first: they are found through the ids of the rows about to be deleted.
+        for (const [kind, table] of [
+          ["note_section", "note_section"],
+          ["decision", "decision"],
+          ["action_item", "action_item"],
+        ] as const) {
+          this.db
+            .prepare(
+              `DELETE FROM search_index WHERE owner_id = ? AND kind = ?
+                 AND ref_id IN (SELECT id FROM ${table} WHERE owner_id = ? AND note_id = ?)`,
+            )
+            .run(ownerId, kind, ownerId, noteId);
+          this.db
+            .prepare(`DELETE FROM ${table} WHERE owner_id = ? AND note_id = ?`)
+            .run(ownerId, noteId);
+        }
+        this.insertChildren(ownerId, meetingId, noteId, draft, iso);
+        this.db
+          .prepare(
+            `INSERT INTO audit_event (id, owner_id, meeting_id, kind, actor, detail_json, occurred_at)
+             VALUES (?, ?, ?, 'note.draft_regenerated', 'owner', ?, ?)`,
+          )
+          .run(
+            this.ids.newId(),
+            ownerId,
+            meetingId,
+            JSON.stringify({ fromRevision: expectedRevision }),
+            iso,
+          );
+      });
+      return Promise.resolve("replaced");
+    } catch (cause) {
+      if (cause instanceof StaleRevision) return Promise.resolve("stale");
+      return Promise.reject(
+        cause instanceof Error ? cause : new Error("replacing the draft failed"),
+      );
+    }
+  }
+
   private insertDraft(ownerId: string, meetingId: string, draft: NewDraft, iso: string): void {
     const noteId = this.ids.newId();
     this.db
@@ -153,7 +234,16 @@ export class SqliteNoteRepository implements NoteRepository {
          VALUES (?, ?, ?, 'draft', 1, NULL, ?, NULL, ?, ?)`,
       )
       .run(noteId, ownerId, meetingId, iso, iso, iso);
+    this.insertChildren(ownerId, meetingId, noteId, draft, iso);
+  }
 
+  private insertChildren(
+    ownerId: string,
+    meetingId: string,
+    noteId: string,
+    draft: NewDraft,
+    iso: string,
+  ): void {
     const index = (kind: string, refId: string, title: string, body: string): void => {
       this.db
         .prepare(

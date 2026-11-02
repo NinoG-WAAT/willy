@@ -155,6 +155,37 @@ describe("getProcessingStatus", () => {
     });
   });
 
+  it("reports a whole-draft regeneration as the latest regeneration, with no section", async () => {
+    consentedMeeting(db, "A", "m1", { status: "review" });
+    job({
+      id: "j-r1",
+      kind: "summarize",
+      job_key: "summarize:m1:r1:s-a",
+      status: "succeeded",
+      attempts: 1,
+      payload_json: JSON.stringify({ sectionId: "s-a", revision: 1 }),
+      updated_at: "2026-10-27T10:01:00.000Z",
+    });
+    job({
+      id: "j-all",
+      kind: "summarize",
+      job_key: "summarize:m1:r2:all",
+      status: "running",
+      attempts: 1,
+      payload_json: JSON.stringify({ scope: "all", revision: 2 }),
+      updated_at: "2026-10-27T10:05:00.000Z",
+    });
+    const result = await getProcessingStatus(deps, "A", "m1");
+    expect(result.ok && result.value.regeneration).toEqual({
+      sectionId: null,
+      status: "running",
+      attempts: 1,
+      maxAttempts: 5,
+      nextRunAt: null,
+      lastErrorCode: null,
+    });
+  });
+
   it("exposes only the redacted error code, never details", async () => {
     consentedMeeting(db, "A", "m1", { status: "failed" });
     job({ status: "failed", attempts: 5, last_error_code: "stt_rejected" });

@@ -48,7 +48,8 @@ export interface ProcessingPayload {
   /** Transcription. */
   job: JobProgress | null;
   summary: JobProgress | null;
-  regeneration: (JobProgress & { sectionId: string }) | null;
+  /** The latest regeneration: of one section, or (sectionId null) of the whole draft. */
+  regeneration: (JobProgress & { sectionId: string | null }) | null;
   /** Null when the answer carried no counts. */
   chunks: ChunkCounts | null;
 }
@@ -132,18 +133,31 @@ export function processingProgress(payload: ProcessingPayload, withLink = false)
   return { fields, settled, announce: null };
 }
 
-/** The latest "regenerate this section" request, if it is the one for this section. */
-export function regenerationProgress(payload: ProcessingPayload, sectionId: string): ProgressView {
+/**
+ * The latest regeneration request, if it is the one for this line: a section's id, or null for
+ * the whole draft. A section's job never shows on the whole-draft line, nor the other way round.
+ */
+export function regenerationProgress(
+  payload: ProcessingPayload,
+  sectionId: string | null,
+): ProgressView {
   const regeneration = payload.regeneration;
-  if (regeneration?.sectionId !== sectionId) return { fields: {}, settled: false, announce: null };
+  if (regeneration === null || regeneration.sectionId !== sectionId) {
+    return { fields: {}, settled: false, announce: null };
+  }
   const fields: Record<string, string> = {
     text: `Regeneration: ${describeJob(regeneration)}.`,
     outcome: "",
   };
+  const whole = sectionId === null;
   if (regeneration.status === "succeeded") {
-    fields["outcome"] = "The new draft of this section is ready. Use Check again to see it.";
+    fields["outcome"] = whole
+      ? "The new draft of the note is ready. Use Check again to see it."
+      : "The new draft of this section is ready. Use Check again to see it.";
   } else if (regeneration.status === "failed") {
-    fields["outcome"] = "It did not finish. Use Check again to see the details and try again.";
+    fields["outcome"] = whole
+      ? "It did not finish. Your previous draft is kept. Use Check again to see the details and try again."
+      : "It did not finish. Use Check again to see the details and try again.";
   }
   return {
     fields,
@@ -239,12 +253,19 @@ export function parseProcessingPayload(body: unknown): ProcessingPayload | null 
   if (job === undefined || summary === undefined || regeneration === undefined) return null;
   if (chunks === undefined) return null;
   const sectionId = isRecord(regenerationRaw) ? regenerationRaw["sectionId"] : null;
-  if (regeneration !== null && typeof sectionId !== "string") return null;
+  if (regeneration !== null) {
+    // null is the whole draft; a missing or non-string id is a malformed answer.
+    if (!isRecord(regenerationRaw) || !("sectionId" in regenerationRaw)) return null;
+    if (sectionId !== null && typeof sectionId !== "string") return null;
+  }
   return {
     meetingStatus: meetingStatus as MeetingStatus,
     job,
     summary,
-    regeneration: regeneration === null ? null : { ...regeneration, sectionId: String(sectionId) },
+    regeneration:
+      regeneration === null
+        ? null
+        : { ...regeneration, sectionId: typeof sectionId === "string" ? sectionId : null },
     chunks,
   };
 }

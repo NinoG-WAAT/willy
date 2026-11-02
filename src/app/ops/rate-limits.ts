@@ -39,7 +39,8 @@ const LIMITS: { method: string; path: RegExp; limit: RouteLimit }[] = [
   },
   {
     method: "POST",
-    path: new RegExp(`^/meetings/${ID}/note/regenerate$`),
+    // Writing the whole draft again is one more regeneration for the budget (#82).
+    path: new RegExp(`^/meetings/${ID}/note/regenerate(-all)?$`),
     limit: { name: "regenerate", policy: { limit: 30, windowMs: TEN_MINUTES }, scope: "owner" },
   },
   {

@@ -20,6 +20,12 @@ export interface SectionRef {
   noteRevision: number;
 }
 
+export interface NoteRef {
+  noteId: string;
+  noteStatus: "draft" | "published";
+  noteRevision: number;
+}
+
 /** Every method is scoped by the owner from the session or the job. */
 export interface NoteRepository {
   /** Null for an unknown id or another owner's meeting. */
@@ -57,4 +63,23 @@ export interface NoteRepository {
     section: { heading: string; body: string; sourceFrom: number; sourceTo: number },
     now: Date,
   ): Promise<"replaced" | "stale" | "missing">;
+
+  /** The meeting's note; null when there is none or the meeting is not the owner's. */
+  findNote(ownerId: string, meetingId: string): Promise<NoteRef | null>;
+
+  /**
+   * Replaces ALL sections, decisions and action items of a draft note with a freshly generated
+   * draft (manual edits included), raises the note's revision, refreshes their search rows and
+   * appends one audit event, in ONE transaction. Only a draft note of a meeting in `review`
+   * whose revision is still `expectedRevision` is touched (`stale` otherwise, so a replayed job
+   * or an edit made meanwhile changes nothing). Rough notes, transcript, attendees and the
+   * meeting itself are never touched.
+   */
+  replaceDraft(
+    ownerId: string,
+    meetingId: string,
+    expectedRevision: number,
+    draft: NewDraft,
+    now: Date,
+  ): Promise<"replaced" | "stale">;
 }

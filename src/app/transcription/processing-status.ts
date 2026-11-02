@@ -25,8 +25,8 @@ export interface ProcessingStatus {
   job: JobStatusView | null;
   /** The first summary of the meeting. */
   summary: JobStatusView | null;
-  /** The most recent "regenerate this section" request. */
-  regeneration: (JobStatusView & { sectionId: string }) | null;
+  /** The most recent regeneration request: of one section, or (sectionId null) of the whole draft. */
+  regeneration: (JobStatusView & { sectionId: string | null }) | null;
   chunks: { total: number; uploaded: number; transcribed: number; failed: number; purged: number };
 }
 
@@ -41,7 +41,7 @@ const view = (job: JobRow): JobStatusView => ({
 /**
  * What the live note and review screens poll: meeting status, the transcription and summary
  * jobs' states (pending, running, retrying, succeeded, failed with attempts and next retry), the
- * latest section regeneration and chunk counts. Owner-scoped; unknown ids, other owners'
+ * latest regeneration (a section or the whole draft) and chunk counts. Owner-scoped; unknown ids, other owners'
  * meetings and meetings being deleted are `not_found`. Carries codes and counts only, never
  * transcript, note or audio content.
  */
@@ -57,7 +57,7 @@ export async function getProcessingStatus(
   const transcription = jobs.find((j) => j.jobKey === `transcribe:${meetingId}`);
   const summary = jobs.find((j) => j.jobKey === `summarize:${meetingId}:1`);
   const regeneration = jobs
-    .filter((j) => typeof j.payload["sectionId"] === "string")
+    .filter((j) => typeof j.payload["sectionId"] === "string" || j.payload["scope"] === "all")
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
     .pop();
   const chunks = await deps.chunks.listByMeeting(ownerId, meetingId);
@@ -67,7 +67,13 @@ export async function getProcessingStatus(
     job: transcription ? view(transcription) : null,
     summary: summary ? view(summary) : null,
     regeneration: regeneration
-      ? { sectionId: String(regeneration.payload["sectionId"]), ...view(regeneration) }
+      ? {
+          sectionId:
+            typeof regeneration.payload["sectionId"] === "string"
+              ? regeneration.payload["sectionId"]
+              : null,
+          ...view(regeneration),
+        }
       : null,
     chunks: {
       total: chunks.length,

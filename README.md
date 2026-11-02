@@ -21,7 +21,7 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | ICS calendar file import (Outlook / Teams export; no Entra, Google or API keys needed) | done |
 | Screen 2: live note (consent, capture, rough notes, recording state, failure recovery) | done |
 | Search and Markdown export | done |
-| Screen 3: review (transcript beside editable summary, speakers, decisions, action items, publish to folder) | done |
+| Screen 3: review (transcript beside editable summary, speakers, decisions, action items, publish to folder, regenerate one section or the whole draft) | done |
 | Screen 4: settings hub (provider status, retention, template/folder/export entry points, permanent deletion with typed confirmation and job status) | done |
 
 ## Prerequisites

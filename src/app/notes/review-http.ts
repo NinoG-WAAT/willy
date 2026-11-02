@@ -50,6 +50,8 @@ const NOTICES: Readonly<Record<string, string>> = {
   published: "Published. This note is no longer a draft.",
   reopened: "Reopened. The note is a draft again and can be edited.",
   retry_queued: "Transcription restarted. Only the parts that failed are redone.",
+  draft_regeneration_queued:
+    "Regenerating the whole draft. It will update here when it is ready; your current draft stays until then.",
 };
 
 /**

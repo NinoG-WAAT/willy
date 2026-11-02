@@ -12,6 +12,7 @@ describe("rateLimitFor (abuse-prone endpoints)", () => {
     ["POST", "/meetings/abc123/delete", "delete", "owner"],
     ["POST", "/settings/deletions/abc123/retry", "delete", "owner"],
     ["POST", "/meetings/abc123/note/regenerate", "regenerate", "owner"],
+    ["POST", "/meetings/abc123/note/regenerate-all", "regenerate", "owner"],
     ["GET", "/search", "search", "owner"],
     ["GET", "/api/meetings/abc123/status", "status", "owner"],
     ["GET", "/api/deletions/status", "status", "owner"],
