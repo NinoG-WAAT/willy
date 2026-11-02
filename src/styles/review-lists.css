@@ -5,7 +5,7 @@
  * colour alone; every control keeps the 44px hit area.
  */
 
-.review-outline .outline {
+.review-lists .rl-list {
   max-width: var(--measure-list);
   margin: 0 0 var(--spacing-8);
   padding: 0;
@@ -13,40 +13,40 @@
 }
 
 /* Decisions are real bullets; the marker sits in the gutter, the hairlines run under the text. */
-.review-outline .outline-bullets {
+.review-lists .rl-bullets {
   list-style: disc;
   padding-inline-start: var(--spacing-20);
 }
 
-.review-outline .outline-bullets > .outline-item::marker {
+.review-lists .rl-bullets > .rl-item::marker {
   color: var(--text-muted);
 }
 
-.review-outline .outline-bullets > .outline-item.is-editing {
+.review-lists .rl-bullets > .rl-item.is-editing {
   list-style: none;
 }
 
-.outline-item {
+.rl-item {
   padding: 0;
 }
 
-.outline-item + .outline-item {
+.rl-item + .rl-item {
   border-top: 1px solid var(--line);
 }
 
 /* A search hit is marked by a thick edge and the words "Search match", not by colour. */
-.outline-item.is-hit {
+.rl-item.is-hit {
   border-left: 6px solid var(--text-strong);
   padding-inline-start: var(--spacing-8);
 }
 
-.outline-item.is-editing {
+.rl-item.is-editing {
   padding-block: var(--spacing-12);
 }
 
 /* One line of an outline: the text, then the chips and Edit on the same line when there is room,
    under it when there is not. */
-.outline-line {
+.rl-line {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -55,19 +55,19 @@
 }
 
 /* A checklist row: the box in its own column, the text above its chips, both in the next one. */
-.outline-checklist .outline-line {
+.rl-checklist .rl-line {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: var(--spacing-8);
 }
 
-.outline-checklist .outline-meta {
+.rl-checklist .rl-meta {
   grid-column: 2;
   margin-top: calc(var(--spacing-4) * -1);
   padding-bottom: var(--spacing-4);
 }
 
-.outline-text {
+.rl-text {
   flex: 1 1 16rem;
   min-width: 0;
   padding-block: var(--spacing-8);
@@ -75,14 +75,14 @@
   overflow-wrap: anywhere;
 }
 
-.outline-meta {
+.rl-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0 var(--spacing-8);
 }
 
-.outline-chip {
+.rl-chip {
   display: inline-block;
   padding: 0 var(--spacing-8);
   border: 1px solid var(--line-strong);
@@ -93,96 +93,81 @@
   white-space: nowrap;
 }
 
-/* The chip is the look; its link keeps the 44px hit area around it. */
-.outline-link,
-.outline-edit {
+/* Source chips are styled in review-outline.css; the Edit link keeps a 44px hit area. */
+.rl-edit {
   display: inline-flex;
   align-items: center;
   min-height: var(--hit);
-}
-
-.outline-link {
-  padding-inline: var(--spacing-4);
-  text-decoration: none;
-}
-
-.outline-link:hover .outline-chip {
-  border-color: var(--text-muted);
-  background: var(--fill-soft);
-  color: var(--text-strong);
-}
-
-.outline-edit {
   padding-inline: var(--spacing-4);
   color: var(--text-muted);
   font-size: var(--text-body-sm);
 }
 
-.outline-edit:hover {
+.rl-edit:hover {
   color: var(--text-strong);
 }
 
 /* Overdue is said in words; the coral edge and text are a second cue. */
-.outline-chip-overdue {
+.rl-chip-overdue {
   border-color: var(--line-danger);
   color: var(--text-danger);
   font-weight: var(--font-weight-w510);
 }
 
-.outline-state {
+.rl-state {
   color: var(--text-muted);
   font-size: var(--text-caption);
 }
 
 /* The done checkbox: a tiny form of its own, 44px high, with a Save button when there is no JS. */
-.outline-done {
+.rl-done {
   gap: var(--spacing-4);
   margin: 0;
 }
 
-.outline-done .outline-done-box {
+.rl-done .rl-done-box {
   margin: 0 var(--spacing-8);
   cursor: pointer;
 }
 
-.outline-done .outline-done-save {
+.rl-done .rl-done-save {
   min-height: var(--hit);
   padding-block: var(--spacing-4);
   font-size: var(--text-caption);
 }
 
-.outline-done[data-auto] .outline-done-save {
+.rl-done[data-auto] .rl-done-save {
   display: none;
 }
 
-.outline-item.is-done .outline-text {
+.rl-item.is-done .rl-text {
   color: var(--text-muted);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
 
-.outline-remove,
-.outline-add {
+.rl-remove,
+.rl-add {
   max-width: var(--measure-list);
 }
 
-.outline-remove {
+.rl-remove {
   margin-top: var(--spacing-8);
 }
 
-.outline-add {
+.rl-add {
   margin-top: var(--spacing-4);
   border-top: 1px solid var(--line);
 }
 
-.outline-add > summary {
+.rl-add > summary {
   color: var(--text-muted);
 }
 
-.outline-add > summary:hover {
+.rl-add > summary:hover {
   color: var(--text-strong);
 }
 
-.outline-add[open] {
+.rl-add[open] {
   padding-bottom: var(--spacing-8);
 }

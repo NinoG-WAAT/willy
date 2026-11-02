@@ -85,7 +85,7 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
   await expect(action).toContainText("Send the pricing deck");
   await expect(action).toContainText("Grace Hopper");
   await expect(action).toContainText("Due Fri 20 Nov 2099");
-  await expect(action.locator(".outline-chip-overdue")).toHaveCount(0);
+  await expect(action.locator(".rl-chip-overdue")).toHaveCount(0);
   // The stored values are what the edit view shows.
   await page.goto(`/meetings/${id}/review?edit=${id}-act-0`);
   await expect(page.locator(`#act-text-${id}-act-0`)).toHaveValue("Send the pricing deck");
@@ -149,7 +149,7 @@ test("a search hit opens the review with the match and its source marked", async
 test("an overdue action item says so in words", async ({ page }) => {
   await signIn(page, "ada@example.test");
   await page.goto(`/meetings/${OVERDUE_MEETING}/review`);
-  await expect(page.locator("#action-items .outline-chip-overdue")).toHaveText("Overdue");
+  await expect(page.locator("#action-items .rl-chip-overdue")).toHaveText("Overdue");
   // The due chip names the day in the meeting's zone, not a time.
   await expect(page.locator("#action-items")).toContainText(/Due \w{3} \d{1,2} \w{3}/);
 });

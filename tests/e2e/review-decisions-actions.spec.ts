@@ -49,7 +49,7 @@ test("decisions and action items are read-only text: no field, no Save, no Remov
       area.locator("li input[type=text], li input[type=date], li select, li textarea"),
     ).toHaveCount(0);
     await expect(area.getByRole("button", { name: /^(Save|Remove|Confirm)/ })).toHaveCount(0);
-    await expect(area.locator("details.outline-add")).not.toHaveAttribute("open");
+    await expect(area.locator("details.rl-add")).not.toHaveAttribute("open");
   }
   await expect(page.locator("#decisions li")).toHaveCount(3);
   await expect(page.locator("#action-items li")).toHaveCount(4);
@@ -80,16 +80,16 @@ test("decisions and action items are read-only text: no field, no Save, no Remov
 test("overdue is said in words, only for an open item past its due date", async ({ page }) => {
   const id = await outlineMeeting(page);
   const overdue = page.locator(`#action-${id}-act-3`);
-  await expect(overdue.locator(".outline-chip-overdue")).toHaveText("Overdue");
+  await expect(overdue.locator(".rl-chip-overdue")).toHaveText("Overdue");
   await expect(overdue).toContainText("Due Wed 15 Jan 2020");
   // Not overdue: due in 2099, and a done item (even one with no due date).
-  await expect(page.locator(`#action-${id}-act-1 .outline-chip-overdue`)).toHaveCount(0);
-  await expect(page.locator(`#action-${id}-act-2 .outline-chip-overdue`)).toHaveCount(0);
+  await expect(page.locator(`#action-${id}-act-1 .rl-chip-overdue`)).toHaveCount(0);
+  await expect(page.locator(`#action-${id}-act-2 .rl-chip-overdue`)).toHaveCount(0);
   // Done: no longer overdue.
   await overdue.getByRole("checkbox").check();
   await expect(page).toHaveURL(/notice=action_done#action-/);
   await expect(page.locator(`#action-${id}-act-3`)).toContainText("Due Wed 15 Jan 2020");
-  await expect(page.locator(`#action-${id}-act-3 .outline-chip-overdue`)).toHaveCount(0);
+  await expect(page.locator(`#action-${id}-act-3 .rl-chip-overdue`)).toHaveCount(0);
 });
 
 test("Edit opens only that item, Cancel returns to the outline", async ({ page }) => {
@@ -201,7 +201,7 @@ test("adding goes through a disclosure; a rejected add opens it with what was ty
   await actions.getByLabel("Action", { exact: true }).fill("   ");
   await actions.locator("#new-action-due").fill("2099-05-01");
   await actions.getByRole("button", { name: "Add action item" }).click();
-  await expect(actions.locator("details.outline-add")).toHaveAttribute("open", "");
+  await expect(actions.locator("details.rl-add")).toHaveAttribute("open", "");
   await expect(actions.locator(".field-error")).toContainText("Describe the action.");
   await expect(actions.locator("#new-action-due")).toHaveValue("2099-05-01");
 });
@@ -276,7 +276,7 @@ test("a published note shows the outline without Edit, checkboxes or add", async
   await expect(
     page.locator("#action-items, #decisions").getByRole("link", { name: /^Edit/ }),
   ).toHaveCount(0);
-  await expect(page.locator("details.outline-add")).toHaveCount(0);
+  await expect(page.locator("details.rl-add")).toHaveCount(0);
 });
 
 test("the outline reflows at 320px without sideways scrolling", async ({ page }) => {

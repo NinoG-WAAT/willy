@@ -52,11 +52,11 @@ const FIELDS = ["text", "assignee", "due"] as const;
 const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
 ---
 
-<section class="panel review-outline" id="action-items" aria-labelledby="actions-heading">
+<section class="panel review-lists" id="action-items" aria-labelledby="actions-heading">
   <h2 id="actions-heading">Action items</h2>
   {actionItems.length === 0 && <p>No action items were recorded.</p>}
   {actionItems.length > 0 && (
-    <ul class="outline outline-checklist">
+    <ul class="rl-list rl-checklist">
       {actionItems.map((a) => {
         const key = a.id;
         const chips = actionItemChips(a, {
@@ -72,7 +72,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
           <li
             id={`action-${a.id}`}
             class:list={[
-              "outline-item",
+              "rl-item",
               { "is-hit": isHit("action_item", a.id), "is-editing": editing, "is-done": isDone },
             ]}
           >
@@ -173,7 +173,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                     </a>
                   </div>
                 </form>
-                <details class="outline-remove">
+                <details class="rl-remove">
                   <summary>Remove this action item</summary>
                   <form method="post" action={base} class="form">
                     <input type="hidden" name="csrf_token" value={csrf} />
@@ -191,15 +191,15 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                 </details>
               </>
             ) : (
-              <div class="outline-line">
+              <div class="rl-line">
                 {editable ? (
-                  <form method="post" action={base} class="outline-done check">
+                  <form method="post" action={base} class="rl-done check">
                     <input type="hidden" name="csrf_token" value={csrf} />
                     <input type="hidden" name="intent" value="set_action_item_done" />
                     <input type="hidden" name="id" value={a.id} />
                     <input
                       id={`act-done-${a.id}`}
-                      class="outline-done-box"
+                      class="rl-done-box"
                       name="done"
                       type="checkbox"
                       checked={isDone}
@@ -207,39 +207,39 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                     <label class="sr-only" for={`act-done-${a.id}`}>
                       Mark done: {a.text}
                     </label>
-                    <button class="button-quiet outline-done-save" type="submit">
+                    <button class="button-quiet rl-done-save" type="submit">
                       Save status<span class="sr-only">: {a.text}</span>
                     </button>
                   </form>
                 ) : (
-                  <span class="outline-state">{isDone ? "Done" : "Open"}</span>
+                  <span class="rl-state">{isDone ? "Done" : "Open"}</span>
                 )}
-                <span class="outline-text">
+                <span class="rl-text">
                   {isDone && <span class="sr-only">Done: </span>}
                   {a.text}
                 </span>
-                <span class="outline-meta">
+                <span class="rl-meta">
                   {isHit("action_item", a.id) && <span class="badge">Search match</span>}
                   {chips.assignee !== null && (
-                    <span class="outline-chip">
+                    <span class="rl-chip">
                       <span class="sr-only">Owner: </span>
                       {chips.assignee}
                     </span>
                   )}
                   {chips.due !== null && a.dueAt !== null && (
-                    <span class="outline-chip">
+                    <span class="rl-chip">
                       <time datetime={a.dueAt} title={`In ${zone}`}>
                         {chips.due}
                       </time>
                     </span>
                   )}
                   {chips.overdue !== null && (
-                    <span class="outline-chip outline-chip-overdue">{chips.overdue}</span>
+                    <span class="rl-chip rl-chip-overdue">{chips.overdue}</span>
                   )}
                   <ReviewSource source={sourceLink(a.sourceFrom, a.sourceTo)} chip />
-                  {a.edited && <span class="outline-chip">Edited by you</span>}
+                  {a.edited && <span class="rl-chip">Edited by you</span>}
                   {editable && (
-                    <a class="outline-edit" href={`${base}?edit=${a.id}#action-${a.id}`}>
+                    <a class="rl-edit" href={`${base}?edit=${a.id}#action-${a.id}`}>
                       Edit<span class="sr-only"> action item: {a.text}</span>
                     </a>
                   )}
@@ -252,7 +252,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
     </ul>
   )}
   {editable && (
-    <details class="outline-add" open={addErrors.length > 0}>
+    <details class="rl-add" open={addErrors.length > 0}>
       <summary>Add an action item</summary>
       <form method="post" action={base} class="form form-wide">
         <input type="hidden" name="csrf_token" value={csrf} />
@@ -337,5 +337,5 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
 </section>
 
 <script>
-  import "../../scripts/review-outline";
+  import "../../scripts/review-lists";
 </script>

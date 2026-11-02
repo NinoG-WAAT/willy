@@ -4,22 +4,22 @@
  * submits straight away and the item that was just opened (or rejected) gets the focus: the
  * browser does not honour `autofocus` when the URL has a fragment.
  */
-for (const form of document.querySelectorAll<HTMLFormElement>("form.outline-done")) {
+for (const form of document.querySelectorAll<HTMLFormElement>("form.rl-done")) {
   form.dataset["auto"] = "";
 }
 
 document.addEventListener("change", (event) => {
   const box = event.target;
-  if (!(box instanceof HTMLInputElement) || !box.classList.contains("outline-done-box")) return;
+  if (!(box instanceof HTMLInputElement) || !box.classList.contains("rl-done-box")) return;
   box.form?.requestSubmit();
 });
 
 function focusOpenedItem(): void {
-  const editing = document.querySelector(".outline-item.is-editing");
+  const editing = document.querySelector(".rl-item.is-editing");
   const target =
     editing?.querySelector<HTMLElement>("[aria-invalid=true]") ??
     editing?.querySelector<HTMLElement>("[autofocus]") ??
-    document.querySelector<HTMLElement>(".outline-add[open] [aria-invalid=true]");
+    document.querySelector<HTMLElement>(".rl-add[open] [aria-invalid=true]");
   target?.focus();
 }
 
