@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SqliteDiagnosticsRepository } from "../../../src/adapters/sqlite/diagnostics-repository";
@@ -5,6 +7,13 @@ import { getDiagnostics } from "../../../src/app/ops/diagnostics";
 import { T0, consentedMeeting, freshDb, insert, owner } from "../../support/db-fixtures";
 
 let db: DatabaseSync;
+
+// The number of the newest file in migrations/, so adding a migration does not break this test.
+const latestMigration = readdirSync(join(process.cwd(), "migrations"))
+  .filter((f) => f.endsWith(".sql"))
+  .map((f) => f.slice(0, 4))
+  .sort()
+  .at(-1);
 
 const providers = {
   speechToText: "fake",
@@ -48,7 +57,7 @@ describe("getDiagnostics", () => {
       "A",
     );
     expect(result).toEqual({
-      migration: { latest: "0001" },
+      migration: { latest: latestMigration },
       jobs: { pending: 1, running: 0, retrying: 1, succeeded: 1, failed: 2 },
       providers,
     });

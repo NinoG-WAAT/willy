@@ -11,7 +11,9 @@ export interface TranscribeRequest {
 }
 
 /**
- * Speech-to-text for one chunk. Never throws for provider problems: failures come back as a
+ * Speech-to-text for one chunk. Segment times are **relative to the start of that chunk's audio**
+ * (every real provider and the fake report them that way); the transcription job moves them onto
+ * the meeting timeline, so an adapter must not try to guess an offset. Never throws for provider problems: failures come back as a
  * normalized ProviderError (`retryable` says whether trying again can help).
  */
 export interface Transcriber {

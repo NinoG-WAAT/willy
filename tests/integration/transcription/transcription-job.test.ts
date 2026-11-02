@@ -83,7 +83,12 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-async function capture(ownerId: string, meetingId: string, n: number): Promise<void> {
+async function capture(
+  ownerId: string,
+  meetingId: string,
+  n: number,
+  durationsMs: readonly number[] = [],
+): Promise<void> {
   const deps = {
     meetings,
     chunks,
@@ -97,7 +102,7 @@ async function capture(ownerId: string, meetingId: string, n: number): Promise<v
       seq,
       audio: audio(seq),
       contentType: "audio/webm",
-      durationMs: 10_000,
+      durationMs: durationsMs[seq] ?? 10_000,
     });
     if (!r.ok) throw new Error(`upload failed: ${JSON.stringify(r.error)}`);
   }
@@ -113,6 +118,14 @@ const segments = (id = "m1") =>
       "SELECT id, chunk_seq, seg_index, position, speaker_label, text_ciphertext, text_key_id FROM transcript_segment WHERE meeting_id = ? ORDER BY position",
     )
     .all(id);
+/** [chunk_seq, seg_index, start_ms, end_ms] in transcript order. */
+const times = (id = "m1") =>
+  db
+    .prepare(
+      "SELECT chunk_seq, seg_index, start_ms, end_ms FROM transcript_segment WHERE meeting_id = ? ORDER BY position",
+    )
+    .all(id)
+    .map((r) => [r["chunk_seq"], r["seg_index"], r["start_ms"], r["end_ms"]]);
 const job = (key = "transcribe:m1") => db.prepare("SELECT * FROM job WHERE job_key = ?").get(key);
 const meetingStatus = (id = "m1") =>
   db.prepare("SELECT status FROM meeting WHERE id = ?").get(id)?.["status"];
@@ -182,6 +195,80 @@ describe("transcription job: happy path", () => {
     await run();
     expect(fake.calls.map((c) => c.chunkId)).toEqual(["m1:0", "m1:1"]);
     expect(fake.calls.every((c) => c.contentType === "audio/webm" && c.bytes > 0)).toBe(true);
+  });
+});
+
+describe("meeting-relative transcript times (#88)", () => {
+  // The fake transcriber answers chunk-relative 0-4000 and 4000-8000 for every chunk.
+  it("puts every segment on the meeting timeline, after the audio of the chunks before it", async () => {
+    await capture("A", "m1", 3, [10_000, 7_500, 12_000]);
+    await stop();
+    await run();
+    expect(times()).toEqual([
+      [0, 0, 0, 4_000],
+      [0, 1, 4_000, 8_000],
+      [1, 0, 10_000, 14_000],
+      [1, 1, 14_000, 18_000],
+      [2, 0, 17_500, 21_500],
+      [2, 1, 21_500, 25_500],
+    ]);
+  });
+
+  it("keeps the times when the job is replayed", async () => {
+    await capture("A", "m1", 3);
+    await stop();
+    await run();
+    const before = times();
+    db.prepare(
+      "UPDATE job SET status = 'pending', next_run_at = NULL, attempts = 0 WHERE job_key = 'transcribe:m1'",
+    ).run();
+    await run();
+    expect(times()).toEqual(before);
+  });
+
+  it("gives a retried chunk its own place, whatever the order the chunks were transcribed in", async () => {
+    await capture("A", "m1", 3, [10_000, 6_000, 9_000]);
+    await stop();
+    // Chunk 0 fails first, so chunks 1 and 2 are stored before it exists.
+    fake.script.failOnChunk("m1:0", "unavailable", 1);
+    await run();
+    expect(times().map(([seq, , start]) => [seq, start])).toEqual([
+      [1, 10_000],
+      [1, 14_000],
+      [2, 16_000],
+      [2, 20_000],
+    ]);
+
+    clock.advance(10 * 60_000);
+    await run();
+    expect(times()).toEqual([
+      [0, 0, 0, 4_000],
+      [0, 1, 4_000, 8_000],
+      [1, 0, 10_000, 14_000],
+      [1, 1, 14_000, 18_000],
+      [2, 0, 16_000, 20_000],
+      [2, 1, 20_000, 24_000],
+    ]);
+  });
+
+  it("counts the duration of a chunk whose transcription failed for good", async () => {
+    await capture("A", "m1", 3, [10_000, 6_000, 9_000]);
+    await stop();
+    fake.script.failOnChunk("m1:1", "rejected", 1);
+    await run();
+    // Chunk 1 has no text, but chunk 2 still starts after its 6 seconds of audio.
+    expect(times().map(([seq, , start]) => [seq, start])).toEqual([
+      [0, 0],
+      [0, 4_000],
+      [2, 16_000],
+      [2, 20_000],
+    ]);
+    expect((await retryMeetingProcessing(meetingDeps(), "A", "m1")).ok).toBe(true);
+    await run();
+    expect(times().filter(([seq]) => seq === 1)).toEqual([
+      [1, 0, 10_000, 14_000],
+      [1, 1, 14_000, 18_000],
+    ]);
   });
 });
 

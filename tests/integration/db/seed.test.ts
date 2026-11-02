@@ -37,6 +37,21 @@ describe("seed data", () => {
     }
   });
 
+  it("seeds meeting-relative transcript times: they never go back at a chunk boundary (#88)", () => {
+    const rows = db
+      .prepare("SELECT meeting_id, start_ms FROM transcript_segment ORDER BY meeting_id, position")
+      .all();
+    expect(rows.length).toBeGreaterThan(0);
+    let previous: { meeting: string; start: number } | null = null;
+    for (const r of rows) {
+      const meeting = String(r["meeting_id"]);
+      const start = Number(r["start_ms"]);
+      if (previous && previous.meeting === meeting)
+        expect(start).toBeGreaterThanOrEqual(previous.start);
+      previous = { meeting, start };
+    }
+  });
+
   it("covers the happy path: published meeting with transcript, note, decision, action item", () => {
     const m = ids.meetings.published;
     expect(db.prepare("SELECT status FROM meeting WHERE id = ?").get(m)).toEqual({
