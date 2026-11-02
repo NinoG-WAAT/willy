@@ -33,7 +33,9 @@ export function summaryJobHandler(deps: SummaryDeps): JobHandler {
     run: (job, log) =>
       typeof job.payload["sectionId"] === "string"
         ? regenerateSection(deps, job, log)
-        : generateDraft(deps, job, log),
+        : job.payload["scope"] === "all"
+          ? regenerateDraft(deps, job, log)
+          : generateDraft(deps, job, log),
   };
 }
 
@@ -212,5 +214,71 @@ async function regenerateSection(deps: SummaryDeps, job: JobRow, log: Logger): P
     deps.clock.now(),
   );
   log.info("summary.section_regenerated", { result: replaced });
+  return { kind: "succeeded" };
+}
+
+/**
+ * Regenerate-whole-draft: the same input and the same server-side verification as the first
+ * draft, but the result replaces every section, decision and action item of the draft note in one
+ * transaction (the note revision is compared and raised there, so a replayed job, an edit made
+ * meanwhile or a note published meanwhile changes nothing). A failure never fails the meeting and
+ * never touches the draft; with no transcript there is nothing to write from, so nothing is wiped.
+ */
+async function regenerateDraft(deps: SummaryDeps, job: JobRow, log: Logger): Promise<JobOutcome> {
+  const { ownerId, meetingId } = job;
+  const revision = Number(job.payload["revision"]);
+  const meeting = meetingId === null ? null : await deps.meetings.findById(ownerId, meetingId);
+  if (
+    meetingId === null ||
+    !meeting ||
+    !canViewMeeting(ownerId, meeting) ||
+    meeting.status !== "review"
+  ) {
+    log.info("job.skipped", { reason: "meeting_not_in_review" });
+    return { kind: "succeeded" };
+  }
+  const note = await deps.notes.findNote(ownerId, meetingId);
+  if (!note || note.noteStatus !== "draft" || note.noteRevision !== revision) {
+    log.info("job.skipped", { reason: note ? "stale_revision" : "note_missing" });
+    return { kind: "succeeded" };
+  }
+  const context = await deps.notes.loadSummaryContext(ownerId, meetingId);
+  if (!context) return { kind: "succeeded" };
+  const segments = await readTranscript(deps, context);
+  if (segments === null) return { kind: "failed", errorCode: "transcript_unreadable" };
+  if (segments.length === 0) {
+    log.info("job.skipped", { reason: "no_transcript" });
+    return { kind: "succeeded" };
+  }
+
+  const result = await deps.summarizer.summarize({
+    segments,
+    agenda: context.agenda,
+    attendees: context.attendees,
+    template: { sections: await templateSections(deps, ownerId, context.templateId) },
+    only: null,
+  });
+  if (!result.ok) {
+    const errorCode = `llm_${result.error.kind}`;
+    log.warn("summary.regeneration_failed", { errorCode, retryable: result.error.retryable });
+    if (!result.error.retryable || job.attempts >= job.maxAttempts) {
+      return { kind: "failed", errorCode };
+    }
+    return { kind: "retry", errorCode };
+  }
+
+  const replaced = await deps.notes.replaceDraft(
+    ownerId,
+    meetingId,
+    revision,
+    toNewDraft(result.value, { timezone: context.timezone }),
+    deps.clock.now(),
+  );
+  log.info("summary.draft_regenerated", {
+    result: replaced,
+    sections: result.value.sections.length,
+    decisions: result.value.decisions.length,
+    actionItems: result.value.actionItems.length,
+  });
   return { kind: "succeeded" };
 }

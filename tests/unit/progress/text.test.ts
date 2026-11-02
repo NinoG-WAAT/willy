@@ -177,6 +177,51 @@ describe("regenerationProgress", () => {
   });
 });
 
+describe("regenerationProgress for the whole draft", () => {
+  const whole = (over: Partial<JobProgress> = {}) =>
+    payload({ regeneration: { sectionId: null, ...job(over) } });
+
+  it("reports the whole-draft job for the whole-draft line and keeps polling until it is done", () => {
+    const view = regenerationProgress(whole({ status: "running" }), null);
+    expect(view.settled).toBe(false);
+    expect(view.fields["text"]).toBe("Regeneration: Running.");
+  });
+
+  it("settles with words about the whole draft", () => {
+    const done = regenerationProgress(whole({ status: "succeeded" }), null);
+    expect(done.settled).toBe(true);
+    expect(done.fields["outcome"]).toMatch(/new draft of the note is ready/i);
+    expect(done.fields["outcome"]).toMatch(/check again/i);
+    const failed = regenerationProgress(whole({ status: "failed", attempts: 5 }), null);
+    expect(failed.settled).toBe(true);
+    expect(failed.fields["outcome"]).toMatch(/previous draft is kept/i);
+  });
+
+  it("is not shown on a section, and a section's job is not shown on the whole-draft line", () => {
+    expect(regenerationProgress(whole({ status: "succeeded" }), "s1").fields).toEqual({});
+    expect(
+      regenerationProgress(payload({ regeneration: { sectionId: "s1", ...job() } }), null).fields,
+    ).toEqual({});
+    expect(regenerationProgress(payload(), null).fields).toEqual({});
+  });
+
+  it("parses a whole-draft regeneration (sectionId null) and still rejects a missing sectionId", () => {
+    const body = (regeneration: unknown) => ({
+      meetingStatus: "review",
+      job: null,
+      summary: null,
+      regeneration,
+      chunks: null,
+    });
+    expect(
+      parseProcessingPayload(body({ sectionId: null, ...job({ status: "running" }) }))
+        ?.regeneration,
+    ).toMatchObject({ sectionId: null, status: "running" });
+    expect(parseProcessingPayload(body({ ...job() }))).toBeNull();
+    expect(parseProcessingPayload(body({ sectionId: 7, ...job() }))).toBeNull();
+  });
+});
+
 describe("cardProgress", () => {
   it("announces the new state with the meeting title taken from the page", () => {
     const view = cardProgress(payload({ meetingStatus: "review" }), "Weekly sync", "m1");

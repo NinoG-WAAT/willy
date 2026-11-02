@@ -126,6 +126,11 @@ const moveTargets = folders.filter((f) => f.id !== note?.folderId);
 const moveErrors = errorsFor("move_note", "folder");
 
 const regeneration = progress?.regeneration ?? null;
+// The whole-draft request has no section; its line stays until it is done.
+const draftRegeneration =
+  regeneration !== null && regeneration.sectionId === null && regeneration.status !== "succeeded"
+    ? regeneration
+    : null;
 ---
 
 <Base
@@ -378,6 +383,50 @@ const regeneration = progress?.regeneration ?? null;
         </section>
 
         <h2>Summary</h2>
+        {editable && (
+          <details class="regenerate-draft" id="regenerate-draft" open={draftRegeneration !== null}>
+            <summary>Regenerate whole draft</summary>
+            <form
+              method="post"
+              action={`/meetings/${meeting.id}/note/regenerate-all`}
+              class="form form-wide regenerate-draft-form"
+            >
+              <input type="hidden" name="csrf_token" value={csrf} />
+              <p class="help" id="regenerate-draft-help">
+                Writes the summary again from the transcript. It replaces every section, decision
+                and action item, including your edits to them. Your rough notes, the transcript and
+                the speaker names are kept, and the note stays a draft until you publish it.
+              </p>
+              <div class="check">
+                <input
+                  id="regenerate-draft-confirm"
+                  name="confirm"
+                  type="checkbox"
+                  required
+                  aria-describedby="regenerate-draft-help"
+                />
+                <label for="regenerate-draft-confirm">Replace my edits with a new draft.</label>
+              </div>
+              <div class="row-actions">
+                <button class="button button-quiet" type="submit">
+                  Regenerate whole draft
+                </button>
+              </div>
+            </form>
+            {draftRegeneration !== null && (
+              <p
+                class="help"
+                role="status"
+                data-progress="regeneration"
+                data-scope="all"
+                data-progress-url={`/api/meetings/${meeting.id}/status`}
+              >
+                <span data-field="text">Regeneration: {describeJob(draftRegeneration)}.</span>{" "}
+                <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
+              </p>
+            )}
+          </details>
+        )}
         {view.sections.length === 0 && <p class="empty">The summary has no sections.</p>}
         {view.sections.map((s) => {
           const source = sourceLink(s.sourceFrom, s.sourceTo);

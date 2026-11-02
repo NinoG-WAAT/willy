@@ -552,6 +552,10 @@ test.describe("permission boundaries: another owner gets the same answer as for 
         }),
       },
       {
+        name: "regenerate the whole draft",
+        run: postForm((id) => `/meetings/${id}/note/regenerate-all`, { confirm: "on" }),
+      },
+      {
         name: "permanent deletion",
         run: postForm((id) => `/meetings/${id}/delete`, { confirmation: "DELETE" }),
       },

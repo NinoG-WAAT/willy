@@ -164,7 +164,10 @@ const renderers: Record<string, Render> = {
   },
   regeneration: (el, body) => {
     const payload = parseProcessingPayload(body);
-    return payload ? show(el, regenerationProgress(payload, el.dataset["sectionId"] ?? "")) : null;
+    // A line for one section carries its id; the whole-draft line has none.
+    return payload
+      ? show(el, regenerationProgress(payload, el.dataset["sectionId"] ?? null))
+      : null;
   },
   card: (el, body) => {
     const payload = parseProcessingPayload(body);

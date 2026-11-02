@@ -25,6 +25,7 @@ Status: v1 (issue #20).
 | `GET /meetings/:id/export.md` | 30 per 10 min | owner |
 | `POST /meetings/:id/delete`, `POST /settings/deletions/:id/retry` | 30 per 10 min (one shared count; wrong confirmations count too, raised from 10 so a bulk clean-up is possible) | owner |
 | `POST /meetings/:id/note/regenerate` | 30 per 10 min | owner |
+| `POST /meetings/:id/note/regenerate-all` | same budget as `regenerate` (30 per 10 min, shared) | owner |
 | `GET /search` | 60 per minute | owner |
 | `POST /webhooks/*` | 300 per minute | client address (no session) |
 
