@@ -3,108 +3,150 @@ import type { ReviewDecision } from "../../ports/review-repository";
 import ReviewSource from "./ReviewSource.astro";
 import type { ErrorsFor, IsHit, SourceLinkFor, Typed } from "./types";
 
-/** The decisions of the note: one list item each, with its edit and remove forms, and an add form. */
+/**
+ * The decisions of the note as a plain outline: text, a source chip and an Edit link per line.
+ * Only the decision named by `?edit=` (or the one whose save was just rejected) shows its form;
+ * adding one lives behind a disclosure. Everything is text nodes: nothing here is ever raw HTML.
+ */
 interface Props {
   /** The review page's own path: the target of every form. */
   base: string;
   csrf: string;
   editable: boolean;
   decisions: readonly ReviewDecision[];
+  /** The `edit` query value. Only compared with the ids on this page, never rendered. */
+  editingId: string | null;
   isHit: IsHit;
   sourceLink: SourceLinkFor;
   typed: Typed;
   errorsFor: ErrorsFor;
 }
 
-const { base, csrf, editable, decisions, isHit, sourceLink, typed, errorsFor } = Astro.props;
+const { base, csrf, editable, decisions, editingId, isHit, sourceLink, typed, errorsFor } =
+  Astro.props;
+
+const addErrors = errorsFor("add_decision", "text");
 ---
 
-<section class="panel" id="decisions" aria-labelledby="decisions-heading">
+<section class="panel review-outline" id="decisions" aria-labelledby="decisions-heading">
   <h2 id="decisions-heading">Decisions</h2>
   {decisions.length === 0 && <p>No decisions were recorded.</p>}
-  <ul class="review-list">
-    {decisions.map((d) => {
-      const source = sourceLink(d.sourceFrom, d.sourceTo);
-      return (
-        <li id={`decision-${d.id}`} class:list={[{ "is-hit": isHit("decision", d.id) }]}>
-          {isHit("decision", d.id) && <span class="badge">Search match</span>}
-          {editable ? (
-            <>
-              <form method="post" action={base} class="form form-wide">
-                <input type="hidden" name="csrf_token" value={csrf} />
-                <input type="hidden" name="intent" value="edit_decision" />
-                <input type="hidden" name="id" value={d.id} />
-                <div class="field field-wide">
-                  <label for={`decision-text-${d.id}`}>Decision</label>
-                  <input
-                    id={`decision-text-${d.id}`}
-                    name="text"
-                    type="text"
-                    maxlength="2000"
-                    value={typed(d.id, "text", d.text)}
-                    aria-invalid={errorsFor(d.id, "text").length > 0 ? "true" : undefined}
-                    aria-describedby={`decision-error-${d.id}`}
-                  />
-                  {errorsFor(d.id, "text").map((e) => (
-                    <p class="field-error" id={`decision-error-${d.id}`}>
-                      {e.message}
-                    </p>
-                  ))}
-                </div>
-                <div class="row-actions">
-                  <button class="button" type="submit">
-                    Save decision<span class="sr-only">: {d.text}</span>
-                  </button>
-                </div>
-              </form>
-              <details>
-                <summary>Remove this decision</summary>
-                <form method="post" action={base} class="form">
+  {decisions.length > 0 && (
+    <ul class="outline outline-bullets">
+      {decisions.map((d) => {
+        const errors = errorsFor(d.id, "text");
+        const editing = editable && (editingId === d.id || errors.length > 0);
+        return (
+          <li
+            id={`decision-${d.id}`}
+            class:list={[
+              "outline-item",
+              { "is-hit": isHit("decision", d.id), "is-editing": editing },
+            ]}
+          >
+            {editing ? (
+              <>
+                <form method="post" action={base} class="form form-wide">
                   <input type="hidden" name="csrf_token" value={csrf} />
-                  <input type="hidden" name="intent" value="delete_decision" />
+                  <input type="hidden" name="intent" value="edit_decision" />
                   <input type="hidden" name="id" value={d.id} />
-                  <p class="help">
-                    Removes only this decision from the draft. The transcript is untouched.
-                  </p>
+                  <div class="field field-wide">
+                    <label for={`decision-text-${d.id}`}>Decision</label>
+                    <input
+                      id={`decision-text-${d.id}`}
+                      name="text"
+                      type="text"
+                      maxlength="2000"
+                      value={typed(d.id, "text", d.text)}
+                      aria-invalid={errors.length > 0 ? "true" : undefined}
+                      aria-describedby={errors.length > 0 ? `decision-error-${d.id}` : undefined}
+                      autofocus
+                    />
+                    {errors.map((e) => (
+                      <p class="field-error" id={`decision-error-${d.id}`}>
+                        {e.message}
+                      </p>
+                    ))}
+                  </div>
                   <div class="row-actions">
-                    <button class="button button-danger" type="submit">
-                      Confirm: remove decision
+                    <button class="button" type="submit">
+                      Save decision<span class="sr-only">: {d.text}</span>
                     </button>
+                    <a href={`${base}#decision-${d.id}`}>
+                      Cancel<span class="sr-only"> editing this decision</span>
+                    </a>
                   </div>
                 </form>
-              </details>
-            </>
-          ) : (
-            <p>{d.text}</p>
-          )}
-          {d.edited && <p class="row-meta">Edited by you</p>}
-          <ReviewSource source={source} />
-        </li>
-      );
-    })}
-  </ul>
+                <details class="outline-remove">
+                  <summary>Remove this decision</summary>
+                  <form method="post" action={base} class="form">
+                    <input type="hidden" name="csrf_token" value={csrf} />
+                    <input type="hidden" name="intent" value="delete_decision" />
+                    <input type="hidden" name="id" value={d.id} />
+                    <p class="help">
+                      Removes only this decision from the draft. The transcript is untouched.
+                    </p>
+                    <div class="row-actions">
+                      <button class="button button-danger" type="submit">
+                        Confirm: remove decision
+                      </button>
+                    </div>
+                  </form>
+                </details>
+              </>
+            ) : (
+              <div class="outline-line">
+                <span class="outline-text">{d.text}</span>
+                <span class="outline-meta">
+                  {isHit("decision", d.id) && <span class="badge">Search match</span>}
+                  <ReviewSource source={sourceLink(d.sourceFrom, d.sourceTo)} chip />
+                  {d.edited && <span class="outline-chip">Edited by you</span>}
+                  {editable && (
+                    <a class="outline-edit" href={`${base}?edit=${d.id}#decision-${d.id}`}>
+                      Edit<span class="sr-only"> decision: {d.text}</span>
+                    </a>
+                  )}
+                </span>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  )}
   {editable && (
-    <form method="post" action={base} class="form form-wide">
-      <input type="hidden" name="csrf_token" value={csrf} />
-      <input type="hidden" name="intent" value="add_decision" />
-      <div class="field field-wide">
-        <label for="new-decision">Add a decision</label>
-        <input
-          id="new-decision"
-          name="text"
-          type="text"
-          maxlength="2000"
-          value={typed("add_decision", "text", "")}
-        />
-        {errorsFor("add_decision", "text").map((e) => (
-          <p class="field-error">{e.message}</p>
-        ))}
-      </div>
-      <div class="row-actions">
-        <button class="button button-quiet" type="submit">
-          Add decision
-        </button>
-      </div>
-    </form>
+    <details class="outline-add" open={addErrors.length > 0}>
+      <summary>Add a decision</summary>
+      <form method="post" action={base} class="form form-wide">
+        <input type="hidden" name="csrf_token" value={csrf} />
+        <input type="hidden" name="intent" value="add_decision" />
+        <div class="field field-wide">
+          <label for="new-decision">Decision</label>
+          <input
+            id="new-decision"
+            name="text"
+            type="text"
+            maxlength="2000"
+            value={typed("add_decision", "text", "")}
+            aria-invalid={addErrors.length > 0 ? "true" : undefined}
+            aria-describedby={addErrors.length > 0 ? "new-decision-error" : undefined}
+          />
+          {addErrors.map((e) => (
+            <p class="field-error" id="new-decision-error">
+              {e.message}
+            </p>
+          ))}
+        </div>
+        <div class="row-actions">
+          <button class="button button-quiet" type="submit">
+            Add decision
+          </button>
+        </div>
+      </form>
+    </details>
   )}
 </section>
+
+<script>
+  import "../../scripts/review-outline";
+</script>

@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import {
   advanceDeletion,
+  addOutlineItems,
   advanceProcessing,
   createCapturingMeeting,
   createDeletionInState,
@@ -316,6 +317,31 @@ test.describe("owner screens", () => {
   test("review, fresh draft", async ({ page }) => {
     const id = await createReviewMeeting("owner-ada");
     await page.goto(`/meetings/${id}/review`);
+    await audit(page);
+  });
+
+  // The decisions and action items outline (#98) in each of its states: read-only with chips,
+  // one item open for editing, a rejected save, and the add disclosure open.
+  test("review outline: read-only, an item in edit mode, a rejected save, add opened", async ({
+    page,
+  }) => {
+    const id = await createReviewMeeting("owner-ada");
+    addOutlineItems(id);
+    await page.goto(`/meetings/${id}/review`);
+    await audit(page);
+
+    await page.goto(`/meetings/${id}/review?edit=${id}-act-1`);
+    await expect(page.locator(`#act-text-${id}-act-1`)).toBeVisible();
+    await audit(page);
+
+    await page.locator(`#act-text-${id}-act-1`).fill("");
+    await page.getByRole("button", { name: /Save action item/ }).click();
+    await expect(page.locator(`#action-${id}-act-1 .field-error`)).toBeVisible();
+    await audit(page);
+
+    await page.goto(`/meetings/${id}/review`);
+    await page.locator("#decisions").getByText("Add a decision").click();
+    await page.locator("#action-items").getByText("Add an action item").click();
     await audit(page);
   });
 

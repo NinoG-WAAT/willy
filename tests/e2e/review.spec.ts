@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  actionItemState,
+  addOutlineItems,
   countTranscribeJobs,
   createCapturingMeeting,
   createReviewMeeting,
@@ -53,25 +55,43 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
   await expect(page.locator(".transcript li", { hasText: "Ada Lovelace" })).toHaveCount(2);
   await expect(page.locator(".transcript li", { hasText: "Speaker 1" })).toHaveCount(0);
 
-  // Edit a decision.
+  // Read-only by default: the decision and the action item are text with an Edit link, no field.
+  await expect(page.locator(`#decision-${id}-dec-0`)).toContainText("Ship in November");
+  await expect(page.locator(`#decision-text-${id}-dec-0`)).toHaveCount(0);
+  await expect(page.locator(`#act-text-${id}-act-0`)).toHaveCount(0);
+
+  // Edit a decision: Edit opens that one decision in place.
+  await page.locator(`#decision-${id}-dec-0`).getByRole("link", { name: /^Edit/ }).click();
+  await expect(page).toHaveURL(new RegExp(`review\\?edit=${id}-dec-0#decision-${id}-dec-0$`));
   await page.locator(`#decision-text-${id}-dec-0`).fill("Ship the beta in December");
   await page.getByRole("button", { name: /Save decision/ }).click();
   await expect(page.getByRole("status").filter({ hasText: "Decision saved" })).toBeVisible();
+  // Saved: back to the outline at the item, without the edit parameter.
+  await expect(page).toHaveURL(new RegExp(`review\\?notice=decision_saved#decision-${id}-dec-0$`));
+  await expect(page.locator(`#decision-${id}-dec-0`)).toContainText("Ship the beta in December");
+  await expect(page.locator(`#decision-text-${id}-dec-0`)).toHaveCount(0);
 
   // Edit an action item: owner restricted to attendees, due date in the meeting's zone.
+  await page.locator(`#action-${id}-act-0`).getByRole("link", { name: /^Edit/ }).click();
   await page.locator(`#act-text-${id}-act-0`).fill("Send the pricing deck");
   await page.locator(`#act-owner-${id}-act-0`).selectOption({ label: "Grace Hopper" });
-  await page.locator(`#act-due-${id}-act-0`).fill("2026-11-20");
+  await page.locator(`#act-due-${id}-act-0`).fill("2099-11-20");
   await page.getByRole("button", { name: /Save action item/ }).click();
   await expect(page.getByRole("status").filter({ hasText: "Action item saved" })).toBeVisible();
 
-  // A refresh keeps everything.
+  // A refresh keeps everything: the outline shows the new words and chips, and no overdue now.
   await page.reload();
-  await expect(page.locator(`#decision-text-${id}-dec-0`)).toHaveValue("Ship the beta in December");
+  const action = page.locator(`#action-${id}-act-0`);
+  await expect(action).toContainText("Send the pricing deck");
+  await expect(action).toContainText("Grace Hopper");
+  await expect(action).toContainText("Due Fri 20 Nov 2099");
+  await expect(action.locator(".outline-chip-overdue")).toHaveCount(0);
+  // The stored values are what the edit view shows.
+  await page.goto(`/meetings/${id}/review?edit=${id}-act-0`);
   await expect(page.locator(`#act-text-${id}-act-0`)).toHaveValue("Send the pricing deck");
-  await expect(page.locator(`#act-due-${id}-act-0`)).toHaveValue("2026-11-20");
+  await expect(page.locator(`#act-due-${id}-act-0`)).toHaveValue("2099-11-20");
   await expect(page.locator(`#act-owner-${id}-act-0`)).toHaveValue(`${id}-a2`);
-  await expect(page.locator(`#action-${id}-act-0`)).toContainText("Due");
+  await page.goto(`/meetings/${id}/review`);
   await expect(page.locator(".transcript li", { hasText: "Ada Lovelace" })).toHaveCount(2);
 
   // Publishing is explicit: without the confirmation nothing is published.
@@ -100,16 +120,17 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
 test("a source link marks the cited transcript lines", async ({ page }) => {
   await signIn(page, "ada@example.test");
   const id = await createReviewMeeting("owner-ada");
-  await page.goto(`/meetings/${id}/review`);
+  addOutlineItems(id);
+  await page.goto(`/meetings/${id}/review?edit=${id}-dec-0`);
   await expect(page.locator(".transcript li.is-source")).toHaveCount(0);
   // Unsaved typing is not lost: the marks move in place.
   await page.locator(`#decision-text-${id}-dec-0`).fill("Unsaved wording");
   await page
-    .locator(`#decision-${id}-dec-0`)
+    .locator(`#decision-${id}-dec-1`)
     .getByRole("link", { name: /Source: transcript/ })
     .click();
-  await expect(page.locator(".transcript li.is-source")).toHaveCount(1);
-  await expect(page.locator(".transcript li.is-source .seg-flag")).toBeVisible();
+  await expect(page.locator(".transcript li.is-source")).toHaveCount(2);
+  await expect(page.locator(".transcript li.is-source .seg-flag").first()).toBeVisible();
   await expect(page.locator(`#decision-text-${id}-dec-0`)).toHaveValue("Unsaved wording");
 });
 
@@ -128,8 +149,9 @@ test("a search hit opens the review with the match and its source marked", async
 test("an overdue action item says so in words", async ({ page }) => {
   await signIn(page, "ada@example.test");
   await page.goto(`/meetings/${OVERDUE_MEETING}/review`);
-  await expect(page.locator("#action-items .overdue-flag")).toHaveText("Overdue");
-  await expect(page.locator("#action-items")).toContainText(/Due .*(CET|CEST)/);
+  await expect(page.locator("#action-items .outline-chip-overdue")).toHaveText("Overdue");
+  // The due chip names the day in the meeting's zone, not a time.
+  await expect(page.locator("#action-items")).toContainText(/Due \w{3} \d{1,2} \w{3}/);
 });
 
 test.describe("without JavaScript", () => {
@@ -205,6 +227,7 @@ test("another owner's review, edits and publish look exactly like unknown ones",
     page.request.post(path, { headers: { origin }, form, maxRedirects: 0 });
   const attempts = [
     { intent: "edit_section", id: `${adasId}-sec-0`, body: "Hacked" },
+    { intent: "set_action_item_done", id: `${adasId}-act-0`, done: "on" },
     { intent: "rename_speaker", from: "Speaker 1", to: "Hacked" },
     { intent: "publish", folder: "folder-b-board", confirm: "on" },
   ];
@@ -217,6 +240,7 @@ test("another owner's review, edits and publish look exactly like unknown ones",
     ).toBe(404);
   }
   expect(meetingStatus(adasId)).toBe("review");
+  expect(actionItemState(`${adasId}-act-0`).status).toBe("open");
 });
 
 test("every review mutation needs the CSRF token", async ({ page }) => {
