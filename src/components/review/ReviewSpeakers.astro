@@ -1,0 +1,108 @@
+---
+import type { ErrorsFor, Speaker, Typed } from "./types";
+
+/**
+ * The top of the transcript panel: the "Transcript" heading, the way back to the summary and the
+ * speakers with their rename and merge forms. The lines themselves are ReviewTranscript.
+ */
+interface Props {
+  /** The review page's own path: the target of both forms. */
+  base: string;
+  csrf: string;
+  editable: boolean;
+  speakers: readonly Speaker[];
+  typed: Typed;
+  errorsFor: ErrorsFor;
+}
+
+const { base, csrf, editable, speakers, typed, errorsFor } = Astro.props;
+---
+
+<section class="panel" id="speakers" aria-labelledby="speakers-heading">
+  <h2 id="transcript-heading">Transcript</h2>
+  <p>
+    <a href="#summary">Back to the summary</a>
+  </p>
+  <h3 id="speakers-heading">Speakers</h3>
+  <ul class="plain">
+    {speakers.map((sp) => (
+      <li>
+        {sp.name} ({sp.lines} {sp.lines === 1 ? "line" : "lines"})
+      </li>
+    ))}
+  </ul>
+  {editable && speakers.length > 0 && (
+    <>
+      <form method="post" action={base} class="form">
+        <input type="hidden" name="csrf_token" value={csrf} />
+        <input type="hidden" name="intent" value="rename_speaker" />
+        <div class="field">
+          <label for="rename-from">Speaker to rename</label>
+          <select id="rename-from" name="from">
+            {speakers.map((sp) => (
+              <option value={sp.name} selected={typed("rename_speaker", "from", "") === sp.name}>
+                {sp.name}
+              </option>
+            ))}
+          </select>
+          {errorsFor("rename_speaker", "from").map((e) => (
+            <p class="field-error">{e.message}</p>
+          ))}
+        </div>
+        <div class="field">
+          <label for="rename-to">New name</label>
+          <input
+            id="rename-to"
+            name="to"
+            type="text"
+            maxlength="100"
+            value={typed("rename_speaker", "to", "")}
+            autocomplete="off"
+          />
+          {errorsFor("rename_speaker", "to").map((e) => (
+            <p class="field-error">{e.message}</p>
+          ))}
+        </div>
+        <p class="help">Applies to every line of this transcript.</p>
+        <div class="row-actions">
+          <button class="button button-quiet" type="submit">
+            Rename speaker
+          </button>
+        </div>
+      </form>
+      {speakers.length > 1 && (
+        <form method="post" action={base} class="form">
+          <input type="hidden" name="csrf_token" value={csrf} />
+          <input type="hidden" name="intent" value="merge_speaker" />
+          <div class="field">
+            <label for="merge-from">Merge this speaker</label>
+            <select id="merge-from" name="from">
+              {speakers.map((sp) => (
+                <option value={sp.name}>{sp.name}</option>
+              ))}
+            </select>
+          </div>
+          <div class="field">
+            <label for="merge-to">into</label>
+            <select id="merge-to" name="to">
+              {speakers.map((sp, index) => (
+                <option value={sp.name} selected={index === 1}>
+                  {sp.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p class="help">
+            Their lines are relabelled to the second speaker. This applies to every line of this
+            transcript.
+          </p>
+          <div class="row-actions">
+            <button class="button button-quiet" type="submit">
+              Merge speakers
+            </button>
+          </div>
+        </form>
+      )}
+    </>
+  )}
+</section>

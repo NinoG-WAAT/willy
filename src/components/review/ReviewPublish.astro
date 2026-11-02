@@ -1,0 +1,123 @@
+---
+import type { MeetingStatus } from "../../domain/meetings/lifecycle";
+import type { ReviewView } from "../../ports/review-repository";
+import { formatSchedule } from "../format-schedule";
+import type { ErrorsFor, Typed } from "./types";
+
+/**
+ * The publish panel: what a published note says and the reopen form, or the publish form for a
+ * draft (private folder, confirmation), or why a draft cannot be published. Whether the note may
+ * be edited is decided by the page.
+ */
+interface Props {
+  /** The review page's own path: the target of every form. */
+  base: string;
+  csrf: string;
+  editable: boolean;
+  note: NonNullable<ReviewView["note"]>;
+  meeting: { status: MeetingStatus; timezone: string };
+  /** The owner's folders: where a note can be filed when it is published. */
+  folders: readonly { id: string; name: string }[];
+  typed: Typed;
+  errorsFor: ErrorsFor;
+}
+
+const { base, csrf, editable, note, meeting, folders, typed, errorsFor } = Astro.props;
+---
+
+<section class="panel" id="publish" aria-labelledby="publish-heading">
+  <h2 id="publish-heading">{note.status === "published" ? "Published" : "Publish"}</h2>
+  {note.status === "published" && (
+    <>
+      <p>
+        Published{" "}
+        {note.folderName !== null && (
+          <span>
+            {" "}
+            to <strong>{note.folderName}</strong>
+          </span>
+        )}
+        {note.publishedAt !== null && (
+          <span>
+            {" "}
+            on{" "}
+            <time datetime={note.publishedAt}>
+              {formatSchedule(note.publishedAt, meeting.timezone)}
+            </time>
+          </span>
+        )}
+        . This version is read-only.
+      </p>
+      <form method="post" action={base} class="form form-wide">
+        <input type="hidden" name="csrf_token" value={csrf} />
+        <input type="hidden" name="intent" value="reopen" />
+        <p class="help">
+          Reopening turns it back into a draft so you can edit it. It stays unpublished until you
+          publish again.
+        </p>
+        <div class="row-actions">
+          <button class="button button-quiet" type="submit">
+            Reopen for editing
+          </button>
+        </div>
+      </form>
+    </>
+  )}
+  {editable && folders.length === 0 && (
+    <p>
+      Publishing files the note in a private folder, and you have none yet.{" "}
+      <a href="/folders">Create a folder</a>, then come back: your edits stay here.
+    </p>
+  )}
+  {editable && folders.length > 0 && (
+    <form method="post" action={base} class="form form-wide">
+      <input type="hidden" name="csrf_token" value={csrf} />
+      <input type="hidden" name="intent" value="publish" />
+      <p>
+        This is a <strong>draft</strong> generated from the transcript. It stays a draft until you
+        publish it.
+      </p>
+      <div class="field field-wide">
+        <label for="publish-folder">Private folder</label>
+        <select id="publish-folder" name="folder" required aria-describedby="publish-folder-error">
+          {folders.map((f) => (
+            <option
+              value={f.id}
+              selected={typed("publish", "folder", note.folderId ?? "") === f.id}
+            >
+              {f.name}
+            </option>
+          ))}
+        </select>
+        {errorsFor("publish", "folder").map((e) => (
+          <p class="field-error" id="publish-folder-error">
+            {e.message}
+          </p>
+        ))}
+      </div>
+      <div class="check">
+        <input
+          id="publish-confirm"
+          name="confirm"
+          type="checkbox"
+          aria-describedby="publish-confirm-help"
+        />
+        <label for="publish-confirm">I have reviewed this note and want to publish it.</label>
+      </div>
+      {errorsFor("publish", "confirm").map((e) => (
+        <p class="field-error">{e.message}</p>
+      ))}
+      <p id="publish-confirm-help" class="help">
+        Publishing locks the note until you reopen it. It is never shared outside your folder.
+      </p>
+      <div class="row-actions">
+        <button class="button" type="submit">
+          Publish to folder
+        </button>
+      </div>
+    </form>
+  )}
+  {note.status === "draft" && !editable && (
+    <p>This note is {meeting.status === "archived" ? "archived" : "not ready to publish"}.</p>
+  )}
+</section>

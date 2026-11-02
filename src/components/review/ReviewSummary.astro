@@ -1,0 +1,162 @@
+---
+import { describeJob } from "../../domain/progress/text";
+import type { ReviewSection } from "../../ports/review-repository";
+import ReviewSource from "./ReviewSource.astro";
+import type { ErrorsFor, IsHit, Regeneration, SourceLinkFor, Typed } from "./types";
+
+/**
+ * The summary: the whole-draft regeneration disclosure, then one panel per section with its
+ * edit form (or read-only text), source link, regenerate form and progress line. Markup only:
+ * the page decides what is editable and what is highlighted.
+ */
+interface Props {
+  meetingId: string;
+  /** The review page's own path: the target of the edit forms and the "Check again" links. */
+  base: string;
+  csrf: string;
+  editable: boolean;
+  sections: readonly ReviewSection[];
+  /** The latest regeneration of any scope, shown under the section it belongs to. */
+  regeneration: Regeneration | null;
+  /** The whole-draft request while it is not done: opens the disclosure and shows its line. */
+  draftRegeneration: Regeneration | null;
+  isHit: IsHit;
+  sourceLink: SourceLinkFor;
+  typed: Typed;
+  errorsFor: ErrorsFor;
+}
+
+const {
+  meetingId,
+  base,
+  csrf,
+  editable,
+  sections,
+  regeneration,
+  draftRegeneration,
+  isHit,
+  sourceLink,
+  typed,
+  errorsFor,
+} = Astro.props;
+---
+
+<h2>Summary</h2>
+{editable && (
+  <details class="regenerate-draft" id="regenerate-draft" open={draftRegeneration !== null}>
+    <summary>Regenerate whole draft</summary>
+    <form
+      method="post"
+      action={`/meetings/${meetingId}/note/regenerate-all`}
+      class="form form-wide regenerate-draft-form"
+    >
+      <input type="hidden" name="csrf_token" value={csrf} />
+      <p class="help" id="regenerate-draft-help">
+        Writes the summary again from the transcript. It replaces every section, decision and action
+        item, including your edits to them. Your rough notes, the transcript and the speaker names
+        are kept, and the note stays a draft until you publish it.
+      </p>
+      <div class="check">
+        <input
+          id="regenerate-draft-confirm"
+          name="confirm"
+          type="checkbox"
+          required
+          aria-describedby="regenerate-draft-help"
+        />
+        <label for="regenerate-draft-confirm">Replace my edits with a new draft.</label>
+      </div>
+      <div class="row-actions">
+        <button class="button button-quiet" type="submit">
+          Regenerate whole draft
+        </button>
+      </div>
+    </form>
+    {draftRegeneration !== null && (
+      <p
+        class="help"
+        role="status"
+        data-progress="regeneration"
+        data-scope="all"
+        data-progress-url={`/api/meetings/${meetingId}/status`}
+      >
+        <span data-field="text">Regeneration: {describeJob(draftRegeneration)}.</span>{" "}
+        <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
+      </p>
+    )}
+  </details>
+)}
+{sections.length === 0 && <p class="empty">The summary has no sections.</p>}
+{sections.map((s) => {
+  const source = sourceLink(s.sourceFrom, s.sourceTo);
+  const regen = regeneration !== null && regeneration.sectionId === s.id ? regeneration : null;
+  return (
+    <section
+      class:list={["panel", "review-item", { "is-hit": isHit("note_section", s.id) }]}
+      id={`section-${s.id}`}
+      aria-labelledby={`heading-${s.id}`}
+    >
+      <h3 id={`heading-${s.id}`}>
+        {s.heading}
+        {s.edited && <span class="badge">Edited by you</span>}
+        {isHit("note_section", s.id) && <span class="badge">Search match</span>}
+      </h3>
+      {editable ? (
+        <form method="post" action={base} class="form form-wide">
+          <input type="hidden" name="csrf_token" value={csrf} />
+          <input type="hidden" name="intent" value="edit_section" />
+          <input type="hidden" name="id" value={s.id} />
+          <div class="field field-wide">
+            <label for={`body-${s.id}`}>Text of “{s.heading}”</label>
+            <textarea
+              id={`body-${s.id}`}
+              name="body"
+              rows="5"
+              maxlength="20000"
+              aria-invalid={errorsFor(s.id, "body").length > 0 ? "true" : undefined}
+              aria-describedby={`body-error-${s.id}`}
+            >{`\n${typed(s.id, "body", s.body)}`}</textarea>
+            {errorsFor(s.id, "body").map((e) => (
+              <p class="field-error" id={`body-error-${s.id}`}>
+                {e.message}
+              </p>
+            ))}
+          </div>
+          <div class="row-actions">
+            <button class="button" type="submit">
+              Save section<span class="sr-only"> {s.heading}</span>
+            </button>
+          </div>
+        </form>
+      ) : (
+        <p class="prewrap">{s.body}</p>
+      )}
+      <ReviewSource source={source} />
+      {editable && (
+        <form method="post" action={`/meetings/${meetingId}/note/regenerate`} class="inline-form">
+          <input type="hidden" name="csrf_token" value={csrf} />
+          <input type="hidden" name="section_id" value={s.id} />
+          <button class="button button-quiet" type="submit">
+            Regenerate this section<span class="sr-only">: {s.heading}</span>
+          </button>
+          <span class="help">
+            Replaces only this section with a new draft from the transcript, including your edits to
+            it.
+          </span>
+        </form>
+      )}
+      {regen !== null && regen.status !== "succeeded" && (
+        <p
+          class="help"
+          role="status"
+          data-progress="regeneration"
+          data-progress-url={`/api/meetings/${meetingId}/status`}
+          data-section-id={s.id}
+        >
+          <span data-field="text">Regeneration: {describeJob(regen)}.</span>{" "}
+          <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
+        </p>
+      )}
+    </section>
+  );
+})}
