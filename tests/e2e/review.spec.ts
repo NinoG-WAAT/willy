@@ -139,13 +139,17 @@ test.describe("without JavaScript", () => {
     await signIn(page, "ada@example.test");
     const id = await createReviewMeeting("owner-ada");
     await page.goto(`/meetings/${id}/review`);
+    // Read-only until Edit: a plain link, no script involved.
+    await expect(page.locator("textarea")).toHaveCount(0);
+    await page.getByRole("link", { name: "Edit section Summary" }).click();
+    await expect(page).toHaveURL(new RegExp(`review\\?edit=${id}-sec-0#section-${id}-sec-0$`));
     await page.locator(`#body-${id}-sec-0`).fill("Rewritten summary.");
-    await page
-      .getByRole("button", { name: /Save section/ })
-      .first()
-      .click();
+    await page.getByRole("button", { name: /Save section/ }).click();
     await expect(page.getByText("Section saved.")).toBeVisible();
-    await expect(page.locator(`#body-${id}-sec-0`)).toHaveValue("Rewritten summary.");
+    // Saved: back to reading, without the edit parameter.
+    await expect(page).not.toHaveURL(/edit=/);
+    await expect(page.locator("textarea")).toHaveCount(0);
+    await expect(page.locator(`#section-${id}-sec-0`)).toContainText("Rewritten summary.");
 
     await page
       .locator(`#decision-${id}-dec-0`)

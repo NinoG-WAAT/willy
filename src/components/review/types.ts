@@ -8,7 +8,10 @@ import type { JobProgress } from "../../domain/progress/text";
 
 /** A link from a summary item to the transcript lines it was written from. */
 export interface SourceLink {
+  /** The long form, "Source: transcript 2:10 to 3:45": the link's accessible name. */
   label: string;
+  /** The short form for a chip, "2:10 to 3:45": real meeting times, from `sourceLabel`. */
+  chip: string;
   href: string;
   from: number;
   to: number;
