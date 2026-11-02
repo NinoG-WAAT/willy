@@ -4,16 +4,15 @@ import {
   serializeOutline,
   sourceLabel,
   type OutlineBlock,
+  type OutlineDepth,
+  type OutlineItem,
 } from "../../../src/domain/notes/outline";
 
-const bullets = (...items: [string, 0 | 1 | 2?][]): OutlineBlock => ({
-  kind: "bullets",
-  items: items.map(([text, depth]) => ({ text, depth: depth ?? 0 })),
-});
-const numbered = (...items: [string, 0 | 1 | 2?][]): OutlineBlock => ({
-  kind: "numbered",
-  items: items.map(([text, depth]) => ({ text, depth: depth ?? 0 })),
-});
+type Spec = [text: string, depth?: OutlineDepth];
+const items = (specs: Spec[]): OutlineItem[] =>
+  specs.map(([text, depth]) => ({ text, depth: depth ?? 0 }));
+const bullets = (...specs: Spec[]): OutlineBlock => ({ kind: "bullets", items: items(specs) });
+const numbered = (...specs: Spec[]): OutlineBlock => ({ kind: "numbered", items: items(specs) });
 
 describe("parseOutline: paragraphs", () => {
   it("returns no blocks for an empty or blank body", () => {
@@ -181,9 +180,9 @@ describe("parseOutline: hostile text stays plain text", () => {
   });
 
   it("keeps javascript: and data: URLs as text", () => {
-    expect(texts(parseOutline("- javascript:alert(document.cookie)\n- data:text/html,<p>x</p>"))).toEqual(
-      ["javascript:alert(document.cookie)", "data:text/html,<p>x</p>"],
-    );
+    expect(
+      texts(parseOutline("- javascript:alert(document.cookie)\n- data:text/html,<p>x</p>")),
+    ).toEqual(["javascript:alert(document.cookie)", "data:text/html,<p>x</p>"]);
   });
 
   it("produces only plain data: known keys, strings and small integers", () => {
@@ -244,7 +243,9 @@ describe("parseOutline: hostile text stays plain text", () => {
   });
 
   it("handles indentation that grows on every line", () => {
-    const body = Array.from({ length: 150 }, (_, i) => `${" ".repeat(i)}- n${String(i)}`).join("\n");
+    const body = Array.from({ length: 150 }, (_, i) => `${" ".repeat(i)}- n${String(i)}`).join(
+      "\n",
+    );
     const blocks = parseOutline(body);
     expect(blocks).toHaveLength(1);
     const depths = blocks[0]?.kind === "bullets" ? blocks[0].items.map((i) => i.depth) : [];
