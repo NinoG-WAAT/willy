@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createFreshOwner } from "../support/journey-db";
 import {
   actionItemState,
   addOutlineItems,
@@ -24,9 +25,15 @@ async function signIn(page: Page, email: string): Promise<string> {
   return (await page.locator("input[name=csrf_token]").first().getAttribute("value")) ?? "";
 }
 
-async function outlineMeeting(page: Page, email = "ada@example.test"): Promise<string> {
-  await signIn(page, email);
-  const id = await createReviewMeeting(email.startsWith("ada") ? "owner-ada" : "owner-ben");
+/**
+ * A review draft with the outline items, owned by a brand-new Owner: these tests add many
+ * meetings, and with the shared seeded owner they would push the seeded ones off the first page
+ * of her Inbox (which other specs read).
+ */
+async function outlineMeeting(page: Page): Promise<string> {
+  const owner = createFreshOwner();
+  await signIn(page, owner.email);
+  const id = await createReviewMeeting(owner.id);
   addOutlineItems(id);
   await page.goto(`/meetings/${id}/review`);
   return id;
@@ -219,9 +226,11 @@ test("remove is only in the edit view, asks for confirmation and removes only th
 });
 
 test("another owner cannot open an item for editing or tick it", async ({ page }) => {
-  const adasId = await createReviewMeeting("owner-ada");
+  const ada = createFreshOwner();
+  const ben = createFreshOwner();
+  const adasId = await createReviewMeeting(ada.id);
   addOutlineItems(adasId);
-  const token = await signIn(page, "ben@example.test");
+  const token = await signIn(page, ben.email);
   const origin = new URL(page.url()).origin;
 
   // Ada's review, with or without ?edit=, is the same 404 as an unknown meeting.
@@ -235,7 +244,7 @@ test("another owner cannot open an item for editing or tick it", async ({ page }
   }
 
   // On Ben's own review, Ada's item id opens nothing and leaks nothing.
-  const bensId = await createReviewMeeting("owner-ben");
+  const bensId = await createReviewMeeting(ben.id);
   const own = await page.goto(`/meetings/${bensId}/review?edit=${adasId}-act-1`);
   expect(own?.status()).toBe(200);
   await expect(page.locator("#action-items li input[type=text]")).toHaveCount(0);

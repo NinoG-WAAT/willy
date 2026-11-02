@@ -323,9 +323,14 @@ test.describe("owner screens", () => {
   // The decisions and action items outline (#98) in each of its states: read-only with chips,
   // one item open for editing, a rejected save, and the add disclosure open.
   test("review outline: read-only, an item in edit mode, a rejected save, add opened", async ({
-    page,
+    browser,
   }) => {
-    const id = await createReviewMeeting("owner-ada");
+    // A brand-new Owner: the shared one's Inbox must not grow (other specs read its first page).
+    const owner = createFreshOwner();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await signIn(page, owner.email);
+    const id = await createReviewMeeting(owner.id);
     addOutlineItems(id);
     await page.goto(`/meetings/${id}/review`);
     await audit(page);
@@ -343,6 +348,7 @@ test.describe("owner screens", () => {
     await page.locator("#decisions").getByText("Add a decision").click();
     await page.locator("#action-items").getByText("Add an action item").click();
     await audit(page);
+    await context.close();
   });
 
   // Job progress (#51): the live regions are scanned in the state the page loads with and again

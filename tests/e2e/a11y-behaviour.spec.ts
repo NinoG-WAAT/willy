@@ -166,10 +166,14 @@ test.describe("keyboard-only journeys", () => {
   });
 
   test("review: tick, edit and add decisions and action items with the keyboard", async ({
-    page,
+    browser,
   }) => {
-    await signIn(page);
-    const id = await createReviewMeeting("owner-ada");
+    // A brand-new Owner: the shared one's Inbox must not grow (other specs read its first page).
+    const owner = createFreshOwner();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await signIn(page, owner.email);
+    const id = await createReviewMeeting(owner.id);
     addOutlineItems(id);
     await page.goto(`/meetings/${id}/review`);
 
@@ -211,6 +215,7 @@ test.describe("keyboard-only journeys", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("status").filter({ hasText: "Decision added." })).toBeVisible();
     await expect(page.locator("#decisions")).toContainText("Pilot with two customers");
+    await context.close();
   });
 
   test("search, open a result and reach the delete confirmation", async ({ page }) => {
