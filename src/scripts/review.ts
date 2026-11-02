@@ -5,6 +5,30 @@
  */
 const announce = document.getElementById("source-status");
 
+// A section opened for editing is one textarea that grows with its text, so the owner sees the
+// whole body without a scrollbar. Without JavaScript it keeps its few rows and scrolls.
+function grow(area: HTMLTextAreaElement): void {
+  area.style.height = "auto";
+  area.style.height = `${String(area.scrollHeight + area.offsetHeight - area.clientHeight)}px`;
+}
+for (const area of document.querySelectorAll<HTMLTextAreaElement>("textarea[data-autogrow]")) {
+  grow(area);
+  area.addEventListener("input", () => {
+    grow(area);
+  });
+  if (area.hasAttribute("autofocus")) {
+    // After the load: the browser moves focus to the "#section-…" target when the page has
+    // finished, which would otherwise undo this. The cursor goes to the end, where the owner
+    // most likely continues.
+    const focusEnd = (): void => {
+      area.focus({ preventScroll: true });
+      area.setSelectionRange(area.value.length, area.value.length);
+    };
+    if (document.readyState === "complete") focusEnd();
+    else window.addEventListener("load", focusEnd, { once: true });
+  }
+}
+
 document.addEventListener("click", (event) => {
   const link = event.target instanceof Element ? event.target.closest("a[data-source-from]") : null;
   if (!(link instanceof HTMLAnchorElement)) return;

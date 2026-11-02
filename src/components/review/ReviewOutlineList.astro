@@ -1,0 +1,24 @@
+---
+import type { OutlineNode } from "../../domain/notes/outline";
+
+/**
+ * One level of a section's list, and (by calling itself) the levels under it. Every item is a
+ * text node: Astro escapes it, so nothing in a summary can add markup, a link or script.
+ */
+interface Props {
+  nodes: readonly OutlineNode[];
+  ordered: boolean;
+}
+
+const { nodes, ordered } = Astro.props;
+const Tag = ordered ? "ol" : "ul";
+---
+
+<Tag class="outline-list">
+  {nodes.map((node) => (
+    <li>
+      {node.text}
+      {node.children.length > 0 && <Astro.self nodes={node.children} ordered={ordered} />}
+    </li>
+  ))}
+</Tag>

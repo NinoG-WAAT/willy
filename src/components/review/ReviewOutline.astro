@@ -1,0 +1,21 @@
+---
+import { nestItems, parseOutline } from "../../domain/notes/outline";
+import ReviewOutlineList from "./ReviewOutlineList.astro";
+
+/** A section body read as an outline: paragraphs and real lists, plain text only. */
+interface Props {
+  body: string;
+}
+
+const blocks = parseOutline(Astro.props.body);
+---
+
+<div class="outline-body">
+  {blocks.map((block) =>
+    block.kind === "paragraph" ? (
+      <p class="outline-text">{block.text}</p>
+    ) : (
+      <ReviewOutlineList nodes={nestItems(block.items)} ordered={block.kind === "numbered"} />
+    ),
+  )}
+</div>

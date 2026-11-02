@@ -1,0 +1,203 @@
+/*
+ * The review summary as an outline document (#97, part of #87): one reading column, a hairline
+ * between sections instead of a card each, read-only prose and real lists, quiet controls. Only
+ * tokens.css values are used. Nothing here relies on colour alone: the edited marker, the search
+ * match and the open disclosure all carry words or a shape.
+ */
+
+.outline {
+  max-width: 72ch;
+  margin: var(--spacing-8) 0 var(--spacing-40);
+}
+
+.outline-section {
+  padding: var(--spacing-24) 0 var(--spacing-20);
+  border-top: 1px solid var(--line);
+  /* A saved or cancelled edit lands here: keep the heading clear of the top edge. */
+  scroll-margin-top: var(--spacing-16);
+}
+
+.outline-section.is-hit {
+  padding-inline-start: var(--spacing-16);
+  border-inline-start: 6px solid var(--text-strong);
+}
+
+.outline-section h3 {
+  margin: 0 0 var(--spacing-8);
+  color: var(--text-strong);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-w590);
+  letter-spacing: var(--tracking-body-lg);
+  line-height: var(--leading-body-lg);
+}
+
+.outline-marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-4) var(--spacing-8);
+  margin: 0 0 var(--spacing-8);
+}
+
+.outline-mark {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+/* Reading text: paragraphs and lists share one measure, size and generous line height. */
+.outline-body {
+  color: var(--text);
+  font-size: var(--text-body);
+  letter-spacing: var(--tracking-body);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.outline-text {
+  margin: 0 0 var(--spacing-12);
+  /* A body keeps its own line breaks (the parser joins a paragraph's lines with "\n"). */
+  white-space: pre-line;
+}
+
+.outline-list {
+  margin: 0 0 var(--spacing-12);
+  padding-inline-start: 1.25rem;
+}
+
+.outline-list li {
+  margin-block: var(--spacing-8);
+  padding-inline-start: var(--spacing-4);
+}
+
+.outline-list li::marker {
+  color: var(--text-muted);
+}
+
+.outline-list .outline-list {
+  margin-block: var(--spacing-8) 0;
+}
+
+.outline-list ul {
+  list-style: circle;
+}
+
+.outline-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* The row under the text: source chip, Edit, Regenerate. Quiet words, 44px hit areas. */
+.outline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-4) var(--spacing-12);
+  margin-top: var(--spacing-8);
+}
+
+.outline-body + .outline-actions {
+  margin-top: var(--spacing-12);
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  text-decoration: none;
+}
+
+.source-chip-text {
+  padding: 0 var(--spacing-12);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pills);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body-sm);
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.source-chip:hover .source-chip-text {
+  border-color: var(--text-muted);
+  color: var(--text-strong);
+}
+
+/* Edit and the Regenerate summary look alike: muted, underlined, a real link or control. */
+.outline-link,
+.outline-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding-inline: var(--spacing-4);
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.outline-link:hover,
+.outline-menu > summary:hover {
+  color: var(--text-strong);
+}
+
+.outline-menu[open] {
+  flex-basis: 100%;
+}
+
+.outline-menu[open] > summary {
+  color: var(--text-strong);
+}
+
+.outline-menu-form {
+  display: grid;
+  gap: var(--spacing-12);
+  justify-items: start;
+  max-width: var(--measure-form-wide);
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-12) var(--spacing-16);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--fill-faint);
+}
+
+/* The edit form: one textarea at the reading measure, Save and Cancel beneath it. */
+.outline-edit {
+  max-width: 72ch;
+}
+
+.outline-edit .field textarea {
+  min-height: calc(var(--hit) * 3);
+  line-height: 1.65;
+  resize: vertical;
+}
+
+/* The whole-draft disclosure is the same quiet control, not a bordered button. */
+.regenerate-draft {
+  margin: 0 0 var(--spacing-8);
+}
+
+.regenerate-draft > summary {
+  align-items: center;
+  min-height: var(--hit);
+  padding-inline: var(--spacing-4);
+  border-color: transparent;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.regenerate-draft > summary:hover,
+.regenerate-draft[open] > summary {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .source-chip-text {
+    transition: none;
+  }
+}

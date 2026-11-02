@@ -343,3 +343,60 @@ export function advanceDeletion(
     }
   });
 }
+
+/**
+ * Archives a throwaway meeting so it leaves the Inbox: the Inbox is paged, and a spec that adds
+ * many drafts for a seeded owner would otherwise push the seeded ones onto a later page.
+ */
+export function archiveMeeting(meetingId: string): void {
+  writable((db) => {
+    db.prepare(
+      "UPDATE meeting SET status_before_archive = status, status = 'archived' WHERE id = ?",
+    ).run(meetingId);
+  });
+}
+
+/**
+ * Gives one section of a review meeting's draft (position 0 is "Summary", 1 is "Risks") a new
+ * text and, optionally, source range, as the summary job would have written it: not edited.
+ */
+export function setSectionText(
+  meetingId: string,
+  position: number,
+  body: string,
+  source?: { from: number; to: number },
+): void {
+  writable((db) => {
+    const found = db
+      .prepare("SELECT id FROM note_section WHERE note_id = ? AND position = ?")
+      .get(`${meetingId}-note`, position);
+    if (!found) throw new Error("section to change was not found");
+    db.prepare(
+      "UPDATE note_section SET body = ?, source_from = COALESCE(?, source_from), source_to = COALESCE(?, source_to) WHERE id = ?",
+    ).run(body, source?.from ?? null, source?.to ?? null, String(found["id"]));
+  });
+}
+
+/** Sets the start (ms from the meeting start) of transcript lines by position, so chips show real times. */
+export function setSegmentStarts(
+  meetingId: string,
+  startsByPosition: Record<number, number>,
+): void {
+  writable((db) => {
+    for (const [position, startMs] of Object.entries(startsByPosition)) {
+      db.prepare(
+        "UPDATE transcript_segment SET start_ms = ?, end_ms = MAX(end_ms, ?) WHERE meeting_id = ? AND position = ?",
+      ).run(startMs, startMs, meetingId, Number(position));
+    }
+  });
+}
+
+/** Whether the section is marked as changed by the owner, read from the database. */
+export function sectionEdited(meetingId: string, position: number): boolean {
+  return readOnly(
+    (db) =>
+      db
+        .prepare("SELECT edited FROM note_section WHERE note_id = ? AND position = ?")
+        .get(`${meetingId}-note`, position)?.["edited"] === 1,
+  );
+}

@@ -1,13 +1,15 @@
 ---
 import { describeJob } from "../../domain/progress/text";
 import type { ReviewSection } from "../../ports/review-repository";
+import ReviewOutline from "./ReviewOutline.astro";
 import ReviewSource from "./ReviewSource.astro";
 import type { ErrorsFor, IsHit, Regeneration, SourceLinkFor, Typed } from "./types";
 
 /**
- * The summary: the whole-draft regeneration disclosure, then one panel per section with its
- * edit form (or read-only text), source link, regenerate form and progress line. Markup only:
- * the page decides what is editable and what is highlighted.
+ * The summary as an outline: the whole-draft regeneration disclosure, then each section as a
+ * heading and read-only text (paragraphs and real lists), with its source chip, an Edit link and
+ * a quiet regenerate disclosure. Only the section named by `editingId` shows its edit form.
+ * Markup only: the page decides what is editable and what is highlighted.
  */
 interface Props {
   meetingId: string;
@@ -16,6 +18,8 @@ interface Props {
   csrf: string;
   editable: boolean;
   sections: readonly ReviewSection[];
+  /** The section open for editing (`?edit=<id>`), or null: every other section stays read-only. */
+  editingId: string | null;
   /** The latest regeneration of any scope, shown under the section it belongs to. */
   regeneration: Regeneration | null;
   /** The whole-draft request while it is not done: opens the disclosure and shows its line. */
@@ -32,6 +36,7 @@ const {
   csrf,
   editable,
   sections,
+  editingId,
   regeneration,
   draftRegeneration,
   isHit,
@@ -87,76 +92,108 @@ const {
   </details>
 )}
 {sections.length === 0 && <p class="empty">The summary has no sections.</p>}
-{sections.map((s) => {
-  const source = sourceLink(s.sourceFrom, s.sourceTo);
-  const regen = regeneration !== null && regeneration.sectionId === s.id ? regeneration : null;
-  return (
-    <section
-      class:list={["panel", "review-item", { "is-hit": isHit("note_section", s.id) }]}
-      id={`section-${s.id}`}
-      aria-labelledby={`heading-${s.id}`}
-    >
-      <h3 id={`heading-${s.id}`}>
-        {s.heading}
-        {s.edited && <span class="badge">Edited by you</span>}
-        {isHit("note_section", s.id) && <span class="badge">Search match</span>}
-      </h3>
-      {editable ? (
-        <form method="post" action={base} class="form form-wide">
-          <input type="hidden" name="csrf_token" value={csrf} />
-          <input type="hidden" name="intent" value="edit_section" />
-          <input type="hidden" name="id" value={s.id} />
-          <div class="field field-wide">
-            <label for={`body-${s.id}`}>Text of “{s.heading}”</label>
-            <textarea
-              id={`body-${s.id}`}
-              name="body"
-              rows="5"
-              maxlength="20000"
-              aria-invalid={errorsFor(s.id, "body").length > 0 ? "true" : undefined}
-              aria-describedby={`body-error-${s.id}`}
-            >{`\n${typed(s.id, "body", s.body)}`}</textarea>
-            {errorsFor(s.id, "body").map((e) => (
-              <p class="field-error" id={`body-error-${s.id}`}>
-                {e.message}
-              </p>
-            ))}
+<div class="outline">
+  {sections.map((s) => {
+    const source = sourceLink(s.sourceFrom, s.sourceTo);
+    const regen = regeneration !== null && regeneration.sectionId === s.id ? regeneration : null;
+    const regenerating = regen !== null && regen.status !== "succeeded";
+    const editing = editable && editingId === s.id;
+    const bodyErrors = errorsFor(s.id, "body");
+    return (
+      <section
+        class:list={["outline-section", { "is-hit": isHit("note_section", s.id) }]}
+        id={`section-${s.id}`}
+        aria-labelledby={`heading-${s.id}`}
+      >
+        <h3 id={`heading-${s.id}`}>{s.heading}</h3>
+        {(s.edited || isHit("note_section", s.id)) && (
+          <p class="outline-marks">
+            {s.edited && <span class="outline-mark">Edited by you</span>}
+            {isHit("note_section", s.id) && <span class="badge">Search match</span>}
+          </p>
+        )}
+        {editing ? (
+          <form method="post" action={`${base}?edit=${s.id}`} class="outline-edit">
+            <input type="hidden" name="csrf_token" value={csrf} />
+            <input type="hidden" name="intent" value="edit_section" />
+            <input type="hidden" name="id" value={s.id} />
+            <div class="field field-wide">
+              <label class="sr-only" for={`body-${s.id}`}>
+                Text of “{s.heading}”
+              </label>
+              <textarea
+                id={`body-${s.id}`}
+                name="body"
+                rows="4"
+                maxlength="20000"
+                autofocus
+                data-autogrow
+                aria-invalid={bodyErrors.length > 0 ? "true" : undefined}
+                aria-describedby={bodyErrors.length > 0 ? `body-error-${s.id}` : undefined}
+              >{`\n${typed(s.id, "body", s.body)}`}</textarea>
+              {bodyErrors.map((e) => (
+                <p class="field-error" id={`body-error-${s.id}`}>
+                  {e.message}
+                </p>
+              ))}
+            </div>
+            <div class="outline-actions">
+              <button class="button" type="submit">
+                Save<span class="sr-only"> section {s.heading}</span>
+              </button>
+              <a class="outline-link" href={`${base}#section-${s.id}`}>
+                Cancel<span class="sr-only"> editing {s.heading}</span>
+              </a>
+            </div>
+          </form>
+        ) : (
+          <ReviewOutline body={s.body} />
+        )}
+        {!editing && (
+          <div class="outline-actions">
+            <ReviewSource source={source} chip />
+            {editable && (
+              <a class="outline-link" href={`${base}?edit=${s.id}#section-${s.id}`}>
+                Edit<span class="sr-only"> section {s.heading}</span>
+              </a>
+            )}
+            {editable && (
+              <details class="outline-menu" open={regenerating}>
+                <summary>
+                  Regenerate<span class="sr-only"> section {s.heading}</span>
+                </summary>
+                <form
+                  method="post"
+                  action={`/meetings/${meetingId}/note/regenerate`}
+                  class="outline-menu-form"
+                >
+                  <input type="hidden" name="csrf_token" value={csrf} />
+                  <input type="hidden" name="section_id" value={s.id} />
+                  <p class="help">
+                    Replaces only this section with a new draft from the transcript, including your
+                    edits to it.
+                  </p>
+                  <button class="button button-quiet" type="submit">
+                    Regenerate this section<span class="sr-only">: {s.heading}</span>
+                  </button>
+                </form>
+              </details>
+            )}
           </div>
-          <div class="row-actions">
-            <button class="button" type="submit">
-              Save section<span class="sr-only"> {s.heading}</span>
-            </button>
-          </div>
-        </form>
-      ) : (
-        <p class="prewrap">{s.body}</p>
-      )}
-      <ReviewSource source={source} />
-      {editable && (
-        <form method="post" action={`/meetings/${meetingId}/note/regenerate`} class="inline-form">
-          <input type="hidden" name="csrf_token" value={csrf} />
-          <input type="hidden" name="section_id" value={s.id} />
-          <button class="button button-quiet" type="submit">
-            Regenerate this section<span class="sr-only">: {s.heading}</span>
-          </button>
-          <span class="help">
-            Replaces only this section with a new draft from the transcript, including your edits to
-            it.
-          </span>
-        </form>
-      )}
-      {regen !== null && regen.status !== "succeeded" && (
-        <p
-          class="help"
-          role="status"
-          data-progress="regeneration"
-          data-progress-url={`/api/meetings/${meetingId}/status`}
-          data-section-id={s.id}
-        >
-          <span data-field="text">Regeneration: {describeJob(regen)}.</span>{" "}
-          <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
-        </p>
-      )}
-    </section>
-  );
-})}
+        )}
+        {regenerating && (
+          <p
+            class="help"
+            role="status"
+            data-progress="regeneration"
+            data-progress-url={`/api/meetings/${meetingId}/status`}
+            data-section-id={s.id}
+          >
+            <span data-field="text">Regeneration: {describeJob(regen)}.</span>{" "}
+            <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
+          </p>
+        )}
+      </section>
+    );
+  })}
+</div>

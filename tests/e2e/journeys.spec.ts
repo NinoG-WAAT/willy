@@ -225,13 +225,12 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
 
     // Edit the summary: a person's words replace the draft.
     await page
-      .getByLabel(/^Text of/)
+      .locator("#summary .outline-section")
       .first()
-      .fill("We agreed to ship the beta in November.");
-    await page
-      .getByRole("button", { name: /^Save section/ })
-      .first()
+      .getByRole("link", { name: /^Edit/ })
       .click();
+    await page.getByLabel(/^Text of/).fill("We agreed to ship the beta in November.");
+    await page.getByRole("button", { name: /^Save section/ }).click();
     await expect(page.getByText("We agreed to ship the beta in November.").first()).toBeVisible();
 
     // Publishing is explicit and confirmed; the note lands in the private folder.

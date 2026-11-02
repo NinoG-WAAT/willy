@@ -14,6 +14,7 @@ import { loadReviewPage } from "../../../app/notes/review";
 import { handleReviewForm, reviewNoticeText } from "../../../app/notes/review-http";
 import { getProcessingStatus } from "../../../app/transcription/processing-status";
 import { getReviewDeps, getStatusDeps } from "../../../composition";
+import { sourceLabel } from "../../../domain/notes/outline";
 import { formatOffset, resolveHighlight } from "../../../domain/notes/review";
 import type { HighlightableItem } from "../../../domain/notes/review";
 import { describeJob } from "../../../domain/progress/text";
@@ -105,13 +106,23 @@ const sourceLink: SourceLinkFor = (from, to) => {
     a === undefined || b === undefined
       ? "Source in the transcript"
       : `Source: transcript ${formatOffset(a)} to ${formatOffset(b)}`;
-  return { label, href: `${base}?src=${String(from)}-${String(to)}#seg-${String(from)}`, from, to };
+  return {
+    label,
+    chip: sourceLabel(from, to, (position) => startOf.get(position)),
+    href: `${base}?src=${String(from)}-${String(to)}#seg-${String(from)}`,
+    from,
+    to,
+  };
 };
 
 const speakers = [...new Set(segments.map((s) => s.speaker))].map((name) => ({
   name,
   lines: segments.filter((s) => s.speaker === name).length,
 }));
+
+// The one section (or item) open for editing. Only an id that the owner's own note has opens a
+// form, and nothing from the URL is ever printed.
+const editingId = Astro.url.searchParams.get("edit");
 
 const echo = problem?.echo ?? null;
 const typed: Typed = (key, name, fallback) =>
@@ -262,6 +273,7 @@ const draftRegeneration =
           csrf={csrf}
           editable={editable}
           sections={view.sections}
+          editingId={editingId}
           regeneration={regeneration}
           draftRegeneration={draftRegeneration}
           isHit={isHit}

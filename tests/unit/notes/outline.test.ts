@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  nestItems,
   parseOutline,
   serializeOutline,
   sourceLabel,
@@ -347,5 +348,53 @@ describe("sourceLabel", () => {
 
   it("falls back for a time that is not a finite number", () => {
     expect(sourceLabel(1, 1, () => Number.NaN)).toBe("Source in the transcript");
+  });
+});
+
+describe("nestItems", () => {
+  it("returns no nodes for no items", () => {
+    expect(nestItems([])).toEqual([]);
+  });
+
+  it("keeps a flat list flat", () => {
+    expect(nestItems(items([["a"], ["b"]]))).toEqual([
+      { text: "a", children: [] },
+      { text: "b", children: [] },
+    ]);
+  });
+
+  it("puts deeper items under the item before them, up to three levels", () => {
+    expect(nestItems(items([["a"], ["a1", 1], ["a1x", 2], ["a2", 1], ["b"]]))).toEqual([
+      {
+        text: "a",
+        children: [
+          { text: "a1", children: [{ text: "a1x", children: [] }] },
+          { text: "a2", children: [] },
+        ],
+      },
+      { text: "b", children: [] },
+    ]);
+  });
+
+  it("attaches a level that skips one to the nearest item above, never drops it", () => {
+    expect(nestItems(items([["a"], ["deep", 2]]))).toEqual([
+      { text: "a", children: [{ text: "deep", children: [] }] },
+    ]);
+  });
+
+  it("treats a first item that starts deeper as top level", () => {
+    expect(nestItems(items([["late", 1], ["b"]]))).toEqual([
+      { text: "late", children: [] },
+      { text: "b", children: [] },
+    ]);
+  });
+
+  it("keeps every item exactly once for what the parser produces", () => {
+    const parsed = parseOutline("- a\n  - b\n    - c\n  - d\n- e");
+    const count = (nodes: ReturnType<typeof nestItems>): number =>
+      nodes.reduce((n, node) => n + 1 + count(node.children), 0);
+    const block = parsed[0];
+    expect(block?.kind).toBe("bullets");
+    if (block?.kind === "bullets") expect(count(nestItems(block.items))).toBe(5);
   });
 });

@@ -2,23 +2,39 @@
 import type { SourceLink } from "./types";
 
 /**
- * The source line under a summary item: a link to the transcript lines it was written from, or
- * the note that the owner added it. One place, so sections, decisions and action items all say
- * the same thing.
+ * The source of a summary item: a link to the transcript lines it was written from, or the note
+ * that the owner added it. One place, so sections, decisions and action items all say the same
+ * thing. `chip` shows the short form with real meeting times ("2:10 to 3:45") as a small pill;
+ * the link's accessible name stays the long form.
  */
 interface Props {
   source: SourceLink | null;
+  chip?: boolean;
 }
 
-const { source } = Astro.props;
+const { source, chip = false } = Astro.props;
 ---
 
-{source !== null ? (
+{source !== null && chip ? (
+  <a
+    class="source-chip"
+    href={source.href}
+    aria-label={source.label}
+    data-source-from={source.from}
+    data-source-to={source.to}
+  >
+    <span class="source-chip-text" aria-hidden="true">
+      {source.chip}
+    </span>
+  </a>
+) : source !== null ? (
   <p class="row-meta">
     <a href={source.href} data-source-from={source.from} data-source-to={source.to}>
       {source.label}
     </a>
   </p>
+) : chip ? (
+  <span class="row-meta">Added by you: no transcript source.</span>
 ) : (
   <p class="row-meta">Added by you: no transcript source.</p>
 )}

@@ -122,6 +122,32 @@ export function parseOutline(body: string): OutlineBlock[] {
   return blocks;
 }
 
+/** One list item with the items nested under it, for rendering real nested lists. */
+export interface OutlineNode {
+  text: string;
+  children: OutlineNode[];
+}
+
+/**
+ * Turns the flat, depth-tagged items of a list block into a tree. An item goes under the nearest
+ * item above it that is shallower, so a level that skips one is attached rather than dropped, and
+ * a first item that starts deeper is simply top level.
+ */
+export function nestItems(items: readonly OutlineItem[]): OutlineNode[] {
+  const roots: OutlineNode[] = [];
+  /** The open path: the last node of each level, outermost first, with its depth. */
+  const path: { depth: number; node: OutlineNode }[] = [];
+  for (const item of items) {
+    while (path.length > 0 && (path[path.length - 1]?.depth ?? 0) >= item.depth) path.pop();
+    const node: OutlineNode = { text: item.text, children: [] };
+    const parent = path[path.length - 1];
+    if (parent) parent.node.children.push(node);
+    else roots.push(node);
+    path.push({ depth: item.depth, node });
+  }
+  return roots;
+}
+
 /**
  * Writes blocks back as a body that `parseOutline` reads to the same blocks (two spaces per
  * level, `- ` and `1.` markers, a blank line between blocks). Used when the owner edits a body

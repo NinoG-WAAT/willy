@@ -148,6 +148,29 @@ describe("editSection", () => {
     });
   });
 
+  it("does not mark a section edited when the owner saves it without changing the text", async () => {
+    // The browser posts line breaks as CRLF, and a generated body may carry trailing spaces.
+    db.prepare("UPDATE note_section SET body = ? WHERE id = 'm1-sec-1'").run(
+      "- Pricing is pending.  \n- Hiring is slow.",
+    );
+    const result = await editSection(
+      deps,
+      "A",
+      "m1",
+      "m1-sec-1",
+      "- Pricing is pending.\r\n- Hiring is slow.",
+    );
+    expect(result.ok).toBe(true);
+    expect(row("SELECT edited FROM note_section WHERE id = 'm1-sec-1'")["edited"]).toBe(0);
+  });
+
+  it("marks a section edited as soon as the text really changes, and keeps it edited", async () => {
+    await editSection(deps, "A", "m1", "m1-sec-1", "Pricing is settled.");
+    expect(row("SELECT edited FROM note_section WHERE id = 'm1-sec-1'")["edited"]).toBe(1);
+    await editSection(deps, "A", "m1", "m1-sec-1", "Pricing is settled.");
+    expect(row("SELECT edited FROM note_section WHERE id = 'm1-sec-1'")["edited"]).toBe(1);
+  });
+
   it("makes a queued regeneration of the same revision stale, so it cannot overwrite the edit", async () => {
     await editSection(deps, "A", "m1", "m1-sec-0", "Mine.");
     const notes = new SqliteNoteRepository(db, new SequentialIds("n"));
