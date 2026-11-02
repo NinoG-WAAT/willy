@@ -35,9 +35,11 @@ migrations/  seeds/  tests/{unit,integration,e2e}/  docs/
 | identity | Owner, Session, CSRF, authz predicates (`src/domain/authz`) | `canViewMeeting`, `canExport`, `canDelete`, session expiry rules |
 | meetings | Meeting, Attendee, Consent, Capture lifecycle | `startCapture(meeting, consent, now)`, `pause`, `resume`, `stopCapture`, `transition` |
 | transcription | Chunk, TranscriptSegment, transcription Job | idempotent chunk key, backoff math, speaker relabel/merge |
-| notes | Note, SummarySection (+source ranges), Decision, ActionItem, Template, Folder | `publishNote(note, folder)`, `verifySummary(summary, attendees, segments)`, template normalization |
+| notes | Note, SummarySection (+source ranges), Decision, ActionItem, Template, Folder | `publishNote(note, folder)`, `verifySummary(summary, attendees, segments)`, template normalization, `parseOutline(body)` / `serializeOutline(blocks)` / `sourceLabel(from, to, timeOf)` (#89) |
 | search | FTS index, Markdown export | snippet highlighting (escaped), `renderMarkdown(note)` |
 | platform | ids, Clock, Result, errors, ProviderError, logging, rate-limit policy | |
+
+Outline parser (`src/domain/notes/outline.ts`, #89, review redesign #87): a section body is plain text; `parseOutline` turns it into paragraph / bullet-list / numbered-list blocks (`- `, `* `, `•`, `1.`, `1)`; nesting 0-2 from leading spaces) in one linear pass with no regular expressions. Blocks hold plain strings only and the page renders them as text nodes, so a body can never inject HTML, links or script (OWASP A03); there is no Markdown and no `set:html`. `serializeOutline` round-trips it, and `sourceLabel` builds the chip text ('2:10', '2:10 to 3:45', or 'Source in the transcript').
 
 Rules: `domain/` imports nothing from `app/`, `adapters/`, `pages/`, `astro`, `@cloudflare/*` (lint-enforced). Contexts reference each other by id and talk through use cases. Ports are named for the domain need; vendor types never leave `adapters/`.
 
