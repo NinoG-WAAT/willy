@@ -6,6 +6,7 @@ import type {
   TransitionOutcome,
 } from "../../domain/meetings/lifecycle";
 import type { ActionItemFields } from "../../domain/notes/review";
+import { normalizeMultiline } from "../../domain/platform/text";
 import type { IdGenerator } from "../../ports/id-generator";
 import type {
   ActionItemOutcome,
@@ -148,14 +149,23 @@ export class SqliteReviewRepository implements ReviewRepository {
     now: Date,
   ): Promise<EditOutcome> {
     return this.editDraft(ownerId, meetingId, now, (noteId, iso) => {
+      const current = this.db
+        .prepare("SELECT body FROM note_section WHERE id = ? AND owner_id = ? AND note_id = ?")
+        .get(sectionId, ownerId, noteId);
+      if (!current) return "missing";
+      // Saving the text as it already is (the form always posts the whole body, with CRLF line
+      // breaks) must not claim the owner wrote it: "edited" means the words changed.
+      const stored = String(current["body"]);
+      const unchanged = normalizeMultiline(stored) === body;
+      const kept = unchanged ? stored : body;
       const section = this.db
         .prepare(
-          `UPDATE note_section SET body = ?, edited = 1, updated_at = ?
+          `UPDATE note_section SET body = ?, edited = MAX(edited, ?), updated_at = ?
             WHERE id = ? AND owner_id = ? AND note_id = ? RETURNING heading`,
         )
-        .get(body, iso, sectionId, ownerId, noteId);
+        .get(kept, unchanged ? 0 : 1, iso, sectionId, ownerId, noteId);
       if (!section) return "missing";
-      this.reindex(ownerId, meetingId, "note_section", sectionId, String(section["heading"]), body);
+      this.reindex(ownerId, meetingId, "note_section", sectionId, String(section["heading"]), kept);
       return "saved";
     });
   }
