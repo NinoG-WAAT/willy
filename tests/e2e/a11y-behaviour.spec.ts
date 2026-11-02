@@ -6,6 +6,7 @@ import {
   reviewFolderName,
 } from "../support/e2e-db";
 import { installFakeMicrophone } from "../support/fake-microphone";
+import { createFreshOwner } from "../support/journey-db";
 
 /**
  * Accessibility behaviour that a static axe scan cannot judge (issue #21): keyboard-only
@@ -26,13 +27,53 @@ async function signIn(page: Page, email = "ada@example.test"): Promise<void> {
   await expect(page.getByText("Signed in as")).toBeVisible();
 }
 
-/** Moves focus to the target using only the Tab key (fails if it is not reachable in order). */
-async function tabTo(page: Page, target: Locator, limit = 120): Promise<void> {
-  for (let i = 0; i < limit; i += 1) {
+/** Where focus is, as a readable name, and whether the walk already visited a different element. */
+interface FocusStop {
+  label: string;
+  /** The same element as the previous press: a segmented date or time input keeps focus while Tab moves between its parts. */
+  unchanged: boolean;
+  /** An element visited earlier in this walk (not the previous one): focus came round the page. */
+  wrapped: boolean;
+}
+
+function describeFocus(): FocusStop {
+  const el = document.activeElement;
+  const w = window as unknown as { __tab?: { seen: WeakSet<Element>; last: Element | null } };
+  const walk = (w.__tab ??= { seen: new WeakSet<Element>(), last: null });
+  if (!el) return { label: "(nothing)", unchanged: false, wrapped: false };
+  const name = (el.getAttribute("aria-label") ?? el.textContent).trim().replace(/\s+/g, " ");
+  const unchanged = walk.last === el;
+  const wrapped = !unchanged && walk.seen.has(el);
+  walk.seen.add(el);
+  walk.last = el;
+  return { label: `${el.tagName.toLowerCase()} "${name.slice(0, 40)}"`, unchanged, wrapped };
+}
+
+/**
+ * Moves focus to the target using only the Tab key (fails if it is not reachable in order).
+ * It first waits for the target to be on screen, so it never starts walking a page that is still
+ * being replaced. The walk stops as soon as focus comes round to an element it already visited:
+ * the target is then not in the tab order, and the error lists the order that was actually seen.
+ * (A fixed press count used to run out silently when a long list sat before the target, #85.)
+ */
+async function tabTo(page: Page, target: Locator, limit = 1000): Promise<void> {
+  await expect(target).toBeVisible();
+  await page.evaluate(() => {
+    delete (window as unknown as { __tab?: unknown }).__tab;
+  });
+  const order: string[] = [];
+  for (let presses = 0; presses < limit; presses += 1) {
     if (await target.evaluate((el) => el === document.activeElement)) return;
     await page.keyboard.press("Tab");
+    const stop = await page.evaluate(describeFocus);
+    if (stop.wrapped) {
+      throw new Error(
+        `the control was not reachable with the Tab key: focus wrapped after ${String(order.length)} stops (${order.slice(0, 8).join(", ")} ... ${order.slice(-4).join(", ")})`,
+      );
+    }
+    if (!stop.unchanged) order.push(stop.label);
   }
-  throw new Error("the control was not reachable with the Tab key");
+  throw new Error(`the control was not reachable with the Tab key within ${String(limit)} presses`);
 }
 
 /** Focus the field with Tab, then type into it as a keyboard user would. */
@@ -52,11 +93,16 @@ test.describe("keyboard-only journeys", () => {
 
   test("sign in, create a note, give consent, start and stop capture", async ({ page }, info) => {
     const title = unique("Keyboard note", info);
+    // A brand-new Owner, so the Inbox holds only this note. With the shared seeded owner the
+    // Inbox grows with every note and folder other specs create, and a Tab walk to the new
+    // note's Start link no longer fits in a fixed number of presses (issue #85).
+    const owner = createFreshOwner();
     await page.goto("/sign-in");
-    await typeInto(page, page.getByLabel("Email"), "ada@example.test");
+    await typeInto(page, page.getByLabel("Email"), owner.email);
     await typeInto(page, page.getByLabel("Password"), PASSWORD);
     await page.keyboard.press("Enter");
     await expect(page.getByText("Signed in as")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
 
     await tabTo(page, page.getByRole("main").getByRole("link", { name: "New note" }));
     await page.keyboard.press("Enter");
@@ -70,6 +116,7 @@ test.describe("keyboard-only journeys", () => {
     await tabTo(page, page.getByRole("button", { name: "Create note" }));
     await page.keyboard.press("Enter");
 
+    await expect(page.getByRole("status").filter({ hasText: "Note created" })).toBeVisible();
     await tabTo(page, page.getByRole("link", { name: new RegExp(`Start note for ${title}`) }));
     await page.keyboard.press("Enter");
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
