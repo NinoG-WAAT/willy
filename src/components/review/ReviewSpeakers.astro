@@ -2,8 +2,10 @@
 import type { ErrorsFor, Speaker, Typed } from "./types";
 
 /**
- * The top of the transcript panel: the "Transcript" heading, the way back to the summary and the
- * speakers with their rename and merge forms. The lines themselves are ReviewTranscript.
+ * The speakers, compact: one chip per speaker with its line count. The rename and merge forms
+ * (unchanged fields, intents and validation) sit behind a disclosure that stays closed unless one
+ * of them was rejected (`formsOpen`), so its error is on screen. The transcript lines themselves
+ * are ReviewTranscript.
  */
 interface Props {
   /** The review page's own path: the target of both forms. */
@@ -11,28 +13,36 @@ interface Props {
   csrf: string;
   editable: boolean;
   speakers: readonly Speaker[];
+  /** A rejected rename or merge keeps the disclosure open. */
+  formsOpen: boolean;
   typed: Typed;
   errorsFor: ErrorsFor;
 }
 
-const { base, csrf, editable, speakers, typed, errorsFor } = Astro.props;
+const { base, csrf, editable, speakers, formsOpen, typed, errorsFor } = Astro.props;
 ---
 
-<section class="panel" id="speakers" aria-labelledby="speakers-heading">
-  <h2 id="transcript-heading">Transcript</h2>
-  <p>
-    <a href="#summary">Back to the summary</a>
-  </p>
-  <h3 id="speakers-heading">Speakers</h3>
-  <ul class="plain">
-    {speakers.map((sp) => (
-      <li>
-        {sp.name} ({sp.lines} {sp.lines === 1 ? "line" : "lines"})
-      </li>
-    ))}
-  </ul>
+<section class="review-speakers" id="speakers" aria-labelledby="speakers-heading">
+  <h2 id="speakers-heading" class="review-label">
+    Speakers
+  </h2>
+  {speakers.length === 0 ? (
+    <p class="help">No speakers were recognised.</p>
+  ) : (
+    <ul class="speaker-chips">
+      {speakers.map((sp) => (
+        <li class="speaker-chip">
+          <span class="speaker-name">{sp.name}</span>
+          <span class="speaker-lines">
+            {sp.lines} {sp.lines === 1 ? "line" : "lines"}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )}
   {editable && speakers.length > 0 && (
-    <>
+    <details class="speaker-forms" open={formsOpen}>
+      <summary>Rename or merge speakers</summary>
       <form method="post" action={base} class="form">
         <input type="hidden" name="csrf_token" value={csrf} />
         <input type="hidden" name="intent" value="rename_speaker" />
@@ -81,6 +91,9 @@ const { base, csrf, editable, speakers, typed, errorsFor } = Astro.props;
                 <option value={sp.name}>{sp.name}</option>
               ))}
             </select>
+            {errorsFor("merge_speaker", "from").map((e) => (
+              <p class="field-error">{e.message}</p>
+            ))}
           </div>
           <div class="field">
             <label for="merge-to">into</label>
@@ -91,6 +104,9 @@ const { base, csrf, editable, speakers, typed, errorsFor } = Astro.props;
                 </option>
               ))}
             </select>
+            {errorsFor("merge_speaker", "to").map((e) => (
+              <p class="field-error">{e.message}</p>
+            ))}
           </div>
           <p class="help">
             Their lines are relabelled to the second speaker. This applies to every line of this
@@ -103,6 +119,6 @@ const { base, csrf, editable, speakers, typed, errorsFor } = Astro.props;
           </div>
         </form>
       )}
-    </>
+    </details>
   )}
 </section>

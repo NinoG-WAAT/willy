@@ -22,6 +22,22 @@ async function signIn(page: Page, email: string): Promise<string> {
   return (await page.locator("input[name=csrf_token]").first().getAttribute("value")) ?? "";
 }
 
+/** The disclosures of the review: native <details>, opened by their summary line. */
+async function openSpeakerForms(page: Page): Promise<void> {
+  await page.getByText("Rename or merge speakers", { exact: true }).click();
+}
+
+async function openTranscript(page: Page): Promise<void> {
+  const panel = page.locator("#transcript-panel");
+  if ((await panel.getAttribute("open")) === null) await panel.locator("> summary").click();
+  await expect(panel).toHaveJSProperty("open", true);
+}
+
+async function openPublish(page: Page): Promise<void> {
+  await page.locator(".publish-details > summary").click();
+  await expect(page.getByLabel("Private folder")).toBeVisible();
+}
+
 test("journey 2: correct a speaker, edit a decision and an action item, publish to a folder", async ({
   page,
 }) => {
@@ -47,11 +63,13 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
     expect(transcript.x).toBeGreaterThan(summary.x + summary.width - 1);
   }
 
-  // Correct a speaker: applied to every line of that speaker.
+  // Correct a speaker from the disclosure: applied to every line of that speaker.
+  await openSpeakerForms(page);
   await page.getByLabel("Speaker to rename").selectOption("Speaker 1");
   await page.getByLabel("New name").fill("Ada Lovelace");
   await page.getByRole("button", { name: "Rename speaker" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Speaker renamed" })).toBeVisible();
+  await openTranscript(page);
   await expect(page.locator(".transcript li", { hasText: "Ada Lovelace" })).toHaveCount(2);
   await expect(page.locator(".transcript li", { hasText: "Speaker 1" })).toHaveCount(0);
 
@@ -95,12 +113,14 @@ test("journey 2: correct a speaker, edit a decision and an action item, publish 
   await expect(page.locator(".transcript li", { hasText: "Ada Lovelace" })).toHaveCount(2);
 
   // Publishing is explicit: without the confirmation nothing is published.
+  await openPublish(page);
   await page.getByLabel("Private folder").selectOption({ label: reviewFolderName(id) });
   await page.getByRole("button", { name: "Publish to folder" }).click();
   await expect(page.getByRole("alert")).toContainText("not saved");
   await expect(page.getByText("Tick the box to confirm")).toBeVisible();
   expect(meetingStatus(id)).toBe("review");
 
+  // The rejected form is still open, so the error and the fields are on screen.
   await page.getByLabel("Private folder").selectOption({ label: reviewFolderName(id) });
   await page.getByLabel("I have reviewed this note and want to publish it.").check();
   await page.getByRole("button", { name: "Publish to folder" }).click();
@@ -123,12 +143,14 @@ test("a source link marks the cited transcript lines", async ({ page }) => {
   addOutlineItems(id);
   await page.goto(`/meetings/${id}/review?edit=${id}-dec-0`);
   await expect(page.locator(".transcript li.is-source")).toHaveCount(0);
-  // Unsaved typing is not lost: the marks move in place.
+  await expect(page.locator("#transcript-panel")).toHaveJSProperty("open", false);
+  // Unsaved typing is not lost: the marks move in place, and the closed panel opens on them.
   await page.locator(`#decision-text-${id}-dec-0`).fill("Unsaved wording");
   await page
     .locator(`#decision-${id}-dec-1`)
     .getByRole("link", { name: /Source: transcript/ })
     .click();
+  await expect(page.locator("#transcript-panel")).toHaveJSProperty("open", true);
   await expect(page.locator(".transcript li.is-source")).toHaveCount(2);
   await expect(page.locator(".transcript li.is-source .seg-flag").first()).toBeVisible();
   await expect(page.locator(`#decision-text-${id}-dec-0`)).toHaveValue("Unsaved wording");
@@ -139,11 +161,14 @@ test("a search hit opens the review with the match and its source marked", async
   const id = await createReviewMeeting("owner-ada");
   await page.goto(`/meetings/${id}/review?q=roadmap&hit=note_section:${id}-sec-0`);
   await expect(page.locator(`#section-${id}-sec-0`)).toContainText("Search match");
+  await expect(page.locator("#transcript-panel")).toHaveJSProperty("open", true);
   await expect(page.locator(".transcript li.is-source")).toHaveCount(3);
+  await expect(page.locator(".transcript li.is-source .seg-flag").first()).toBeVisible();
   // A hit naming another note's item marks nothing.
   await page.goto(`/meetings/${id}/review?hit=note_section:meeting-a-overdue-note-section-0`);
   await expect(page.getByText("Search match")).toHaveCount(0);
   await expect(page.locator(".transcript li.is-source")).toHaveCount(0);
+  await expect(page.locator("#transcript-panel")).toHaveJSProperty("open", false);
 });
 
 test("an overdue action item says so in words", async ({ page }) => {
@@ -178,8 +203,11 @@ test.describe("without JavaScript", () => {
       .getByRole("link", { name: /Source: transcript/ })
       .click();
     await expect(page).toHaveURL(/review\?src=\d+-\d+#seg-/);
+    await expect(page.locator("#transcript-panel")).toHaveJSProperty("open", true);
     await expect(page.locator(".transcript li.is-source .seg-flag")).toBeVisible();
 
+    // The bar's disclosure opens natively, so publishing needs no script either.
+    await openPublish(page);
     await page.getByLabel("Private folder").selectOption({ label: reviewFolderName(id) });
     await page.getByLabel("I have reviewed this note and want to publish it.").check();
     await page.getByRole("button", { name: "Publish to folder" }).click();

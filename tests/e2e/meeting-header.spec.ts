@@ -8,6 +8,7 @@ import {
 } from "../support/e2e-db";
 import { installFakeMicrophone } from "../support/fake-microphone";
 import { createFreshOwner } from "../support/journey-db";
+import { restStickyBar } from "../support/sticky-bar";
 
 /**
  * Issue #73: one meeting header, shared by the live note and the review, with the status stepper
@@ -36,6 +37,7 @@ async function signIn(page: Page, email = "ada@example.test"): Promise<void> {
 }
 
 async function audit(page: Page): Promise<void> {
+  await restStickyBar(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   expect(
     results.violations.map((v) => ({
@@ -437,9 +439,12 @@ test.describe("without JavaScript", () => {
     await page.goto(review(id));
     await expect(stepper(page).locator('[aria-current="step"]')).toContainText("Draft");
     await expect(header(page).getByRole("link", { name: "Publish to folder" })).toBeVisible();
-    // The link lands on the form, which still publishes with its own button.
+    // The link lands on the publish bar; its disclosure opens natively and the form still
+    // publishes with its own button.
     await header(page).getByRole("link", { name: "Publish to folder" }).click();
     await expect(page).toHaveURL(/#publish$/);
+    await expect(page.getByRole("button", { name: "Publish to folder" })).toBeHidden();
+    await page.locator(".publish-details > summary").click();
     await expect(page.getByRole("button", { name: "Publish to folder" })).toBeVisible();
   });
 });
@@ -456,6 +461,7 @@ test.describe("one primary action, and the buttons that stay where they were", (
     expect(await start.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(LIME);
     const id = await createReviewMeeting(owner);
     await page.goto(review(id));
+    await page.locator(".publish-details > summary").click();
     const publish = page.getByRole("button", { name: "Publish to folder" });
     expect(await publish.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(LIME);
   });

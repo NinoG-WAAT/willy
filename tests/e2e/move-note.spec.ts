@@ -8,6 +8,7 @@ import {
 } from "../support/e2e-db";
 import { createFolderWithNotes } from "../support/folder-fixtures";
 import { createFreshOwner } from "../support/journey-db";
+import { restStickyBar } from "../support/sticky-bar";
 
 /**
  * Issue #76: move a published note to another folder from the review header, without reopening
@@ -29,6 +30,7 @@ async function signIn(page: Page, email: string): Promise<string> {
 }
 
 async function audit(page: Page): Promise<void> {
+  await restStickyBar(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   expect(
     results.violations.map((v) => ({
@@ -72,6 +74,7 @@ async function draftWithTwoFolders(page: Page): Promise<Setup> {
 
 async function publishIntoFirstFolder(page: Page, s: Setup): Promise<void> {
   await page.goto(`/meetings/${s.meetingId}/review`);
+  await page.locator(".publish-details > summary").click();
   await page.getByLabel("Private folder").selectOption({ label: s.fromName });
   await page.getByLabel("I have reviewed this note and want to publish it.").check();
   await page.getByRole("button", { name: "Publish to folder" }).click();

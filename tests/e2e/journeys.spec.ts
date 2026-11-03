@@ -212,8 +212,11 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
       .first()
       .click();
     expect(await page.locator(".transcript li.is-source").count()).toBeGreaterThan(0);
+    // The closed transcript opened on the cited lines, which are on screen.
+    await expect(page.locator(".transcript li.is-source").first()).toBeVisible();
 
     // Correct a speaker: every line of that speaker changes.
+    await page.getByText("Rename or merge speakers", { exact: true }).click();
     const speakers = page.getByLabel("Speaker to rename");
     await speakers.selectOption({ index: 1 });
     await page.getByLabel("New name").fill("Grace Hopper");
@@ -234,6 +237,7 @@ test.describe("journey 2: review the transcript-backed summary and publish to a 
     await expect(page.getByText("We agreed to ship the beta in November.").first()).toBeVisible();
 
     // Publishing is explicit and confirmed; the note lands in the private folder.
+    await page.locator(".publish-details > summary").click();
     await page.getByLabel("Private folder").selectOption({ label: "Board updates" });
     await page.getByLabel("I have reviewed this note and want to publish it.").check();
     await page.getByRole("button", { name: "Publish to folder" }).click();
@@ -359,6 +363,7 @@ test.describe("journey 3: search, open with context, export, permanently delete"
     await expect(page).toHaveURL(new RegExp(`/meetings/${id}/review\\?`));
     await expect(page.getByText("Search match")).toBeVisible();
     expect(await page.locator(".transcript li.is-source").count()).toBeGreaterThan(0);
+    await expect(page.locator(".transcript li.is-source").first()).toBeVisible();
 
     // Export to Markdown from the search result.
     await page.goto(`/search?q=${word}`);

@@ -103,3 +103,39 @@ export async function seedReviewMeeting(
     updated_at: T0,
   });
 }
+
+/**
+ * A long transcript for a seeded review meeting: `count` more lines in chunks 2 and up (ten per
+ * chunk, positions `seq * 10000 + index`), two speakers taking turns, a line every four seconds
+ * of meeting time. Chunk and line ids follow `seedReviewMeeting`'s pattern.
+ */
+export async function seedLongTranscript(
+  db: DatabaseSync,
+  ownerId: string,
+  id: string,
+  count: number,
+): Promise<void> {
+  const perChunk = 10;
+  for (let n = 0; n < count; n += 1) {
+    const seq = 2 + Math.floor(n / perChunk);
+    const index = n % perChunk;
+    if (index === 0) {
+      chunk(db, ownerId, id, seq, { state: "purged", object_key: null, purged_at: T0 });
+    }
+    const segId = `${id}-seg-${String(seq)}-${String(index)}`;
+    const speaker = n % 3 === 2 ? "Speaker 2" : "Speaker 1";
+    const sealed = await cipher.encrypt(
+      `Line ${String(n + 4)}: we talked through the plan for the quarter.`,
+      segmentTextContext(segId),
+    );
+    segment(db, ownerId, id, seq, index, {
+      id: segId,
+      start_ms: (n + 1) * 4000,
+      end_ms: (n + 2) * 4000,
+      speaker_label: speaker,
+      speaker_label_original: speaker,
+      text_ciphertext: sealed.ciphertext,
+      text_key_id: sealed.keyId,
+    });
+  }
+}

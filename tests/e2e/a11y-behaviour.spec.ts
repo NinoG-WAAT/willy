@@ -146,6 +146,9 @@ test.describe("keyboard-only journeys", () => {
     const id = await createReviewMeeting("owner-ada");
     await page.goto(`/meetings/${id}/review`);
 
+    // The rename form is behind a disclosure: reach its summary and open it with the keyboard.
+    await tabTo(page, page.getByText("Rename or merge speakers", { exact: true }));
+    await page.keyboard.press("Enter");
     await tabTo(page, page.getByLabel("Speaker to rename"));
     await page.keyboard.press("ArrowDown");
     await typeInto(page, page.getByLabel("New name"), "Ada Lovelace");
@@ -154,6 +157,9 @@ test.describe("keyboard-only journeys", () => {
     await expect(page.getByRole("status").filter({ hasText: "Speaker renamed" })).toBeVisible();
 
     // Publish into the meeting's own folder (never the shared seeded one, other tests count its notes).
+    // The publish form is behind the bar's disclosure, the last stop of the page.
+    await tabTo(page, page.locator(".publish-details > summary"));
+    await page.keyboard.press("Enter");
     const folder = page.getByLabel("Private folder");
     await tabTo(page, folder);
     await folder.selectOption({ label: reviewFolderName(id) });
