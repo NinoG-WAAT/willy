@@ -50,7 +50,9 @@ test("the summary is read-only by default: an outline, not a form", async ({ pag
   const id = await weeklyReview(page);
   await page.goto(`/meetings/${id}/review`);
 
-  await expect(page.getByRole("heading", { level: 2, name: "Summary" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Meeting summary", exact: true }),
+  ).toBeVisible();
   await expect(
     page.locator("#summary").getByRole("heading", { level: 3, name: "Summary" }),
   ).toBeVisible();

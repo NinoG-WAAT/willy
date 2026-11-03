@@ -85,7 +85,7 @@ test.describe("review screen, while the transcript is prepared", () => {
     await expect(page.locator("#note-status")).toHaveText("Draft");
     // The no-JS way to the same place is still on the page and still works.
     await region.locator("xpath=..").getByRole("link", { name: "Check again" }).click();
-    await expect(page.getByRole("heading", { name: "Summary", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Meeting summary", level: 2 })).toBeVisible();
   });
 
   test("a failed transcription is announced with its reason code and a way forward", async ({
