@@ -284,6 +284,8 @@ test.describe("the publish bar", () => {
     const last = page
       .locator("#summary")
       .locator("a[href], button, input:not([type=hidden]), select, textarea, summary")
+      // Controls inside a closed disclosure are not on the page: the last one a person can reach.
+      .filter({ visible: true })
       .last();
     await last.focus();
     const [target, b] = [await box(last), await box(bar(page))];
