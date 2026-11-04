@@ -11,7 +11,7 @@ import {
 import { createFolderWithNotes } from "../support/folder-fixtures";
 import { createFolder, createNotes } from "../support/notes-fixtures";
 import { installFakeMicrophone } from "../support/fake-microphone";
-import { createFreshOwner } from "../support/journey-db";
+import { addVocabularyTerms, createFreshOwner } from "../support/journey-db";
 import { restStickyBar } from "../support/sticky-bar";
 
 /**
@@ -439,6 +439,7 @@ test.describe("owner screens", () => {
     ["new template", "/settings/templates/new"],
     ["edit template", "/settings/templates/template-a-weekly"],
     ["settings", "/settings"],
+    ["vocabulary, seeded owner", "/settings/vocabulary"],
     ["delete meeting confirmation", "/meetings/meeting-a-published/delete"],
     ["delete folder confirmation", "/folders/folder-a-board/delete"],
     ["delete template confirmation", "/settings/templates/template-a-weekly/delete"],
@@ -495,6 +496,33 @@ test.describe("owner screens", () => {
       const page = await context.newPage();
       await signIn(page, owner.email);
       await page.goto("/");
+      await audit(page);
+      await context.close();
+    }
+  });
+
+  test("vocabulary: empty, with left-out words and the add field open, and a validation error", async ({
+    browser,
+  }) => {
+    const empty = createFreshOwner();
+    const long = createFreshOwner();
+    addVocabularyTerms(
+      long.id,
+      Array.from({ length: 120 }, (_, i) => `Project name ${String(i).padStart(3, "0")}`),
+    );
+    for (const owner of [empty, long]) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await signIn(page, owner.email);
+      await page.goto("/settings/vocabulary");
+      await audit(page);
+      if (owner === long) {
+        await page.getByText("Add words", { exact: true }).click();
+        await audit(page);
+      }
+      await page.getByLabel("Words to add").fill("--not a word");
+      await page.getByRole("button", { name: "Add", exact: true }).click();
+      await expect(page.getByRole("alert")).toBeVisible();
       await audit(page);
       await context.close();
     }

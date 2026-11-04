@@ -307,6 +307,22 @@ export async function seedDatabase(
       insert(db, "settings", { owner_id: owner, updated_at: at(-60) });
     }
 
+    // Vocabulary: different words per owner, so the isolation can be seen on the screen.
+    const vocabulary: [string, string, string[]][] = [
+      [ownerA, "a", ["SALSA", "Sitetracker", "Willycrumbs"]],
+      [ownerB, "b", ["Kestrel", "Orionis"]],
+    ];
+    for (const [owner, tag, words] of vocabulary) {
+      for (const [index, term] of words.entries()) {
+        insert(db, "vocabulary_term", {
+          id: `vocab-${tag}-${String(index + 1)}`,
+          owner_id: owner,
+          term,
+          created_at: at(-20),
+        });
+      }
+    }
+
     // Owner A: folder, template, happy path.
     insert(db, "folder", {
       id: "folder-a-board",

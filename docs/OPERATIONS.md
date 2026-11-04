@@ -7,6 +7,7 @@ Status: v1 (issue #20).
 - One JSON object per line (`createJsonLogger`, `src/adapters/logging/json-logger.ts`): `ts`, `level`, `event` plus fields. `ts`, `level` and `event` cannot be overridden by fields.
 - **Redaction by field name** (a second line of defence; callers still log ids, counts and codes only): any field whose name contains `password`, `secret`, `token`, `authorization`, `cookie`, `api key`, `text`, `transcript`, `audio`, `body`, `email`, `note` or `content` is written as `[redacted]`. String values are cut at 300 characters; non-primitive values are dropped.
 - Never logged: request bodies, query strings, exception messages (they can contain content), transcript or note text, audio, attendee emails, secrets. Errors log `errorName` and a redacted `errorCode` only. Capability tokens in `/api/files/:token` paths are replaced in the logged route.
+- The owner's vocabulary (#106) can hold sensitive project and client names: the words, the speech-to-text prompt and the Deepgram keywords are never logged and never put in an error message. The transcription job logs `vocabularyTerms` (a count) on `job.transcribed`, and `job.vocabulary_unavailable` (warn, count 0) when the list could not be read; the transcription carries on without it. `POST /settings/vocabulary` and `POST /settings/vocabulary/:id/remove` are not in the rate-limit table below (like the other settings forms); the 200-word limit and idempotent adds bound them.
 
 ## Correlation ids
 

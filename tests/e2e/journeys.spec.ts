@@ -4,9 +4,11 @@ import { createCapturingMeeting, createReviewMeeting, meetingStatus } from "../s
 import { installFakeMicrophone } from "../support/fake-microphone";
 import {
   DEV_PASSWORD,
+  addVocabularyTerms,
   createFreshOwner,
   meetingFootprint,
   storedAudioFiles,
+  vocabularyTerms,
   type FreshOwner,
 } from "../support/journey-db";
 
@@ -465,6 +467,7 @@ test.describe("permission boundaries: another owner gets the same answer as for 
     await expect(pageA.locator("#notes-status")).toContainText("Saved at");
     const reviewId = await createReviewMeeting(ownerA.id);
     const scheduledId = createCapturingMeeting(ownerA.id, "scheduled", "A private plan");
+    const [vocabularyId = ""] = addVocabularyTerms(ownerA.id, ["Zephyr codename"]);
     const baseline = {
       live: meetingStatus(liveId),
       review: meetingStatus(reviewId),
@@ -478,9 +481,13 @@ test.describe("permission boundaries: another owner gets the same answer as for 
       `/meetings/${reviewId}/review`,
       `/meetings/${reviewId}/export.md`,
       `/api/meetings/${liveId}/status`,
+      "/settings/vocabulary",
     ]) {
       expect((await pageA.request.get(path)).status(), `A ${path}`).toBe(200);
     }
+    expect(await (await pageA.request.get("/settings/vocabulary")).text()).toContain(
+      "Zephyr codename",
+    );
 
     const ownerB = createFreshOwner();
     const token = await signIn(page, ownerB);
@@ -564,9 +571,13 @@ test.describe("permission boundaries: another owner gets the same answer as for 
         run: postForm((id) => `/meetings/${id}/delete`, { confirmation: "DELETE" }),
       },
       { name: "deletion retry", run: postForm((id) => `/settings/deletions/${id}/retry`, {}) },
+      {
+        name: "vocabulary word removal",
+        run: postForm((id) => `/settings/vocabulary/${id}/remove`, {}),
+      },
     ];
 
-    for (const targetId of [liveId, reviewId, scheduledId]) {
+    for (const targetId of [liveId, reviewId, scheduledId, vocabularyId]) {
       for (const probe of probes) {
         const foreign = await probe.run(targetId);
         const guessed = await probe.run(unknown);
@@ -574,8 +585,14 @@ test.describe("permission boundaries: another owner gets the same answer as for 
         expect(foreign, `${probe.name} on ${targetId} differs from an unknown id`).toEqual(guessed);
         expect(foreign.body).not.toContain("Secret acquisition");
         expect(foreign.body).not.toContain("zephyrword");
+        expect(foreign.body).not.toContain("Zephyr codename");
       }
     }
+
+    // B's own vocabulary page shows nothing of A's words, and A's word is still there.
+    await page.goto("/settings/vocabulary");
+    await expect(page.getByRole("main")).not.toContainText("Zephyr codename");
+    expect(vocabularyTerms(ownerA.id).map((t) => t.term)).toEqual(["Zephyr codename"]);
 
     // Search and the home list never leak A's words or titles to B.
     await page.goto("/search?q=zephyrword");

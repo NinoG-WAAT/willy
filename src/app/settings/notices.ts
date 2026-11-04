@@ -5,6 +5,9 @@ const NOTICES: Readonly<Record<string, string>> = {
   deletion_repeated: "That deletion was already requested. Its progress is shown below.",
   deletion_retried: "Deletion queued again. Its progress is shown below.",
   deletion_nothing_to_retry: "Nothing to retry: that deletion is not stopped.",
+  vocabulary_added: "Words added. They are used for the next transcription.",
+  vocabulary_unchanged: "Those words were already in your vocabulary. Nothing changed.",
+  vocabulary_removed: "Word removed.",
 };
 
 /**

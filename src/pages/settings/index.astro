@@ -219,6 +219,19 @@ const csrf = Astro.locals.csrfToken ?? "";
     </p>
   </section>
 
+  <section class="panel" aria-labelledby="vocabulary-heading">
+    <h2 id="vocabulary-heading">Vocabulary</h2>
+    <p>
+      Words your meetings use that a speech recogniser does not know: project names, clients,
+      acronyms. They help it spell them correctly in the transcript.
+    </p>
+    <p class="row-actions">
+      <a class="button button-quiet" href="/settings/vocabulary">
+        Edit vocabulary
+      </a>
+    </p>
+  </section>
+
   <section class="panel" aria-labelledby="export-heading">
     <h2 id="export-heading">Export</h2>
     <p>

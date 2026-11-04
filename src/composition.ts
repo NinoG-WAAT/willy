@@ -33,6 +33,7 @@ import { SqliteSettingsRepository } from "./adapters/sqlite/settings-repository"
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
 import { SqliteSessionRepository } from "./adapters/sqlite/session-repository";
 import { SqliteTemplateRepository } from "./adapters/sqlite/template-repository";
+import { SqliteVocabularyRepository } from "./adapters/sqlite/vocabulary-repository";
 import { RandomIds, SystemClock } from "./adapters/system/system";
 import type { IdentityDeps } from "./app/identity/deps";
 import { createChunkStore, type ChunkStore } from "./app/storage/chunk-store";
@@ -53,6 +54,7 @@ import type { ReviewFormDeps } from "./app/notes/review-http";
 import { SqliteReviewRepository } from "./adapters/sqlite/review-repository";
 import { summaryJobHandler } from "./app/notes/summary-job";
 import type { StatusDeps } from "./app/transcription/processing-status";
+import type { VocabularyDeps } from "./app/transcription/vocabulary";
 import { retentionJobHandler, scheduleRetentionJobs } from "./app/transcription/retention";
 import { transcribeJobHandler, type TranscribeDeps } from "./app/transcription/transcribe-job";
 import type { UploadDeps } from "./app/transcription/upload-chunk";
@@ -311,6 +313,7 @@ function getTranscribeDeps(): TranscribeDeps {
       transcriber: getTranscriber(),
       textCipher: getTextCipher(),
       settings: new SqliteSettingsRepository(getDatabase()),
+      vocabulary: new SqliteVocabularyRepository(getDatabase()),
       jobs: getJobRepository(),
       ids: new RandomIds(),
       clock,
@@ -318,6 +321,17 @@ function getTranscribeDeps(): TranscribeDeps {
     };
   }
   return transcribeDeps;
+}
+
+let vocabularyDeps: VocabularyDeps | undefined;
+
+export function getVocabularyDeps(): VocabularyDeps {
+  vocabularyDeps ??= {
+    vocabulary: new SqliteVocabularyRepository(getDatabase()),
+    clock: new SystemClock(),
+    ids: new RandomIds(),
+  };
+  return vocabularyDeps;
 }
 
 const JOB_LEASE_MS = 5 * 60_000;

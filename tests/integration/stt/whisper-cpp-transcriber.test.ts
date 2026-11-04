@@ -419,3 +419,77 @@ describe("whisper.cpp transcriber specifics", () => {
     expect((await transcriber.transcribe(request("b"))).ok).toBe(true);
   });
 });
+
+describe("whisper.cpp vocabulary (issue #106)", () => {
+  // Each call works in its own random temp directory: compare argv with that part masked.
+  const whisperArgs = (stub: ReturnType<typeof build>["stub"]): string[] =>
+    defined(stub.calls.find((c) => c.file === WHISPER)).args.map((a) =>
+      a.startsWith(root) && a !== modelPath ? "<tmp>" : a,
+    );
+  const run = async (vocabulary?: readonly string[]) => {
+    const { stub, transcriber } = build();
+    stub.respondWith([{ startMs: 0, endMs: 100, speaker: null, text: "ok" }]);
+    const result = await transcriber.transcribe(
+      vocabulary === undefined ? request() : { ...request(), vocabulary },
+    );
+    expect(result.ok).toBe(true);
+    return stub;
+  };
+
+  it("passes no prompt without a vocabulary or with an empty one", async () => {
+    for (const vocabulary of [undefined, []]) {
+      expect(whisperArgs(await run(vocabulary))).not.toContain("--prompt");
+    }
+  });
+
+  it("passes the plain list as the starting prompt, one argument, other flags unchanged", async () => {
+    const base = whisperArgs(await run());
+    const args = whisperArgs(await run(["SALSA", "Sitetracker"]));
+    expect(flagValue(args, "--prompt")).toBe("Termes : SALSA, Sitetracker.");
+    expect(args.filter((a) => a === "--prompt")).toHaveLength(1);
+    expect(args.filter((a) => a !== "--prompt" && a !== "Termes : SALSA, Sitetracker.")).toEqual(
+      base,
+    );
+  });
+
+  it("does not hand the vocabulary to ffmpeg", async () => {
+    const stub = await run(["SALSA"]);
+    const ffmpeg = defined(stub.calls.find((c) => c.file === FFMPEG));
+    expect(ffmpeg.args.join(" ")).not.toContain("SALSA");
+    expect(ffmpeg.args).not.toContain("--prompt");
+  });
+
+  it("keeps a hostile term inside the one prompt argument: never a flag, never a shell string", async () => {
+    const hostile = ["--model x", "$(id)", "-m /etc/passwd", "`id`", "a; rm -rf /", "x\u0000y"];
+    const base = whisperArgs(await run());
+    const args = whisperArgs(await run(hostile));
+    const prompt = flagValue(args, "--prompt");
+    expect(prompt.startsWith("Termes : ")).toBe(true);
+    expect(prompt).toContain("--model x");
+    expect(prompt).toContain("$(id)");
+    expect(prompt).toContain("x y"); // the NUL became a space: argv cannot carry one
+    // The prompt is the only new argument, and nothing else in argv came from a term.
+    expect(args).toHaveLength(base.length + 2);
+    expect(args.slice(0, base.length)).toEqual(base);
+    for (const bad of ["--model x", "$(id)", "-m /etc/passwd", "`id`", "a; rm -rf /"]) {
+      expect(args).not.toContain(bad);
+    }
+    expect(args.some((a) => a.includes("\u0000"))).toBe(false);
+    expect(args.filter((a) => a === "--model")).toHaveLength(0);
+  });
+
+  it("stays within the prompt budget however many terms there are", async () => {
+    const vocabulary = Array.from(
+      { length: 200 },
+      (_, i) => `Project${String(i).padStart(3, "0")}`,
+    );
+    const prompt = flagValue(whisperArgs(await run(vocabulary)), "--prompt");
+    expect(prompt.length).toBeLessThanOrEqual(600);
+    expect(prompt.startsWith("Termes : Project000, Project001")).toBe(true);
+    expect(prompt.endsWith(".")).toBe(true);
+  });
+
+  it("passes no prompt when every term is empty after cleaning", async () => {
+    expect(whisperArgs(await run(["", "  ", "\u0001"]))).not.toContain("--prompt");
+  });
+});

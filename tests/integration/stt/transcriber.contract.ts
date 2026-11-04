@@ -29,6 +29,9 @@ const ALL_FAILURES = [
 const AUDIO = new Uint8Array([1, 2, 3, 4]);
 const request = (chunkId = "chunk-1") => ({ chunkId, audio: AUDIO, contentType: "audio/webm" });
 
+/** Terms that must never change what a provider returns, whatever they look like. */
+const HOSTILE = ["--model x", "$(id)", "a, b", "x&keywords=evil", "50:50", "Sitetracker"];
+
 /**
  * Shared contract (CLAUDE.md section 5, Liskov): the fake and the real adapter must look the
  * same to callers, including how they fail. Run against both.
@@ -95,6 +98,38 @@ export function transcriberContract(
         expect(result.error.message).not.toMatch(/secret|token|key/i);
       },
     );
+
+    it("gives the same segments with a vocabulary, an empty one or none", async () => {
+      const utterances = [{ startMs: 0, endMs: 900, speaker: 0, text: "Bonjour SALSA" }];
+      const results = [];
+      for (const vocabulary of [undefined, [], ["SALSA", "Sitetracker"], HOSTILE]) {
+        const h = create();
+        h.respondWith(utterances);
+        results.push(
+          await h.transcriber.transcribe(
+            vocabulary === undefined ? request() : { ...request(), vocabulary },
+          ),
+        );
+      }
+      expect(results[0]?.ok).toBe(true);
+      for (const r of results) expect(r).toEqual(results[0]);
+    });
+
+    it("copes with a vocabulary far longer than any prompt or keyword list can take", async () => {
+      const h = create();
+      h.respondWith([{ startMs: 0, endMs: 100, speaker: 0, text: "Ok" }]);
+      const vocabulary = Array.from({ length: 200 }, (_, i) => `Project${String(i)}`);
+      const result = await h.transcriber.transcribe({ ...request(), vocabulary });
+      expect(result.ok).toBe(true);
+    });
+
+    it("still reports a failure normally when a vocabulary is given", async () => {
+      const h = create();
+      h.failNext("unavailable");
+      const result = await h.transcriber.transcribe({ ...request(), vocabulary: ["SALSA"] });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.kind).toBe("unavailable");
+    });
 
     it("recovers on the next call after a failure", async () => {
       const h = create();

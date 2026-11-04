@@ -4,7 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { providerError, type ProviderError } from "../../domain/platform/provider-error";
 import { err, ok, type Result } from "../../domain/platform/result";
+import { normalizeLine } from "../../domain/platform/text";
 import { MAX_CHUNK_BYTES, normalizeAudioContentType } from "../../domain/transcription/audio";
+import { buildTranscriptionPrompt } from "../../domain/transcription/vocabulary";
 import {
   normalizeSegments,
   type RawSegment,
@@ -84,6 +86,18 @@ function failureOf(step: "ffmpeg" | "whisper-cli", outcome: CommandOutcome): Pro
   }
 }
 
+/**
+ * `--prompt <text>` for whisper-cli, or nothing. The text is one element of the argv array (no
+ * shell ever sees it) and always starts with "Termes : ", so even a hostile term cannot be read as
+ * a flag. A character that cannot travel in argv (NUL) or break a line is turned into a space
+ * first; terms that end up empty are dropped.
+ */
+function promptArgs(vocabulary: readonly string[] | undefined): string[] {
+  const terms = (vocabulary ?? []).map((t) => normalizeLine(t) ?? "").filter((t) => t !== "");
+  const { text } = buildTranscriptionPrompt(terms);
+  return text === "" ? [] : ["--prompt", text];
+}
+
 /** Limits how many Whisper runs happen at once; later chunks wait, they are not dropped. */
 function createSlots(max: number) {
   let active = 0;
@@ -123,6 +137,7 @@ export function createWhisperCppTranscriber(
     audio: Uint8Array,
     format: { demuxer: string; extension: string },
     deadline: number,
+    vocabulary: readonly string[] | undefined,
   ): Promise<Result<TranscribedSegment[], ProviderError>> {
     const input = join(dir, `chunk.${format.extension}`);
     const wav = join(dir, "chunk.wav");
@@ -165,7 +180,19 @@ export function createWhisperCppTranscriber(
     if (budget() <= 0) return err(providerError("timeout", "whisper-cli exceeded the time limit"));
     const transcribed = await run(
       config.whisperBin,
-      ["-m", config.modelPath, "-f", wav, "-l", config.language, "-oj", "-of", outputPrefix, "-np"],
+      [
+        "-m",
+        config.modelPath,
+        "-f",
+        wav,
+        "-l",
+        config.language,
+        "-oj",
+        "-of",
+        outputPrefix,
+        "-np",
+        ...promptArgs(vocabulary),
+      ],
       { timeoutMs: budget() },
     );
     const transcriptionFailure = failureOf("whisper-cli", transcribed);
@@ -205,7 +232,7 @@ export function createWhisperCppTranscriber(
       let dir: string | undefined;
       try {
         dir = await mkdtemp(join(tempRoot, "willy-stt-"));
-        return await convertAndTranscribe(dir, request.audio, format, deadline);
+        return await convertAndTranscribe(dir, request.audio, format, deadline, request.vocabulary);
       } catch {
         return err(
           providerError("unavailable", "local speech-to-text could not use its temp files"),

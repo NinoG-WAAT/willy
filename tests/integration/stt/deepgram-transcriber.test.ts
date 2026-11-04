@@ -200,3 +200,55 @@ describe("deepgram adapter specifics", () => {
     expect(result.ok && result.value[0]?.text).toBe(text);
   });
 });
+
+describe("deepgram vocabulary (issue #106; untested against the real service)", () => {
+  const keywords = (url: URL): string[] => url.searchParams.getAll("keywords");
+
+  it("sends no keywords without a vocabulary or with an empty one", async () => {
+    const { stub, transcriber } = build();
+    await transcriber.transcribe(req);
+    await transcriber.transcribe({ ...req, vocabulary: [] });
+    for (const call of stub.calls) expect(call.url.searchParams.has("keywords")).toBe(false);
+  });
+
+  it("maps each term to a repeated keywords parameter with a boost of 2", async () => {
+    const { stub, transcriber } = build();
+    await transcriber.transcribe({ ...req, vocabulary: ["SALSA", "Site tracker"] });
+    const url = defined(stub.calls[0]).url;
+    expect(keywords(url)).toEqual(["SALSA:2", "Site tracker:2"]);
+    // Percent-encoded, spaces as %20, never a bare space or '+'.
+    expect(url.search).toContain("keywords=SALSA%3A2");
+    expect(url.search).toContain("keywords=Site%20tracker%3A2");
+  });
+
+  it("keeps the first 100 terms only", async () => {
+    const { stub, transcriber } = build();
+    const vocabulary = Array.from({ length: 150 }, (_, i) => `Term${String(i)}`);
+    await transcriber.transcribe({ ...req, vocabulary });
+    const sent = keywords(defined(stub.calls[0]).url);
+    expect(sent).toHaveLength(100);
+    expect(sent[0]).toBe("Term0:2");
+    expect(sent[99]).toBe("Term99:2");
+  });
+
+  it("cannot be made to inject another parameter or a second boost through a term", async () => {
+    const { stub, transcriber } = build();
+    await transcriber.transcribe({
+      ...req,
+      vocabulary: ["x&model=evil", "50:50", "a#b", "100%"],
+    });
+    const url = defined(stub.calls[0]).url;
+    expect(url.searchParams.getAll("model")).toEqual(["nova-2"]);
+    // A colon inside a term would be read as the boost separator: it becomes a space.
+    expect(keywords(url)).toEqual(["x&model=evil:2", "50 50:2", "a#b:2", "100%:2"]);
+  });
+
+  it("keeps the key out of the URL and the vocabulary out of the headers and body", async () => {
+    const { stub, transcriber } = build();
+    await transcriber.transcribe({ ...req, vocabulary: ["SALSA"] });
+    const call = defined(stub.calls[0]);
+    expect(call.url.toString()).not.toContain("dg-test-key-123");
+    expect(JSON.stringify([...new Headers(call.init?.headers)])).not.toContain("SALSA");
+    expect(call.init?.body).toBe(audio);
+  });
+});
