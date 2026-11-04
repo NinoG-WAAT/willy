@@ -1,0 +1,56 @@
+---
+import type { FieldError } from "../../domain/platform/text";
+
+/**
+ * One small field for adding words. Pasted lines or comma-separated words are all added, which a
+ * single-line input cannot carry (browsers flatten a pasted line break), hence a two-row
+ * textarea. Behind a disclosure unless the list is empty or the last try failed.
+ */
+interface Props {
+  csrf: string;
+  errors: readonly FieldError[];
+  typed: string;
+  open: boolean;
+  maxTerms: number;
+}
+
+const { csrf, errors, typed, open, maxTerms } = Astro.props;
+const invalid = errors.length > 0;
+---
+
+<details class="rl-add" open={open || invalid}>
+  <summary>Add words</summary>
+  <form method="post" action="/settings/vocabulary" class="form form-wide">
+    <input type="hidden" name="csrf_token" value={csrf} />
+    <div class="field field-wide">
+      <label for="term">Words to add</label>
+      <textarea
+        id="term"
+        name="term"
+        rows="2"
+        maxlength="20000"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-invalid={invalid ? "true" : undefined}
+        aria-describedby={["term-help", ...errors.map((_, i) => `term-error-${String(i)}`)].join(
+          " ",
+        )}
+      >{typed}</textarea>
+      <p class="help" id="term-help">
+        One word or name per line, or several separated by commas. Up to {maxTerms} words, each at
+        most 80 characters.
+      </p>
+      {errors.map((e, i) => (
+        <p class="field-error" id={`term-error-${String(i)}`}>
+          {e.message}
+        </p>
+      ))}
+    </div>
+    <div class="row-actions">
+      <button class="button button-quiet" type="submit">
+        Add
+      </button>
+    </div>
+  </form>
+</details>

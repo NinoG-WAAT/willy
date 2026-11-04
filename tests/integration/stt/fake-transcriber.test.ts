@@ -51,4 +51,24 @@ describe("fake transcriber specifics", () => {
     }
     expect(outcomes).toEqual([false, false, true]);
   });
+
+  it("records the vocabulary each call received (terms only, in order), and none when not given", async () => {
+    const fake = createFakeTranscriber();
+    await fake.transcribe({ chunkId: "c1", audio, contentType: "audio/webm" });
+    await fake.transcribe({
+      chunkId: "c2",
+      audio,
+      contentType: "audio/webm",
+      vocabulary: ["SALSA", "Sitetracker"],
+    });
+    expect(fake.calls.map((c) => c.vocabulary)).toEqual([undefined, ["SALSA", "Sitetracker"]]);
+  });
+
+  it("does not let a later change of the caller's list alter what it recorded", async () => {
+    const fake = createFakeTranscriber();
+    const list = ["one"];
+    await fake.transcribe({ chunkId: "c1", audio, contentType: "audio/webm", vocabulary: list });
+    list.push("two");
+    expect(fake.calls[0]?.vocabulary).toEqual(["one"]);
+  });
 });

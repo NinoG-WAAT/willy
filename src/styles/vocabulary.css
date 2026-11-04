@@ -1,0 +1,48 @@
+/*
+ * The Vocabulary screen (issue 106): the owner's words as a plain outline, the same calm look as
+ * the review lists (review-lists.css supplies the rows, chips and the "Add" disclosure). A word is
+ * left out of the speech recogniser's prompt when it does not fit; that is said in words, in a
+ * heading and a "Not sent" chip, never by colour alone. Remove keeps the 44px hit area.
+ */
+
+.vocabulary .vocabulary-empty,
+.vocabulary .vocabulary-status {
+  max-width: var(--measure-list);
+  margin: var(--spacing-16) 0 var(--spacing-8);
+}
+
+.vocabulary .vocabulary-status {
+  color: var(--text-strong);
+  font-weight: var(--font-weight-w510);
+}
+
+.vocabulary h3 {
+  margin: var(--spacing-20) 0 var(--spacing-4);
+  font-size: var(--text-body);
+}
+
+.vocabulary .vocabulary-list {
+  margin-top: var(--spacing-8);
+}
+
+.vocabulary .vocabulary-list .inline-form {
+  margin: 0;
+}
+
+.vocabulary-remove {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding: 0 var(--spacing-8);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+}
+
+.vocabulary-remove:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+}

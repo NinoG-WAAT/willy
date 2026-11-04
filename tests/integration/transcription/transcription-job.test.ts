@@ -13,6 +13,7 @@ import { SqliteChunkRepository } from "../../../src/adapters/sqlite/chunk-reposi
 import { SqliteJobRepository } from "../../../src/adapters/sqlite/job-repository";
 import { SqliteMeetingRepository } from "../../../src/adapters/sqlite/meeting-repository";
 import { SqliteSettingsRepository } from "../../../src/adapters/sqlite/settings-repository";
+import { SqliteVocabularyRepository } from "../../../src/adapters/sqlite/vocabulary-repository";
 import { createFakeTranscriber } from "../../../src/adapters/stt/fake-transcriber";
 import { FixedClock, SequentialIds } from "../../../src/adapters/system/fakes";
 import { runDueJobs, type RunnerDeps } from "../../../src/app/jobs/runner";
@@ -68,6 +69,7 @@ beforeEach(() => {
     transcriber: fake,
     textCipher,
     settings: new SqliteSettingsRepository(db),
+    vocabulary: new SqliteVocabularyRepository(db),
     jobs,
     ids: new SequentialIds("seg"),
     clock,
@@ -549,6 +551,131 @@ describe("logs and states", () => {
     expect(failed?.["jobId"]).toBeTruthy();
     const dump = JSON.stringify(logger.entries);
     expect(dump).not.toMatch(/Fake transcript|audio-bytes-private|RIFF/);
+  });
+});
+
+describe("vocabulary (issue #106)", () => {
+  const T = "2026-10-27T09:00:00.000Z";
+  const addTerms = (ownerId: string, ...texts: string[]): void => {
+    for (const [i, term] of texts.entries()) {
+      insert(db, "vocabulary_term", {
+        id: `${ownerId}-v${String(i)}`,
+        owner_id: ownerId,
+        term,
+        created_at: T,
+      });
+    }
+  };
+  const sentVocabularies = () => fake.calls.map((c) => c.vocabulary);
+
+  it("passes the meeting owner's terms, in list order, with every chunk", async () => {
+    addTerms("A", "SALSA", "Sitetracker", "Acme");
+    await capture("A", "m1", 3);
+    await stop();
+    await run();
+    const terms = ["SALSA", "Sitetracker", "Acme"];
+    expect(sentVocabularies()).toEqual([terms, terms, terms]);
+  });
+
+  it("reads the terms once per run, not once per chunk", async () => {
+    addTerms("A", "SALSA");
+    let reads = 0;
+    const real = transcribe.vocabulary;
+    transcribe.vocabulary = {
+      ...real,
+      list: (ownerId) => {
+        reads += 1;
+        return real.list(ownerId);
+      },
+    };
+    await capture("A", "m1", 3);
+    await stop();
+    await run();
+    expect(reads).toBe(1);
+  });
+
+  it("sends only the terms of the owner of the meeting, never another owner's", async () => {
+    addTerms("A", "Alpha project");
+    addTerms("B", "Secret of B");
+    consentedMeeting(db, "B", "mB");
+    await capture("A", "m1", 1);
+    await capture("B", "mB", 1);
+    await stop("A", "m1");
+    await stop("B", "mB");
+    await run();
+    const byChunk = new Map(fake.calls.map((c) => [c.chunkId, c.vocabulary]));
+    expect(byChunk.get("m1:0")).toEqual(["Alpha project"]);
+    expect(byChunk.get("mB:0")).toEqual(["Secret of B"]);
+  });
+
+  it("sends an empty list when the owner has no terms", async () => {
+    await capture("A", "m1", 1);
+    await stop();
+    await run();
+    expect(sentVocabularies()).toEqual([[]]);
+  });
+
+  it("still transcribes when the terms cannot be read, and warns with a count of 0 only", async () => {
+    addTerms("A", "SALSA");
+    transcribe.vocabulary = {
+      list: () => Promise.reject(new Error("database is locked while reading SALSA")),
+      addMany: () => Promise.reject(new Error("unused")),
+      remove: () => Promise.reject(new Error("unused")),
+    };
+    await capture("A", "m1", 2);
+    await stop();
+    await run();
+    expect(job()).toMatchObject({ status: "succeeded", last_error_code: null });
+    expect(sentVocabularies()).toEqual([[], []]);
+    expect(chunkStates()).toEqual([
+      { seq: 0, state: "purged" },
+      { seq: 1, state: "purged" },
+    ]);
+    const warning = logger.entries.find((e) => e.event === "job.vocabulary_unavailable");
+    expect(warning).toMatchObject({ level: "warn", meetingId: "m1", vocabularyTerms: 0 });
+    expect(JSON.stringify(logger.entries)).not.toContain("SALSA");
+  });
+
+  it("never logs a term: only how many were sent", async () => {
+    addTerms("A", "SALSA", "Sitetracker");
+    await capture("A", "m1", 1);
+    await stop();
+    await run();
+    const dump = JSON.stringify(logger.entries);
+    expect(dump).not.toMatch(/SALSA|Sitetracker|Termes/);
+    expect(logger.entries.find((e) => e.event === "job.transcribed")).toMatchObject({
+      vocabularyTerms: 2,
+    });
+  });
+
+  it("is still a no-op on replay: no second transcription, no new segments", async () => {
+    addTerms("A", "SALSA");
+    await capture("A", "m1", 2);
+    await stop();
+    await run();
+    const before = segments();
+    const calls = fake.calls.length;
+    db.prepare(
+      "UPDATE job SET status = 'pending', next_run_at = NULL, attempts = 0 WHERE job_key = 'transcribe:m1'",
+    ).run();
+    await run();
+    expect(fake.calls).toHaveLength(calls);
+    expect(segments()).toEqual(before);
+  });
+
+  it("uses the terms as they are at retry time", async () => {
+    await capture("A", "m1", 2);
+    await stop();
+    fake.script.failOnChunk("m1:1", "unavailable", 1);
+    await run();
+    addTerms("A", "Added after the failure");
+    clock.advance(10 * 60_000);
+    await run();
+    expect(fake.calls.map((c) => [c.chunkId, c.vocabulary])).toEqual([
+      ["m1:0", []],
+      ["m1:1", []],
+      ["m1:1", ["Added after the failure"]],
+    ]);
   });
 });
 

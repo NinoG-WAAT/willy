@@ -13,7 +13,13 @@ export interface Utterance {
 
 export interface FakeTranscriber extends Transcriber {
   /** Calls that reached the "provider" (sizes only: audio is never kept). */
-  calls: { chunkId: string; bytes: number; contentType: string }[];
+  calls: {
+    chunkId: string;
+    bytes: number;
+    contentType: string;
+    /** The vocabulary the call carried, as a copy; undefined when it carried none. */
+    vocabulary: string[] | undefined;
+  }[];
   script: {
     respondOnce(utterances: Utterance[]): void;
     failOnce(kind: ProviderErrorKind): void;
@@ -60,6 +66,7 @@ export function createFakeTranscriber(): FakeTranscriber {
         chunkId: request.chunkId,
         bytes: request.audio.byteLength,
         contentType: request.contentType,
+        vocabulary: request.vocabulary === undefined ? undefined : [...request.vocabulary],
       });
 
       const once = failures.shift();

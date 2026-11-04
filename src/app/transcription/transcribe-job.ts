@@ -10,6 +10,7 @@ import type { MeetingRepository } from "../../ports/meeting-repository";
 import type { SettingsRepository } from "../../ports/settings-repository";
 import type { TextCipher } from "../../ports/text-cipher";
 import type { Transcriber } from "../../ports/transcriber";
+import type { VocabularyRepository } from "../../ports/vocabulary-repository";
 import type { JobHandler, JobOutcome } from "../jobs/runner";
 import { failMeetingProcessing } from "../meetings/fail-processing";
 import type { ChunkStore } from "../storage/chunk-store";
@@ -22,6 +23,7 @@ export interface TranscribeDeps {
   transcriber: Transcriber;
   textCipher: TextCipher;
   settings: SettingsRepository;
+  vocabulary: VocabularyRepository;
   jobs: JobRepository;
   ids: IdGenerator;
   clock: Clock;
@@ -71,6 +73,10 @@ async function runTranscription(
   const allChunks = await deps.chunks.listByMeeting(ownerId, meetingId);
   // Built from every chunk row, whatever its state, so a retried chunk lands where it belongs.
   const offsets = chunkStartOffsets(allChunks);
+  const needsTranscription = allChunks.some(
+    (c) => c.state !== "purged" && c.state !== "transcribed",
+  );
+  const vocabulary = needsTranscription ? await loadVocabulary(deps, log, ownerId) : [];
 
   for (const chunk of allChunks) {
     if (chunk.state === "purged") continue;
@@ -86,6 +92,7 @@ async function runTranscription(
       meetingId,
       chunk,
       offsets.get(chunk.seq) ?? 0,
+      vocabulary,
     );
     if (failure) {
       failures.push(failure);
@@ -113,7 +120,10 @@ async function runTranscription(
       },
       deps.clock.now(),
     );
-    log.info("job.transcribed", { chunksTranscribed: transcribed });
+    log.info("job.transcribed", {
+      chunksTranscribed: transcribed,
+      vocabularyTerms: vocabulary.length,
+    });
     return { kind: "succeeded" };
   }
 
@@ -131,6 +141,24 @@ async function runTranscription(
   return { kind: "retry", errorCode: code };
 }
 
+/**
+ * The owner's vocabulary, read once per run. It only helps recognition, so a failure to read it
+ * must never fail the transcription: carry on without. Terms can be sensitive project names, so
+ * neither they nor the error text (which could quote them) are logged: counts only.
+ */
+async function loadVocabulary(
+  deps: TranscribeDeps,
+  log: Logger,
+  ownerId: string,
+): Promise<string[]> {
+  try {
+    return (await deps.vocabulary.list(ownerId)).map((t) => t.term);
+  } catch {
+    log.warn("job.vocabulary_unavailable", { vocabularyTerms: 0 });
+    return [];
+  }
+}
+
 /** Returns null on success, or what went wrong. */
 async function transcribeChunk(
   deps: TranscribeDeps,
@@ -139,6 +167,7 @@ async function transcribeChunk(
   meetingId: string,
   chunk: ChunkRow,
   offsetMs: number,
+  vocabulary: readonly string[],
 ): Promise<ChunkFailure | null> {
   const stored = await deps.chunkStore.getChunk(ownerId, meetingId, chunk.seq);
   if (!stored.ok) {
@@ -163,6 +192,7 @@ async function transcribeChunk(
     chunkId: `${meetingId}:${String(chunk.seq)}`,
     audio: stored.value.audio,
     contentType: stored.value.contentType,
+    vocabulary,
   });
   if (!result.ok) {
     return { seq: chunk.seq, code: `stt_${result.error.kind}`, retryable: result.error.retryable };

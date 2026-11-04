@@ -183,6 +183,16 @@ What it does and does not do:
 
 Set `LLM_PROVIDER=anthropic` and `LLM_API_KEY`; optionally `LLM_MODEL` (default `claude-sonnet-5-5`) and `LLM_TIMEOUT_MS`. Transcript text is sent to Anthropic to write the draft summary; it is treated as untrusted input and the result stays a draft until you publish it. Untested against the real service (stub server only).
 
+## Vocabulary
+
+Settings > Vocabulary (`/settings/vocabulary`) is the list of words your meetings use that a speech recogniser does not know: project names, clients, acronyms. Before it transcribes each chunk, the local whisper adapter is given the list as its starting prompt (`Termes : SALSA, Sitetracker.`), and Deepgram gets it as keywords. The words never leave the machine with the local whisper adapter and are never logged (only how many).
+
+- Why: in a benchmark (synthetic French audio, 36 spoken terms) a plain list prompt lifted recognition of spoken jargon by 28 to 53 points on every whisper model tried and reduced word errors in 9 of 10 comparisons. The benchmark was synthetic: expect a smaller and less even gain on real meetings. A word is a hint, not a guarantee.
+- Limits: 200 words per owner, each 1 to 80 characters, not starting with a dash. Whisper reads about 600 characters of prompt: words are used in the order of the list, whole, and the first word that does not fit and all after it are left out. The screen says "N of M terms are used by the speech recogniser" and lists the left-out words under "Left out" with a "Not sent" chip; remove words higher up (or those) to make room.
+- Add one word, several on separate lines, or several separated by commas. Adding a word that is already there (any case) changes nothing.
+- Deepgram keywords (at most 100, boost 2) are untested against the real service.
+- A word that is not letters, digits, spaces, hyphens or apostrophes (such as `Node.js` or `C++`) still helps the recogniser but is marked "Not auto-corrected in transcripts".
+
 ## Deployment (Cloudflare)
 
 Target runtime: Astro SSR on Cloudflare Workers with D1 (relational data), R2 (private audio and objects), Queues (transcription, summary and deletion jobs) and cron triggers (retention sweeper). Secrets are Worker secrets, never committed. The Cloudflare adapter, `wrangler` configuration and deployment steps are not on `main` yet; the local Node build (`npm run build`, then `node --env-file=.env dist/server/entry.mjs`) is what runs today. This section will be completed when the Cloudflare adapter lands (tracked in [docs/PLAN.md](docs/PLAN.md) section 9).
@@ -269,6 +279,7 @@ Checks that run in `npm test`: `tests/e2e/a11y.spec.ts` scans every screen and s
 - Production sign-in is not built in this slice: development uses seeded credentials; an emailed magic link behind a provider adapter is the documented production option.
 - Live updates use polling, not server-sent events.
 - Diarization depends on the speech-to-text provider (whisper.cpp has none: every line starts as "Speaker 1"); owner corrections are the source of truth. On the review screen, tick the lines one person said in the transcript panel and give them a name (the transcript of a meeting cannot be separated automatically yet; a local diarization spike is tracked in #104).
+- Spoken jargon and project names are still misrecognised sometimes. The Vocabulary list helps a lot in a synthetic benchmark but is only a hint, whisper reads about 600 characters of it (the screen shows which words do not fit), and it has not been measured on real meetings.
 - Single role (Owner); no sharing or teams by design.
 - Accessibility is verified with axe-core, Playwright keyboard tests and manual visual review only. It has not been tested with a real screen reader (VoiceOver, NVDA, TalkBack) and live-region announcements are asserted in the DOM, not heard. After Stop, the live note counts the transcription in place and opens the draft by itself only when the owner is not typing (docs/PLAN.md, decision 5). Job progress (transcription on the live note, review and home; regeneration; deletion on settings) is announced by polling (docs/PLAN.md, decision 5) but, like the rest, has not been heard on a real screen reader; the manual pass, hover and paused-banner contrast and the review layout question are tracked in #51.
 

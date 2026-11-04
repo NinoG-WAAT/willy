@@ -79,3 +79,28 @@ export function meetingFootprint(meetingId: string): MeetingFootprint {
     searchRows: count(db, "SELECT COUNT(*) AS n FROM search_index WHERE meeting_id = ?"),
   }));
 }
+
+/** An owner's vocabulary, in list order, straight from the database (what the page must match). */
+export function vocabularyTerms(ownerId: string): { id: string; term: string }[] {
+  return withDb((db) =>
+    db
+      .prepare("SELECT id, term FROM vocabulary_term WHERE owner_id = ? ORDER BY created_at, rowid")
+      .all(ownerId)
+      .map((r) => ({ id: String(r["id"]), term: String(r["term"]) })),
+  );
+}
+
+/** Puts words in an owner's vocabulary without the UI, so a test can start from a known list. */
+export function addVocabularyTerms(ownerId: string, terms: readonly string[]): string[] {
+  const now = new Date().toISOString();
+  return withDb((db) => {
+    const insert = db.prepare(
+      "INSERT INTO vocabulary_term (id, owner_id, term, created_at) VALUES (?, ?, ?, ?)",
+    );
+    return terms.map((term, i) => {
+      const id = `vocab-e2e-${Math.random().toString(36).slice(2, 10)}-${String(i)}`;
+      insert.run(id, ownerId, term, now);
+      return id;
+    });
+  });
+}

@@ -8,6 +8,14 @@ export interface TranscribeRequest {
   /** Decrypted audio, at most MAX_CHUNK_BYTES. Never logged. */
   audio: Uint8Array<ArrayBuffer>;
   contentType: string;
+  /**
+   * Words of the owner's vocabulary (project names, clients, acronyms), already normalised, in
+   * the owner's list order. A hint, never a requirement: an adapter uses what its provider can
+   * take (whisper: a starting prompt of about 600 characters, Deepgram: at most 100 keywords),
+   * drops the rest, and returns the same kind of result with or without it. Absent or empty
+   * means no hint. It can hold sensitive names: never logged, never put in an error message.
+   */
+  vocabulary?: readonly string[];
 }
 
 /**

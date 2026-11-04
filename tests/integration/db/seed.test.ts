@@ -121,6 +121,19 @@ describe("seed data", () => {
     expect(ownerOf("meeting", ids.meetings.otherOwner)).toBe(ids.ownerB);
   });
 
+  it("gives each owner a few vocabulary terms of their own, different from the other's (#106)", () => {
+    const termsOf = (ownerId: string) =>
+      db
+        .prepare("SELECT term FROM vocabulary_term WHERE owner_id = ? ORDER BY rowid")
+        .all(ownerId)
+        .map((r) => String(r["term"]));
+    const a = termsOf(ids.ownerA);
+    const b = termsOf(ids.ownerB);
+    expect(a.length).toBeGreaterThanOrEqual(3);
+    expect(b.length).toBeGreaterThanOrEqual(2);
+    expect(a.filter((t) => b.map((x) => x.toLowerCase()).includes(t.toLowerCase()))).toEqual([]);
+  });
+
   it("stores transcript text encrypted and decryptable only with the right context", async () => {
     const rows = db
       .prepare("SELECT id, text_ciphertext, text_key_id FROM transcript_segment")
