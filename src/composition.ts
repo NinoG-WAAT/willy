@@ -355,6 +355,7 @@ function getJobHandlers(): JobHandler[] {
       meetings: deps.meetings,
       notes: new SqliteNoteRepository(getDatabase(), new RandomIds()),
       templates: new SqliteTemplateRepository(getDatabase()),
+      vocabulary: deps.vocabulary,
       summarizer: getSummarizer(),
       textCipher: deps.textCipher,
       clock: deps.clock,

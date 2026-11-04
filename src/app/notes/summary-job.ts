@@ -12,6 +12,7 @@ import type { NoteRepository, SummaryContext } from "../../ports/note-repository
 import type { Summarizer } from "../../ports/summarizer";
 import type { TemplateRepository } from "../../ports/template-repository";
 import type { TextCipher } from "../../ports/text-cipher";
+import type { VocabularyRepository } from "../../ports/vocabulary-repository";
 import type { JobHandler, JobOutcome } from "../jobs/runner";
 import { failMeetingProcessing } from "../meetings/fail-processing";
 
@@ -19,6 +20,8 @@ export interface SummaryDeps {
   meetings: MeetingRepository;
   notes: NoteRepository;
   templates: TemplateRepository;
+  /** The owner's own spellings, handed to the summarizer so names are written the way the owner writes them. */
+  vocabulary: VocabularyRepository;
   summarizer: Summarizer;
   textCipher: TextCipher;
   clock: Clock;
@@ -50,6 +53,19 @@ async function templateSections(
     (await deps.templates.findDefault(ownerId));
   const sections = chosen?.sections ?? DEFAULT_TEMPLATE.sections;
   return sections.map((s) => ({ heading: s.heading, prompt: s.prompt }));
+}
+
+/**
+ * The owner's terms for the summarizer, in list order. They only improve spelling, so a failure to
+ * read them never fails a summary: it warns with a count of 0 and goes on. Terms are never logged.
+ */
+async function loadVocabulary(deps: SummaryDeps, log: Logger, ownerId: string): Promise<string[]> {
+  try {
+    return (await deps.vocabulary.list(ownerId)).map((t) => t.term);
+  } catch {
+    log.warn("job.vocabulary_unavailable", { vocabularyTerms: 0 });
+    return [];
+  }
 }
 
 /** Decrypts the transcript for the model; null if any segment is unreadable. */
@@ -106,6 +122,7 @@ async function generateDraft(deps: SummaryDeps, job: JobRow, log: Logger): Promi
       attendees: context.attendees,
       template: { sections: await templateSections(deps, ownerId, context.templateId) },
       only: null,
+      vocabulary: await loadVocabulary(deps, log, ownerId),
     });
     if (!result.ok) {
       const errorCode = `llm_${result.error.kind}`;
@@ -193,6 +210,7 @@ async function regenerateSection(deps: SummaryDeps, job: JobRow, log: Logger): P
       heading: section.heading,
       prompt: await promptFor(deps, ownerId, context.templateId, section.heading),
     },
+    vocabulary: await loadVocabulary(deps, log, ownerId),
   });
   if (!result.ok) {
     const errorCode = `llm_${result.error.kind}`;
@@ -257,6 +275,7 @@ async function regenerateDraft(deps: SummaryDeps, job: JobRow, log: Logger): Pro
     attendees: context.attendees,
     template: { sections: await templateSections(deps, ownerId, context.templateId) },
     only: null,
+    vocabulary: await loadVocabulary(deps, log, ownerId),
   });
   if (!result.ok) {
     const errorCode = `llm_${result.error.kind}`;

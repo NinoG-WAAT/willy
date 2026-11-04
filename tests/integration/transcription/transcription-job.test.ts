@@ -648,6 +648,82 @@ describe("vocabulary (issue #106)", () => {
     });
   });
 
+  const storedTexts = async (id = "m1"): Promise<string[]> => {
+    const out: string[] = [];
+    for (const r of segments(id)) {
+      out.push(
+        await textCipher.decrypt(String(r["text_ciphertext"]), segmentTextContext(String(r["id"]))),
+      );
+    }
+    return out;
+  };
+  const heard = (...texts: string[]) =>
+    texts.map((text, i) => ({ startMs: i * 4000, endMs: i * 4000 + 4000, speaker: i, text }));
+
+  it("stores the owner's spelling of a term the transcriber heard in other letters (issue #110)", async () => {
+    addTerms("A", "SALSA", "Sitetracker", "go-live");
+    fake.script.respondOnce(
+      heard("on parle de salsa et du site tracker", "le go live de Salsa, c'est vendredi."),
+    );
+    await capture("A", "m1", 1);
+    await stop();
+    await run();
+    expect(await storedTexts()).toEqual([
+      "on parle de SALSA et du Sitetracker",
+      "le go-live de SALSA, c'est vendredi.",
+    ]);
+  });
+
+  it("leaves text without any term variant exactly as transcribed", async () => {
+    addTerms("A", "SALSA");
+    await capture("A", "m1", 1);
+    await stop();
+    await run();
+    expect(await storedTexts()).toEqual([
+      "Fake transcript for m1:0, part 1.",
+      "Fake transcript for m1:0, part 2.",
+    ]);
+  });
+
+  it("corrects with the terms of the meeting's owner only", async () => {
+    addTerms("B", "Secret");
+    fake.script.respondOnce(heard("secret and salsa"));
+    await capture("A", "m1", 1);
+    await stop();
+    await run();
+    expect(await storedTexts()).toEqual(["secret and salsa"]);
+  });
+
+  it("does not correct when the terms cannot be read, and still transcribes", async () => {
+    addTerms("A", "SALSA");
+    transcribe.vocabulary = {
+      list: () => Promise.reject(new Error("locked")),
+      addMany: () => Promise.reject(new Error("unused")),
+      remove: () => Promise.reject(new Error("unused")),
+    };
+    fake.script.respondOnce(heard("salsa"));
+    await capture("A", "m1", 1);
+    await stop();
+    await run();
+    expect(job()).toMatchObject({ status: "succeeded" });
+    expect(await storedTexts()).toEqual(["salsa"]);
+  });
+
+  it("keeps a corrected transcript the same on replay (no new segments, same text)", async () => {
+    addTerms("A", "SALSA");
+    fake.script.respondOnce(heard("salsa"));
+    await capture("A", "m1", 1);
+    await stop();
+    await run();
+    const before = await storedTexts();
+    db.prepare(
+      "UPDATE job SET status = 'pending', next_run_at = NULL, attempts = 0 WHERE job_key = 'transcribe:m1'",
+    ).run();
+    await run();
+    expect(await storedTexts()).toEqual(before);
+    expect(before).toEqual(["SALSA"]);
+  });
+
   it("is still a no-op on replay: no second transcription, no new segments", async () => {
     addTerms("A", "SALSA");
     await capture("A", "m1", 2);
