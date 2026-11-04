@@ -15,6 +15,12 @@ export const domainPurity = [
               message: "domain/ may not import from app/, adapters/, pages/ or components/.",
             },
             {
+              // Domain code may call t()/tn()/msg() from the pure src/i18n/translate; the
+              // catalogs are data that the adapter registers, so the domain never imports them.
+              group: ["**/i18n/fr", "**/i18n/fr/**", "**/i18n/merge-catalogs"],
+              message: "domain/ may import src/i18n/translate only, not the catalogs.",
+            },
+            {
               group: ["@cloudflare/*", "astro:*", "astro/*"],
               message: "domain/ must not depend on the runtime.",
             },

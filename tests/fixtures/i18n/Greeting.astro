@@ -1,0 +1,12 @@
+---
+// Renders translated text the way every screen does: `{t(...)}` in the template, never set:html.
+import { t } from "../../../src/i18n/translate";
+
+interface Props {
+  name: string;
+}
+const { name } = Astro.props;
+---
+
+<p id="greeting">{t("Hello {name}", { name })}</p>
+<p id="source">{t("Click <b>here</b>")}</p>

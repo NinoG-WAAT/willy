@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { formatElapsed } from "../../../src/scripts/capture/elapsed";
 import { inputLevel } from "../../../src/scripts/capture/level";
+import { clockTime } from "../../../src/scripts/capture/notes-autosave";
+
+describe("clockTime (the 'Saved at' time)", () => {
+  // Built from local fields, so the expectation does not depend on the machine's time zone.
+  const afternoon = new Date(2026, 10, 4, 14, 5);
+
+  it("uses the page locale, not the browser's: 24-hour time in English and in French", () => {
+    expect(clockTime(afternoon, "en")).toBe("14:05");
+    expect(clockTime(afternoon, "fr")).toBe("14:05");
+  });
+});
 
 describe("formatElapsed", () => {
   it.each([

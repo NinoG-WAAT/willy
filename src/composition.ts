@@ -4,6 +4,8 @@ import type { DatabaseSync } from "node:sqlite";
 import { createChunkCipher } from "./adapters/crypto/chunk-cipher";
 import { DEV_FILE_URL_SECRET, DEV_KEYRING } from "./adapters/crypto/dev-keyring";
 import { createEnvelopeCipher, parseKeyring } from "./adapters/crypto/envelope-cipher";
+import { readI18nConfig, type I18nConfig } from "./adapters/i18n/config";
+import { installI18n } from "./adapters/i18n/request-locale";
 import { createJsonLogger } from "./adapters/logging/json-logger";
 import { createFileTokenService, type FileTokenService } from "./adapters/crypto/file-tokens";
 import { createLocalObjectStore } from "./adapters/fs/local-object-store";
@@ -29,6 +31,7 @@ import { SqliteMeetingRepository } from "./adapters/sqlite/meeting-repository";
 import { SqliteFolderNotes } from "./adapters/sqlite/folder-notes";
 import { SqliteNoteLists } from "./adapters/sqlite/note-lists";
 import { SqliteFolderRepository } from "./adapters/sqlite/folder-repository";
+import { SqliteLanguageRepository } from "./adapters/sqlite/language-repository";
 import { SqliteSettingsRepository } from "./adapters/sqlite/settings-repository";
 import { SqliteOwnerRepository } from "./adapters/sqlite/owner-repository";
 import { SqliteSessionRepository } from "./adapters/sqlite/session-repository";
@@ -42,6 +45,7 @@ import { SqliteDeletionStatusQuery } from "./adapters/sqlite/deletion-status-que
 import { SqliteProviderIssueQuery } from "./adapters/sqlite/provider-issue-query";
 import type { DeletionDeps } from "./app/settings/deletion";
 import type { ProviderStatusDeps } from "./app/settings/provider-status";
+import type { LanguageDeps } from "./app/settings/language";
 import type { RetentionDeps } from "./app/settings/retention";
 import { readCalendarConfig } from "./adapters/calendar/config";
 import type { DiagnosticsDeps } from "./app/ops/diagnostics";
@@ -74,6 +78,7 @@ import type { NotesDeps } from "./app/notes/deps";
 import type { AllNotesDeps } from "./app/notes/all-notes";
 import type { FolderViewDeps } from "./app/notes/folder-view";
 import { DEFAULT_SIGN_IN_LIMITS, type SignInLimits } from "./app/identity/sign-in";
+import type { Locale } from "./i18n/translate";
 import type { JobRepository } from "./ports/job-repository";
 import type { Logger } from "./ports/logger";
 import type { Summarizer } from "./ports/summarizer";
@@ -634,3 +639,34 @@ export function getProviderStatusDeps(): ProviderStatusDeps {
       providers.calendar === "google" ? [{ code: "calendar_not_connected", at: null }] : [],
   };
 }
+
+let i18nConfig: I18nConfig | undefined;
+
+/** WILLY_DEFAULT_LOCALE and WILLY_I18N_STRICT. A bad value fails fast, naming the variable. */
+export function getI18nConfig(): I18nConfig {
+  if (!i18nConfig) {
+    const config = readI18nConfig(process.env);
+    if (!config.ok) throw new Error(`Invalid i18n configuration: ${config.error}`);
+    i18nConfig = config.value;
+  }
+  return i18nConfig;
+}
+
+/** The locale of signed-out pages, of owners who have not chosen one, and of background jobs. */
+export function getDefaultLocale(): Locale {
+  return getI18nConfig().defaultLocale;
+}
+
+/** The owner's interface language (`settings.language`), read once per request by the middleware. */
+export function getLanguageDeps(): LanguageDeps {
+  return { languages: new SqliteLanguageRepository(getDatabase()), clock: new SystemClock() };
+}
+
+// Registers the French catalog and the request-locale resolver for the whole process, once, when
+// this module loads (every page, route and job reaches the app through here), so `t()` never runs
+// before it. A bad WILLY_DEFAULT_LOCALE or WILLY_I18N_STRICT fails here, at start-up.
+installI18n({
+  defaultLocale: getDefaultLocale,
+  strict: getI18nConfig().strict,
+  logger: () => getLogger(),
+});

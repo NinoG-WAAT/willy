@@ -12,5 +12,7 @@ declare namespace App {
     requestId?: string;
     /** Logger that adds `requestId` to every line; use it in routes and pass it to use cases. */
     log?: import("./ports/logger").Logger;
+    /** Interface language of this request (owner setting, else WILLY_DEFAULT_LOCALE); see docs/I18N.md. */
+    locale?: import("./i18n/translate").Locale;
   }
 }

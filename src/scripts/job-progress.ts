@@ -1,3 +1,4 @@
+import "./i18n";
 import { formatInstant } from "../components/format-instant";
 import {
   cardProgress,

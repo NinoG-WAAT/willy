@@ -1,8 +1,13 @@
+import { currentLocale, intlLocale, type Locale } from "../i18n";
+
 const DEBOUNCE_MS = 1_000;
 const RETRY_BASE_MS = 3_000;
 const RETRY_CAP_MS = 30_000;
 
-const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+/** "14:05" in the page's language (not the browser's, which may differ from the interface). */
+export function clockTime(at: Date, locale: Locale = currentLocale()): string {
+  return at.toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit" });
+}
 
 /**
  * Autosaves the rough notes while the owner types. The plain form (Save notes button) keeps
@@ -63,7 +68,7 @@ export function setupNotesAutosave(root: HTMLElement): void {
         if (textarea.value === value) {
           writeDraft(null);
           markUnsaved(false);
-          status.textContent = `Saved at ${clock()}.`;
+          status.textContent = `Saved at ${clockTime(new Date())}.`;
         } else {
           schedule(DEBOUNCE_MS);
         }

@@ -5,6 +5,7 @@ import { pageTitle } from "../components/page-title";
 import { NAV_LINKS, currentNavHref, shellFolderState } from "../components/nav-current";
 import { loadShellFolders } from "../app/notes/shell-folders";
 import { getNotesDeps } from "../composition";
+import { currentLocale, t } from "../i18n/translate";
 
 interface Props {
   title?: string;
@@ -38,7 +39,7 @@ const moreCurrent = MORE_LINKS.some((l) => l.href === current);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={Astro.locals.locale ?? currentLocale()}>
   <head>
     <meta charset="utf-8" />
     <!-- viewport-fit=cover lets the tab bar own the bottom safe area (home indicator) itself. -->
@@ -47,7 +48,7 @@ const moreCurrent = MORE_LINKS.some((l) => l.href === current);
   </head>
   <body class={shell ? "has-shell" : "standalone"}>
     <a class="skip-link" href="#main">
-      Skip to main content
+      {t("Skip to main content")}
     </a>
     <div class="app">
       {owner ? (
@@ -135,7 +136,7 @@ const moreCurrent = MORE_LINKS.some((l) => l.href === current);
           <slot />
         </main>
         <footer class="site-footer">
-          <p>Capture only with everyone's consent.</p>
+          <p>{t("Capture only with everyone's consent.")}</p>
         </footer>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import "./i18n";
+
 // Progressive enhancement for the new-note form: default the date, time and time zone to the
 // browser's. Values the owner already typed or submitted are never overwritten.
 const zone = document.querySelector<HTMLSelectElement>("select[data-browser-zone]");

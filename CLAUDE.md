@@ -126,6 +126,7 @@ Auto-merge rules (agents self-merge):
 - Seed data (`seeds/`) must include two distinct owners (to demo/test isolation), plus empty, failed, overdue/expired, and deleting states.
 - Keep comments for *why*. No dead code, no TODO without an issue number.
 - Docs live with code: update README/`docs/` (technical plan #2, data model #4) in the same PR as the behavior change.
+- Interface language (#113): every visible string goes through `t()`/`tn()` with the English text as the key and a French entry in `src/i18n/fr/<area>.ts`; one `t()` per sentence, never built from translated pieces, never called at module top level. The catalog unit test enforces it. Rules and API: `docs/I18N.md`.
 
 ## 10. Definition of done (all must be true before merge)
 

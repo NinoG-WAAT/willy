@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isSameOrigin, tokensMatch } from "../../domain/identity/csrf";
 import { safeNextPath } from "../../domain/identity/next-path";
+import { t, tn } from "../../i18n/translate";
 import type { IdentityDeps } from "./deps";
 import { signIn, type SignInLimits } from "./sign-in";
 
@@ -51,13 +52,17 @@ export async function handleSignIn(deps: IdentityDeps, req: SignInRequest): Prom
     return {
       kind: "rejected",
       status: 403,
-      message: "Your request could not be verified. Reload the page and try again.",
+      message: t("Your request could not be verified. Reload the page and try again."),
     };
   }
 
   const parsed = FormSchema.safeParse(fields);
   if (!parsed.success) {
-    return { kind: "rejected", status: 400, message: "Enter your email and password." };
+    return {
+      kind: "rejected",
+      status: 400,
+      message: t("Enter your email and password."),
+    };
   }
 
   const result = await signIn(deps, {
@@ -80,9 +85,13 @@ export async function handleSignIn(deps: IdentityDeps, req: SignInRequest): Prom
     return {
       kind: "rejected",
       status: 429,
-      message: `Too many attempts. Try again in ${String(minutes)} minute${minutes === 1 ? "" : "s"}.`,
+      message: tn(
+        "Too many attempts. Try again in {n} minute.",
+        "Too many attempts. Try again in {n} minutes.",
+        minutes,
+      ),
       retryAfterSeconds: result.error.retryAfterSeconds,
     };
   }
-  return { kind: "rejected", status: 401, message: "Email or password is incorrect." };
+  return { kind: "rejected", status: 401, message: t("Email or password is incorrect.") };
 }

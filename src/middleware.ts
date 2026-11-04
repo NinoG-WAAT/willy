@@ -6,12 +6,20 @@ import {
   forbiddenResponse,
   unauthenticatedResponse,
 } from "./app/identity/route-access";
+import { runWithLocale } from "./adapters/i18n/request-locale";
+import { resolveRequestLocale } from "./app/settings/language";
 import { bodyTooLargeResponse, checkBodyLength, maxBodyBytesFor } from "./app/ops/body-limits";
 import { enforceRateLimit, rateLimitedResponse } from "./app/ops/rate-limits";
 import { observeRequest } from "./app/ops/request-observer";
 import { securityHeaders } from "./app/ops/security-headers";
 import { isSameOrigin, requiresCsrf, tokensMatch } from "./domain/identity/csrf";
-import { ensureJobRunner, getIdentityDeps, getObserveDeps } from "./composition";
+import {
+  ensureJobRunner,
+  getDefaultLocale,
+  getIdentityDeps,
+  getLanguageDeps,
+  getObserveDeps,
+} from "./composition";
 
 /**
  * Outermost: every request gets a correlation id (`X-Request-Id`, on `locals.log` lines too) and
@@ -124,4 +132,25 @@ const auth = defineMiddleware(async (context, next) => {
   return next();
 });
 
-export const onRequest = sequence(observe, security, auth);
+/**
+ * Sets the interface language for everything below: the signed-in owner's choice, else
+ * WILLY_DEFAULT_LOCALE. Runs after `auth`, so `locals.owner` is known; a request that `auth`
+ * answered itself (redirect to sign-in, 403, 429) is not translated yet. Every `t()` call in
+ * pages, components, use cases and the domain reads the locale from the storage this opens.
+ */
+const language = defineMiddleware(async (context, next) => {
+  const locale = await resolveRequestLocale(
+    getLanguageDeps(),
+    context.locals.owner?.id,
+    getDefaultLocale(),
+    (cause) => {
+      context.locals.log?.warn("i18n.locale_unavailable", {
+        errorName: cause instanceof Error ? cause.name : "unknown",
+      });
+    },
+  );
+  context.locals.locale = locale;
+  return runWithLocale(locale, next);
+});
+
+export const onRequest = sequence(observe, security, auth, language);
