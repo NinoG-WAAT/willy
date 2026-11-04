@@ -91,6 +91,14 @@ describe("fake summarizer specifics", () => {
     );
   });
 
+  it("behaves the same with a vocabulary: it only picks lines, it never reads the terms", async () => {
+    const plain = await createFakeSummarizer().summarize(sampleInput());
+    const fake = createFakeSummarizer();
+    const withTerms = await fake.summarize(sampleInput({ vocabulary: ["SALSA", "Roadmap"] }));
+    expect(withTerms).toEqual(plain);
+    expect(fake.calls).toEqual([{ segments: 3, attendees: 2, only: null }]);
+  });
+
   it("records call shapes, never transcript text", async () => {
     const fake = createFakeSummarizer();
     await fake.summarize(sampleInput());
