@@ -194,6 +194,38 @@
   background: var(--fill-mark);
 }
 
+/* Assigning lines to a speaker: the form stays in view while the long list scrolls under it. */
+.assign-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: var(--spacing-8);
+  margin-block: var(--spacing-8);
+  padding: var(--spacing-12);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-buttons);
+  background: var(--bg);
+}
+
+/* The label is the target a finger lands on: 44px square, the checkbox centred in it. */
+.seg-pick-target {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  margin-inline-end: var(--spacing-4);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.seg-pick {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+}
+
 .seg-time {
   margin-inline-end: var(--spacing-8);
   color: var(--text-muted);

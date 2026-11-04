@@ -30,6 +30,13 @@ const form = (fields: Record<string, string>): FormData => {
 const submit = (ownerId: string, meetingId: string, fields: Record<string, string>) =>
   handleReviewForm(deps, ownerId, meetingId, form(fields));
 
+/** An assign_speaker post: the `line` field is repeated, once per ticked transcript line. */
+const submitLines = (ownerId: string, meetingId: string, lines: string[], to: string) => {
+  const data = form({ intent: "assign_speaker", to });
+  for (const line of lines) data.append("line", line);
+  return handleReviewForm(deps, ownerId, meetingId, data);
+};
+
 beforeEach(async () => {
   db = freshDb();
   const clock = new FixedClock(new Date("2026-10-27T10:00:00.000Z"));
@@ -112,6 +119,53 @@ describe("handleReviewForm", () => {
       "speakers",
     );
     expect(count(db, "transcript_segment", "meeting_id = 'm1' AND speaker_label = 'Ada'")).toBe(3);
+  });
+
+  it("assigns the ticked lines to a speaker, from repeated `line` fields", async () => {
+    expectRedirect(
+      await submitLines("A", "m1", ["1", "10000"], "Grace"),
+      "speaker_assigned",
+      "transcript-panel",
+    );
+    expect(count(db, "transcript_segment", "meeting_id = 'm1' AND speaker_label = 'Grace'")).toBe(
+      2,
+    );
+    expect(count(db, "transcript_segment", "meeting_id = 'm2' AND speaker_label = 'Grace'")).toBe(
+      0,
+    );
+  });
+
+  it("answers an assign with no line or no name as field errors the page can show, with what was typed", async () => {
+    const noLine = await submitLines("A", "m1", [], "Grace");
+    expect(noLine).toMatchObject({ kind: "problem", status: 422 });
+    const noName = await submitLines("A", "m1", ["0"], " ");
+    expect(noName).toMatchObject({ kind: "problem", status: 422 });
+    if (noName.kind === "problem") {
+      expect(noName.errors).toEqual([{ field: "to", message: "Enter a name." }]);
+      expect(noName.echo.itemId).toBe("assign_speaker");
+    }
+  });
+
+  it("keeps the ticked lines when the assign is rejected, so the selection can be shown again", async () => {
+    const rejected = await submitLines("A", "m1", ["0", "10000"], " ");
+    if (rejected.kind !== "problem") throw new Error("expected a problem");
+    expect(rejected.echo.lines).toEqual(["0", "10000"]);
+  });
+
+  it("still refuses a repeated field anywhere else, and an assign with a foreign field", async () => {
+    const twice = form({ intent: "rename_speaker", from: "Speaker 1" });
+    twice.append("to", "A");
+    twice.append("to", "B");
+    expect(await handleReviewForm(deps, "A", "m1", twice)).toEqual({ kind: "bad_request" });
+    const extra = form({ intent: "assign_speaker", to: "Grace", owner: "evil" });
+    extra.append("line", "0");
+    expect(await handleReviewForm(deps, "A", "m1", extra)).toEqual({ kind: "bad_request" });
+    const badLine = form({ intent: "assign_speaker", to: "Grace" });
+    badLine.append("line", "../../etc");
+    expect(await handleReviewForm(deps, "A", "m1", badLine)).toMatchObject({
+      kind: "problem",
+      status: 422,
+    });
   });
 
   it("publishes only with the confirmation, and a repeat is a harmless success", async () => {
@@ -242,6 +296,7 @@ describe("handleReviewForm", () => {
       { intent: "delete_action_item", id: "m2-act-0" },
       { intent: "set_action_item_done", id: "m2-act-0", done: "on" },
       { intent: "rename_speaker", from: "Speaker 1", to: "x" },
+      { intent: "assign_speaker", to: "x", line: "0" },
       { intent: "publish", folder: "folder-A", confirm: "on" },
       { intent: "reopen" },
       { intent: "retry_transcription" },

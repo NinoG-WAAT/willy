@@ -52,6 +52,17 @@ describe("transcriptPanelOpen", () => {
     ).toBe(true);
   });
 
+  it("opens when assigning lines to a speaker was rejected, so the error and the selection show", () => {
+    expect(transcriptPanelOpen({ range: null, hit: null }, "assign_speaker")).toBe(true);
+    expect(transcriptPanelOpen({ range: null, hit: null }, "rename_speaker")).toBe(false);
+    expect(transcriptPanelOpen({ range: null, hit: null }, null)).toBe(false);
+  });
+
+  it("stays open after lines were assigned, so the owner sees the new names and can go on", () => {
+    expect(transcriptPanelOpen({ range: null, hit: null }, null, "speaker_assigned")).toBe(true);
+    expect(transcriptPanelOpen({ range: null, hit: null }, null, "speaker_renamed")).toBe(false);
+  });
+
   it("stays closed for a hit on an item the owner wrote (nothing to show)", () => {
     expect(transcriptPanelOpen({ range: null, hit: { kind: "action_item", id: "a1" } })).toBe(
       false,

@@ -95,4 +95,30 @@ document.addEventListener("click", (event) => {
         : `${String(marked)} cited transcript ${marked === 1 ? "line is" : "lines are"} marked.`;
   }
 });
+// Assigning transcript lines to a speaker: shift-click ticks everything between two lines, and a
+// count is announced. Without JavaScript the checkboxes and the form work as they are.
+const picks = [...document.querySelectorAll<HTMLInputElement>("input.seg-pick")];
+const pickStatus = document.getElementById("assign-status");
+let lastPick: HTMLInputElement | null = null;
+
+function announcePicks(): void {
+  if (!pickStatus) return;
+  const n = picks.filter((p) => p.checked).length;
+  pickStatus.textContent = n === 0 ? "" : `${String(n)} ${n === 1 ? "line" : "lines"} selected.`;
+}
+
+for (const pick of picks) {
+  pick.addEventListener("click", (event) => {
+    if (event.shiftKey && lastPick && lastPick !== pick) {
+      const from = picks.indexOf(lastPick);
+      const to = picks.indexOf(pick);
+      for (const between of picks.slice(Math.min(from, to), Math.max(from, to) + 1)) {
+        between.checked = pick.checked;
+      }
+    }
+    lastPick = pick;
+    announcePicks();
+  });
+}
+announcePicks();
 export {};

@@ -1,7 +1,7 @@
 ---
 import { formatOffset } from "../../domain/notes/review";
 import type { ReviewSegmentText } from "../../app/notes/review";
-import type { InSource } from "./types";
+import type { ErrorsFor, InSource, Typed } from "./types";
 
 /**
  * The transcript lines, in a disclosure that is closed by default: the page is a document to
@@ -9,6 +9,13 @@ import type { InSource } from "./types";
  * the page opens it on the server when a source link or a search hit cites lines (`open`), and
  * src/scripts/review.ts opens it when a source chip is followed in place. A line cited by the
  * highlighted source range is marked "Cited".
+ *
+ * A draft in review can also be sorted by speaker: every line has a checkbox that belongs to one
+ * form ("assign_speaker"), which gives the ticked lines a name. That is how one label ("Speaker 1",
+ * all a transcriber without speaker separation can say) becomes several people. A plain form, so
+ * it works without JavaScript; src/scripts/review.ts adds shift-click ranges and a count. The
+ * names offered are suggestions only (the people already in the transcript and the attendees);
+ * nothing is ever assigned for the owner.
  */
 interface Props {
   segments: readonly ReviewSegmentText[];
@@ -16,9 +23,32 @@ interface Props {
   open: boolean;
   /** The line the closed panel shows, from transcriptSummary: "Transcript, 18:20, 281 lines". */
   summary: string;
+  editable?: boolean;
+  /** The review page's own path: the target of the assign form. */
+  base?: string;
+  csrf?: string;
+  /** Names suggested for the assign field: current speakers first, then attendees. */
+  names?: readonly string[];
+  /** Positions ticked in a rejected assign, ticked again so nothing is lost. */
+  selected?: ReadonlySet<string>;
+  typed?: Typed;
+  errorsFor?: ErrorsFor;
 }
 
-const { segments, inSource, open, summary } = Astro.props;
+const {
+  segments,
+  inSource,
+  open,
+  summary,
+  editable = false,
+  base = "",
+  csrf = "",
+  names = [],
+  selected = new Set<string>(),
+  typed = (_key, _name, fallback) => fallback,
+  errorsFor = () => [],
+} = Astro.props;
+const assigning = editable && segments.length > 0;
 ---
 
 <details class="transcript-panel" id="transcript-panel" open={open}>
@@ -26,6 +56,48 @@ const { segments, inSource, open, summary } = Astro.props;
   <p class="transcript-back">
     <a href="#summary">Back to the summary</a>
   </p>
+  {assigning && (
+    <form method="post" action={base} id="assign-form" class="assign-bar">
+      <input type="hidden" name="csrf_token" value={csrf} />
+      <input type="hidden" name="intent" value="assign_speaker" />
+      <p class="help" id="assign-help">
+        Tick the lines one person said, then give them a name. Lines can be moved to another speaker
+        again later.
+      </p>
+      <div class="field">
+        <label for="assign-to">Assign the ticked lines to</label>
+        <input
+          id="assign-to"
+          name="to"
+          type="text"
+          maxlength="100"
+          list="assign-names"
+          autocomplete="off"
+          value={typed("assign_speaker", "to", "")}
+          aria-describedby="assign-help assign-status"
+        />
+        <datalist id="assign-names">
+          {names.map((name) => (
+            <option value={name} />
+          ))}
+        </datalist>
+        {errorsFor("assign_speaker", "lines").map((e) => (
+          <p class="field-error" id="assign-lines-error">
+            {e.message}
+          </p>
+        ))}
+        {errorsFor("assign_speaker", "to").map((e) => (
+          <p class="field-error">{e.message}</p>
+        ))}
+      </div>
+      <div class="row-actions">
+        <button class="button button-quiet" type="submit">
+          Assign
+        </button>
+        <span id="assign-status" class="help" role="status" aria-live="polite" />
+      </div>
+    </form>
+  )}
   {segments.length === 0 ? (
     <p>No transcript lines were produced for this meeting.</p>
   ) : (
@@ -37,6 +109,19 @@ const { segments, inSource, open, summary } = Astro.props;
           tabindex="-1"
           class:list={[{ "is-source": inSource(s.position) }]}
         >
+          {assigning && (
+            <label class="seg-pick-target">
+              <input
+                type="checkbox"
+                class="seg-pick"
+                name="line"
+                value={String(s.position)}
+                form="assign-form"
+                checked={selected.has(String(s.position))}
+                aria-label={`Select the line at ${formatOffset(s.startMs)} by ${s.speaker}`}
+              />
+            </label>
+          )}
           <span class="seg-time">{formatOffset(s.startMs)}</span>
           <strong class="seg-speaker">{s.speaker}</strong>
           <span class="seg-flag" hidden={!inSource(s.position)}>

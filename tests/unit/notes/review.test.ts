@@ -7,6 +7,7 @@ import {
   normalizeDecisionText,
   normalizeSectionBody,
   normalizeSpeakerName,
+  parseLinePositions,
   resolveHighlight,
   type HighlightableItem,
 } from "../../../src/domain/notes/review";
@@ -146,5 +147,37 @@ describe("formatOffset", () => {
     expect(formatOffset(750_000)).toBe("12:30");
     expect(formatOffset(3_723_000)).toBe("1:02:03");
     expect(formatOffset(-5)).toBe("0:00");
+  });
+});
+
+describe("parseLinePositions", () => {
+  it("reads the selected transcript positions as unique whole numbers, in ascending order", () => {
+    expect(parseLinePositions(["10000", " 1 ", "0", "1"])).toEqual({
+      ok: true,
+      value: [0, 1, 10000],
+    });
+  });
+
+  it("asks for at least one line", () => {
+    expect(parseLinePositions([])).toMatchObject({
+      ok: false,
+      error: { field: "lines", message: "Select at least one line." },
+    });
+  });
+
+  it.each([["-1"], ["1.5"], ["1e3"], ["abc"], [""], ["0x10"], ["1234567890"], [" "]])(
+    "rejects %j, which is not a transcript position",
+    (bad) => {
+      expect(parseLinePositions(["0", bad])).toMatchObject({
+        ok: false,
+        error: { field: "lines" },
+      });
+    },
+  );
+
+  it("accepts up to 1000 lines and rejects more, instead of truncating", () => {
+    const many = (n: number) => Array.from({ length: n }, (_v, i) => String(i));
+    expect(parseLinePositions(many(1000))).toMatchObject({ ok: true });
+    expect(parseLinePositions(many(1001))).toMatchObject({ ok: false, error: { field: "lines" } });
   });
 });

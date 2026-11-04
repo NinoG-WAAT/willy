@@ -17,6 +17,7 @@ import {
   editSection,
   loadReviewPage,
   publishNote,
+  assignSpeakerToLines,
   renameSpeaker,
   reopenNote,
   setActionItemDone,
@@ -418,6 +419,116 @@ describe("renameSpeaker", () => {
       error: { kind: "not_editable" },
     });
     expect(count(db, "transcript_segment", "speaker_label = 'X'")).toBe(0);
+  });
+});
+
+describe("assignSpeakerToLines", () => {
+  const labels = (meetingId = "m1") =>
+    db
+      .prepare(
+        "SELECT position, speaker_label, speaker_label_original FROM transcript_segment WHERE meeting_id = ? ORDER BY position",
+      )
+      .all(meetingId)
+      .map((r) => [r["position"], r["speaker_label"], r["speaker_label_original"]]);
+
+  it("gives the chosen lines the name, normalized, and keeps the label as first transcribed", async () => {
+    expect(
+      (await assignSpeakerToLines(deps, "A", "m1", ["1", "10000"], " Grace  Hopper ")).ok,
+    ).toBe(true);
+    expect(labels()).toEqual([
+      [0, "Speaker 1", "Speaker 1"],
+      [1, "Grace Hopper", "Speaker 2"],
+      [10000, "Grace Hopper", "Speaker 1"],
+    ]);
+  });
+
+  it("splits one speaker into two people, which rename cannot do", async () => {
+    await assignSpeakerToLines(deps, "A", "m1", ["10000"], "Second person");
+    expect(labels().map((l) => l[1])).toEqual(["Speaker 1", "Speaker 2", "Second person"]);
+  });
+
+  it("is idempotent: the same request twice leaves the same labels and one more audit event each time at most", async () => {
+    await assignSpeakerToLines(deps, "A", "m1", ["0", "1"], "Ada");
+    const once = labels();
+    expect((await assignSpeakerToLines(deps, "A", "m1", ["0", "1"], "Ada")).ok).toBe(true);
+    expect(labels()).toEqual(once);
+  });
+
+  it("changes nothing in another meeting, even with the same positions", async () => {
+    await assignSpeakerToLines(deps, "A", "m1", ["0", "1", "10000"], "Ada");
+    expect(labels("m2").map((l) => l[1])).toEqual(["Speaker 1", "Speaker 2", "Speaker 1"]);
+  });
+
+  it("rejects the whole request when one position is not in this transcript, changing nothing", async () => {
+    const before = labels();
+    expect(await assignSpeakerToLines(deps, "A", "m1", ["0", "424242"], "Ada")).toMatchObject({
+      ok: false,
+      error: { kind: "invalid", errors: [{ field: "lines" }] },
+    });
+    expect(labels()).toEqual(before);
+    expect(count(db, "audit_event", "kind = 'transcript.speaker_assigned'")).toBe(0);
+  });
+
+  it("rejects an empty selection and an empty or too long name", async () => {
+    expect(await assignSpeakerToLines(deps, "A", "m1", [], "Ada")).toMatchObject({
+      ok: false,
+      error: { kind: "invalid", errors: [{ field: "lines" }] },
+    });
+    expect(await assignSpeakerToLines(deps, "A", "m1", ["0"], "  ")).toMatchObject({
+      ok: false,
+      error: { kind: "invalid", errors: [{ field: "to" }] },
+    });
+    expect(await assignSpeakerToLines(deps, "A", "m1", ["0"], "x".repeat(101))).toMatchObject({
+      ok: false,
+      error: { kind: "invalid", errors: [{ field: "to" }] },
+    });
+    expect(labels().map((l) => l[1])).toEqual(["Speaker 1", "Speaker 2", "Speaker 1"]);
+  });
+
+  it("returns the errors of both fields at once", async () => {
+    expect(await assignSpeakerToLines(deps, "A", "m1", [], " ")).toMatchObject({
+      ok: false,
+      error: { kind: "invalid", errors: [{ field: "lines" }, { field: "to" }] },
+    });
+  });
+
+  it("is not found for another owner's meeting (even with valid positions) and unknown meetings; read-only once published", async () => {
+    expect(await assignSpeakerToLines(deps, "B", "m1", ["0"], "X")).toMatchObject({
+      ok: false,
+      error: { kind: "not_found" },
+    });
+    expect(await assignSpeakerToLines(deps, "A", "m2", ["0"], "X")).toMatchObject({
+      ok: false,
+      error: { kind: "not_found" },
+    });
+    expect(await assignSpeakerToLines(deps, "A", "nope", ["0"], "X")).toMatchObject({
+      ok: false,
+      error: { kind: "not_found" },
+    });
+    await seedMeeting("A", "m3", "published");
+    expect(await assignSpeakerToLines(deps, "A", "m3", ["0"], "X")).toMatchObject({
+      ok: false,
+      error: { kind: "not_editable" },
+    });
+    expect(count(db, "transcript_segment", "speaker_label = 'X'")).toBe(0);
+  });
+
+  it("appends one audit event with counts only: no name, no text", async () => {
+    await assignSpeakerToLines(deps, "A", "m1", ["0", "1"], "Ada Lovelace");
+    const events = db
+      .prepare(
+        "SELECT meeting_id, actor, detail_json FROM audit_event WHERE kind = 'transcript.speaker_assigned'",
+      )
+      .all();
+    expect(events).toEqual([
+      { meeting_id: "m1", actor: "owner", detail_json: JSON.stringify({ lines: 2 }) },
+    ]);
+  });
+
+  it("does not touch the draft note: no revision bump, nothing marked as edited", async () => {
+    const before = db.prepare("SELECT revision FROM note WHERE meeting_id = 'm1'").get();
+    await assignSpeakerToLines(deps, "A", "m1", ["0"], "Ada");
+    expect(db.prepare("SELECT revision FROM note WHERE meeting_id = 'm1'").get()).toEqual(before);
   });
 });
 

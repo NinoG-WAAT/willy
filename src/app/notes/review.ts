@@ -11,6 +11,7 @@ import {
   normalizeDecisionText,
   normalizeSectionBody,
   normalizeSpeakerName,
+  parseLinePositions,
 } from "../../domain/notes/review";
 import { err, ok, type Result } from "../../domain/platform/result";
 import type { FieldError } from "../../domain/platform/text";
@@ -284,6 +285,42 @@ export async function renameSpeaker(
   return changed > 0
     ? ok(undefined)
     : err(invalid("from", "That speaker is not in this transcript."));
+}
+
+/**
+ * Gives the chosen transcript lines (by position) a speaker name: the way to split one label into
+ * several people, which rename cannot do. The whole request is refused when a position is not in
+ * this transcript, so nothing is half applied. The label as first transcribed stays on each line,
+ * and the draft note is not touched.
+ */
+export async function assignSpeakerToLines(
+  deps: ReviewDeps,
+  ownerId: string,
+  meetingId: string,
+  rawLines: readonly string[],
+  rawTo: unknown,
+): Promise<Result<void, ReviewError>> {
+  const gate = await editableMeeting(deps, ownerId, meetingId);
+  if (!gate.ok) return gate;
+  const lines = parseLinePositions(rawLines);
+  const to = normalizeSpeakerName(rawTo, "to");
+  const errors = [lines, to].flatMap((r) => (r.ok ? [] : [r.error]));
+  if (!lines.ok || !to.ok) return err({ kind: "invalid", errors });
+  const outcome = await deps.reviews.assignSpeakerToLines(
+    ownerId,
+    meetingId,
+    lines.value,
+    to.value,
+    deps.clock.now(),
+  );
+  return outcome === "assigned"
+    ? ok(undefined)
+    : err(
+        invalid(
+          "lines",
+          "Some selected lines are not in this transcript. Reload the page and try again.",
+        ),
+      );
 }
 
 type NoteMove = { status: "published"; folderId: string } | { status: "draft" };

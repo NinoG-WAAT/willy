@@ -6,6 +6,7 @@ import { readFormFields, single } from "../platform/form";
 import { moveNoteToFolder, type MoveNoteError, type MoveNoteOutcome } from "./move-note";
 import {
   addActionItem,
+  assignSpeakerToLines,
   addDecision,
   deleteActionItem,
   deleteDecision,
@@ -35,7 +36,7 @@ export type ReviewFormResult =
       message: string;
       errors: FieldError[];
       /** What the owner typed into the failing form, so nothing is lost on a 422. */
-      echo: { itemId: string | null; values: Record<string, string> };
+      echo: { itemId: string | null; values: Record<string, string>; lines: string[] };
     };
 
 const NOTICES: Readonly<Record<string, string>> = {
@@ -50,6 +51,7 @@ const NOTICES: Readonly<Record<string, string>> = {
   action_reopened: "Action item reopened.",
   speaker_renamed: "Speaker renamed on every line of the transcript.",
   speakers_merged: "Speakers merged on every line of the transcript.",
+  speaker_assigned: "Lines assigned to the speaker.",
   published: "Published. This note is no longer a draft.",
   reopened: "Reopened. The note is a draft again and can be edited.",
   retry_queued: "Transcription restarted. Only the parts that failed are redone.",
@@ -83,6 +85,7 @@ const FIELDS = [
   "done",
   "from",
   "to",
+  "line",
   "folder",
   "confirm",
 ] as const;
@@ -103,8 +106,12 @@ export async function handleReviewForm(
   form: FormData,
 ): Promise<ReviewFormResult> {
   const fields = readFormFields(form, FIELDS);
-  if (!fields || [...fields.values()].some((v) => v.length !== 1)) return { kind: "bad_request" };
+  // Every field is single-valued, except the ticked transcript lines of one intent.
+  if (!fields || [...fields].some(([name, v]) => name !== "line" && v.length !== 1)) {
+    return { kind: "bad_request" };
+  }
   const intent = single(fields, "intent");
+  if (fields.has("line") && intent !== "assign_speaker") return { kind: "bad_request" };
   const id = single(fields, "id") ?? "";
   if (id !== "" && !isValidStorageId(id)) return { kind: "bad_request" };
   const value = (name: string): string => single(fields, name) ?? "";
@@ -171,6 +178,11 @@ export async function handleReviewForm(
         notice: intent === "rename_speaker" ? "speaker_renamed" : "speakers_merged",
         anchor: "speakers",
       });
+    case "assign_speaker":
+      return finish(
+        await assignSpeakerToLines(r, ownerId, meetingId, fields.get("line") ?? [], value("to")),
+        { notice: "speaker_assigned", anchor: "transcript-panel" },
+      );
     case "publish":
       return finish(
         await publishNote(r, ownerId, meetingId, {
@@ -249,7 +261,8 @@ function conflict(message: string, fields: Map<string, string[]>): ReviewFormRes
 function echoOf(itemId: string | null, fields: Map<string, string[]>) {
   const values: Record<string, string> = {};
   for (const [name, list] of fields) if (!NOT_ECHOED.has(name)) values[name] = list[0] ?? "";
-  return { itemId, values };
+  // The ticked transcript lines (assign_speaker only), so a rejected form can tick them again.
+  return { itemId, values, lines: fields.get("line") ?? [] };
 }
 
 function problemOrNotFound(

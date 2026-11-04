@@ -322,6 +322,48 @@ export class SqliteReviewRepository implements ReviewRepository {
     });
   }
 
+  assignSpeakerToLines(
+    ownerId: string,
+    meetingId: string,
+    positions: readonly number[],
+    to: string,
+    now: Date,
+  ): Promise<"assigned" | "unknown_lines"> {
+    const iso = now.toISOString();
+    // Only `?` markers are built here, one per position: every value is bound.
+    const marks = positions.map(() => "?").join(", ");
+    return settle(() =>
+      inTransaction(this.db, () => {
+        const found = this.db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM transcript_segment
+              WHERE owner_id = ? AND meeting_id = ? AND position IN (${marks})`,
+          )
+          .get(ownerId, meetingId, ...positions);
+        if (Number(found?.["n"]) !== positions.length) return "unknown_lines" as const;
+        this.db
+          .prepare(
+            `UPDATE transcript_segment SET speaker_label = ?, updated_at = ?
+              WHERE owner_id = ? AND meeting_id = ? AND position IN (${marks})`,
+          )
+          .run(to, iso, ownerId, meetingId, ...positions);
+        this.db
+          .prepare(
+            `INSERT INTO audit_event (id, owner_id, meeting_id, kind, actor, detail_json, occurred_at)
+             VALUES (?, ?, ?, 'transcript.speaker_assigned', 'owner', ?, ?)`,
+          )
+          .run(
+            this.ids.newId(),
+            ownerId,
+            meetingId,
+            JSON.stringify({ lines: positions.length }),
+            iso,
+          );
+        return "assigned" as const;
+      }),
+    );
+  }
+
   renameSpeaker(
     ownerId: string,
     meetingId: string,

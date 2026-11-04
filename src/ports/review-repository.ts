@@ -152,6 +152,20 @@ export interface ReviewRepository {
   ): Promise<EditOutcome>;
 
   /**
+   * Gives the segments at these transcript positions the label `to`, in ONE transaction, and
+   * appends an audit event with the number of lines only. `unknown_lines` (nothing changed) when
+   * any position is not a segment of this owner's meeting. Setting a label a line already has is
+   * fine, so repeating the request is a no-op. `speaker_label_original` is never touched.
+   */
+  assignSpeakerToLines(
+    ownerId: string,
+    meetingId: string,
+    positions: readonly number[],
+    to: string,
+    now: Date,
+  ): Promise<"assigned" | "unknown_lines">;
+
+  /**
    * Gives every segment of this meeting that carries the label `from` the label `to`. Renaming
    * to a label that already exists merges the two speakers. Returns how many segments changed
    * (0 when the label does not occur or the meeting is not the owner's).

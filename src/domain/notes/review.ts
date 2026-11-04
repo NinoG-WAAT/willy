@@ -113,6 +113,37 @@ export function normalizeDecisionText(raw: unknown): Result<string, FieldError> 
   return ok(text);
 }
 
+/** Most lines one request may relabel: a whole long meeting, never an unbounded list. */
+export const MAX_ASSIGNED_LINES = 1000;
+/** A transcript position is chunk * 10000 + index: whole digits only, no sign, no exponent. */
+const LINE_POSITION = /^\d{1,9}$/;
+
+/**
+ * Reads the transcript lines the owner ticked (their `position`) as unique whole numbers in
+ * ascending order. Too many or malformed values are rejected whole, never truncated or skipped.
+ */
+export function parseLinePositions(
+  values: readonly string[],
+  field = "lines",
+): Result<number[], FieldError> {
+  if (values.length === 0) return err({ field, message: "Select at least one line." });
+  if (values.length > MAX_ASSIGNED_LINES) {
+    return err({ field, message: `Select at most ${String(MAX_ASSIGNED_LINES)} lines at a time.` });
+  }
+  const positions = new Set<number>();
+  for (const raw of values) {
+    const text = raw.trim();
+    if (!LINE_POSITION.test(text)) {
+      return err({
+        field,
+        message: "Some selected lines are not valid. Reload the page and try again.",
+      });
+    }
+    positions.add(Number(text));
+  }
+  return ok([...positions].sort((a, b) => a - b));
+}
+
 export function normalizeSpeakerName(raw: unknown, field: string): Result<string, FieldError> {
   const name = normalizeLine(raw);
   if (name === null || name === "") return err({ field, message: "Enter a name." });
