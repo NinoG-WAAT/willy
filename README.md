@@ -21,7 +21,7 @@ This is built in small PRs. The README describes what exists on `main`; each sec
 | ICS calendar file import (Outlook / Teams export; no Entra, Google or API keys needed) | done |
 | Screen 2: live note (consent, capture, rough notes, recording state, failure recovery) | done |
 | Search and Markdown export | done |
-| Screen 3: review (transcript beside editable summary, speakers, decisions, action items, publish to folder, regenerate one section or the whole draft) | done |
+| Screen 3: review (transcript beside editable summary, speakers, decisions, action items, publish to folder, regenerate one section or the whole draft, assign transcript lines to a speaker) | done |
 | Screen 4: settings hub (provider status, retention, template/folder/export entry points, permanent deletion with typed confirmation and job status) | done |
 
 ## Prerequisites
@@ -268,7 +268,7 @@ Checks that run in `npm test`: `tests/e2e/a11y.spec.ts` scans every screen and s
 - ICS import does not expand recurring series and has only been checked against synthetic Outlook-style fixtures, not a real Outlook or Teams export; Google calendar import is not connected end to end yet.
 - Production sign-in is not built in this slice: development uses seeded credentials; an emailed magic link behind a provider adapter is the documented production option.
 - Live updates use polling, not server-sent events.
-- Diarization depends on the speech-to-text provider; owner corrections are the source of truth.
+- Diarization depends on the speech-to-text provider (whisper.cpp has none: every line starts as "Speaker 1"); owner corrections are the source of truth. On the review screen, tick the lines one person said in the transcript panel and give them a name (the transcript of a meeting cannot be separated automatically yet; a local diarization spike is tracked in #104).
 - Single role (Owner); no sharing or teams by design.
 - Accessibility is verified with axe-core, Playwright keyboard tests and manual visual review only. It has not been tested with a real screen reader (VoiceOver, NVDA, TalkBack) and live-region announcements are asserted in the DOM, not heard. After Stop, the live note counts the transcription in place and opens the draft by itself only when the owner is not typing (docs/PLAN.md, decision 5). Job progress (transcription on the live note, review and home; regeneration; deletion on settings) is announced by polling (docs/PLAN.md, decision 5) but, like the rest, has not been heard on a real screen reader; the manual pass, hover and paused-banner contrast and the review layout question are tracked in #51.
 

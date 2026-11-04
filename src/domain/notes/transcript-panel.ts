@@ -28,9 +28,19 @@ export function transcriptSummary(segments: readonly { startMs: number }[]): Tra
   };
 }
 
-/** A source link or a search hit that cites lines opens the panel, so they are on screen. */
-export function transcriptPanelOpen(highlight: Highlight): boolean {
-  return highlight.range !== null;
+/**
+ * A source link or a search hit that cites lines opens the panel, so they are on screen. So does
+ * a rejected "assign lines to a speaker" (the panel holds its form, error and ticked lines) and a
+ * successful one (the owner sees the new names and can go on with the next lines).
+ */
+export function transcriptPanelOpen(
+  highlight: Highlight,
+  rejectedIntent: string | null = null,
+  notice: string | null = null,
+): boolean {
+  return (
+    highlight.range !== null || rejectedIntent === "assign_speaker" || notice === "speaker_assigned"
+  );
 }
 
 /** A rejected rename or merge keeps its disclosure open: the error must be seen. */

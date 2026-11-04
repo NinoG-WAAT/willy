@@ -123,6 +123,10 @@ const sourceLink: SourceLinkFor = (from, to) => {
 
 const speakers = speakerLines(segments);
 const transcript = transcriptSummary(segments);
+// Names offered when assigning lines: the people already in the transcript, then the attendees.
+const speakerNames = [
+  ...new Set([...speakers.map((sp) => sp.name), ...view.attendees.map((a) => a.name)]),
+];
 
 // The one section (or item) open for editing. Only an id that the owner's own note has opens a
 // form, and nothing from the URL is ever printed.
@@ -336,8 +340,19 @@ const draftRegeneration =
         <ReviewTranscript
           segments={segments}
           inSource={inSource}
-          open={transcriptPanelOpen(highlight)}
+          open={transcriptPanelOpen(
+            highlight,
+            echo?.itemId ?? null,
+            Astro.url.searchParams.get("notice"),
+          )}
           summary={transcript.text}
+          editable={editable}
+          base={base}
+          csrf={csrf}
+          names={speakerNames}
+          selected={new Set(echo?.itemId === "assign_speaker" ? echo.lines : [])}
+          typed={typed}
+          errorsFor={errorsFor}
         />
       </aside>
     </div>
