@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildSummaryPrompt } from "../../../src/adapters/llm/prompt";
+import {
+  buildSummaryPrompt,
+  REPLY_BY_STRUCTURED_OUTPUT,
+  REPLY_BY_TOOL_CALL,
+} from "../../../src/adapters/llm/prompt";
 import type { SummarizerInput } from "../../../src/domain/notes/summary";
 
 const INJECTION =
@@ -18,6 +22,30 @@ const input = (over: Partial<SummarizerInput> = {}): SummarizerInput => ({
   template: { sections: [{ heading: "Summary", prompt: "Summarize." }] },
   only: null,
   ...over,
+});
+
+describe("buildSummaryPrompt: language of the summary (issue #115)", () => {
+  it("tells the model to write in the language of the transcript, so a French meeting stays French", () => {
+    const { system } = buildSummaryPrompt(input());
+    expect(system).toMatch(/language of the transcript/i);
+    expect(system).toMatch(/do not translate/i);
+  });
+
+  it("keeps the section headings exactly as the template spells them, whatever the language", () => {
+    const { system } = buildSummaryPrompt(input());
+    expect(system).toMatch(/keep each section heading exactly as listed/i);
+  });
+
+  it("carries the language rule in the instructions only, never in the meeting document", () => {
+    const { user } = buildSummaryPrompt(input());
+    expect(user).not.toMatch(/language of the transcript/i);
+  });
+
+  it("applies to every way the answer is delivered (tool call and structured output)", () => {
+    for (const reply of [REPLY_BY_TOOL_CALL, REPLY_BY_STRUCTURED_OUTPUT]) {
+      expect(buildSummaryPrompt(input(), reply).system).toMatch(/language of the transcript/i);
+    }
+  });
 });
 
 describe("buildSummaryPrompt (prompt-injection hardening)", () => {
