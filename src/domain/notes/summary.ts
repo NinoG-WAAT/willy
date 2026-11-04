@@ -31,6 +31,8 @@ export interface SummarizerInput {
   template: { sections: readonly TemplateSection[] } | null;
   /** Regenerate-for-selection: produce exactly this one section. */
   only: TemplateSection | null;
+  /** The owner's exact spellings of company words: spellings only, never facts about the meeting. */
+  vocabulary?: readonly string[];
 }
 
 export interface SourceRange {
