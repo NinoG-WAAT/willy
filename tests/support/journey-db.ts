@@ -5,14 +5,18 @@ import { meetingPrefix } from "../../src/domain/storage/object-key";
 
 type Db = ReturnType<typeof openDatabase>;
 
-function dataDir(): string {
-  const dir = process.env["E2E_DATA_DIR"];
-  if (!dir) throw new Error("E2E_DATA_DIR is not set (set by playwright.config.ts)");
+/** The two e2e servers: English default (the one almost every spec uses) and French default. */
+export type E2eServer = "en" | "fr";
+
+function dataDir(server: E2eServer = "en"): string {
+  const name = server === "en" ? "E2E_DATA_DIR" : "E2E_FR_DATA_DIR";
+  const dir = process.env[name];
+  if (!dir) throw new Error(`${name} is not set (set by playwright.config.ts)`);
   return dir;
 }
 
-function withDb<T>(run: (db: Db) => T): T {
-  const db = openDatabase(join(dataDir(), "willy.db"));
+function withDb<T>(run: (db: Db) => T, server: E2eServer = "en"): T {
+  const db = openDatabase(join(dataDir(server), "willy.db"));
   try {
     return run(db);
   } finally {
@@ -33,7 +37,7 @@ export interface FreshOwner {
  * searches, folders, jobs and settings can never be touched by another test running at the same
  * time. Insertion is the only shortcut; everything else the test does goes through the real UI.
  */
-export function createFreshOwner(): FreshOwner {
+export function createFreshOwner(server: E2eServer = "en"): FreshOwner {
   const suffix = Math.random().toString(36).slice(2, 10);
   const id = `owner-e2e-${suffix}`;
   const email = `${id}@example.test`;
@@ -47,8 +51,16 @@ export function createFreshOwner(): FreshOwner {
       .run(id, email, now);
     if (copied.changes !== 1) throw new Error("seeded owner-ada is missing");
     db.prepare("INSERT INTO settings (owner_id, updated_at) VALUES (?, ?)").run(id, now);
-  });
+  }, server);
   return { id, email };
+}
+
+/** The stored interface language of an owner (read-only; tests change it through the form). */
+export function ownerLanguage(ownerId: string, server: E2eServer = "en"): string | null {
+  return withDb((db) => {
+    const row = db.prepare("SELECT language FROM settings WHERE owner_id = ?").get(ownerId);
+    return row ? (row["language"] as string | null) : null;
+  }, server);
 }
 
 /** Encrypted audio chunk files still on disk for one meeting (the fake R2 bucket). */

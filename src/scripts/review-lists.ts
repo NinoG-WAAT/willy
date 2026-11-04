@@ -1,3 +1,5 @@
+import "./i18n";
+
 /**
  * Review outline enhancement (decisions and action items). Without JavaScript everything is a
  * plain form: the done checkbox has its own Save button, Edit and Cancel are links. With it a tick

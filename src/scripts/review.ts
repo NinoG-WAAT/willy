@@ -1,3 +1,5 @@
+import "./i18n";
+
 /**
  * Review screen enhancement. Without JavaScript a source link reloads the page with the cited
  * lines marked by the server (and the transcript panel opened); with it the marks move in place,

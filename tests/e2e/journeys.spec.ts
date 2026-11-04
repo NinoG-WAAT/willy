@@ -7,6 +7,7 @@ import {
   addVocabularyTerms,
   createFreshOwner,
   meetingFootprint,
+  ownerLanguage,
   storedAudioFiles,
   vocabularyTerms,
   type FreshOwner,
@@ -612,6 +613,27 @@ test.describe("permission boundaries: another owner gets the same answer as for 
     await expect(pageA.getByRole("status").filter({ hasText: "result" })).toContainText(
       '1 result for "zephyrword"',
     );
+
+    // The language form has no id to guess: the owner comes from the session. A names theirs
+    // through the real form; B can neither name A in the request nor change A's choice.
+    await pageA.goto("/settings");
+    await pageA.getByLabel("Language / Langue").selectOption({ label: "Français" });
+    await pageA.getByRole("button", { name: "Save language" }).click();
+    await expect(pageA).toHaveURL(/notice=language_saved/);
+    expect(ownerLanguage(ownerA.id)).toBe("fr");
+    const namesA = await page.request.post("/settings/language", {
+      headers,
+      form: { language: "en", owner_id: ownerA.id },
+    });
+    expect(namesA.status()).toBe(400);
+    const ownChoice = await page.request.post("/settings/language", {
+      headers,
+      form: { language: "en" },
+      maxRedirects: 0,
+    });
+    expect(ownChoice.status()).toBe(303);
+    expect(ownerLanguage(ownerB.id)).toBe("en");
+    expect(ownerLanguage(ownerA.id)).toBe("fr");
     await pageA.close();
   });
 });

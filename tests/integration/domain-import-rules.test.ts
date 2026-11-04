@@ -47,6 +47,26 @@ describe("domain purity lint rules (CLAUDE.md section 4)", () => {
     expect(messages.filter((m) => m.startsWith("no-restricted"))).toEqual([]);
   });
 
+  it("allows the pure translation core (src/i18n/translate) and nothing else of i18n", async () => {
+    const allowed = await messagesFor(
+      'import { t, tn, msg } from "../../i18n/translate"; export const a = () => t("x") + tn("a", "b", 1) + msg("c");',
+      "src/domain/meetings/sample.ts",
+    );
+    expect(allowed).toEqual([]);
+
+    for (const code of [
+      'import { fr } from "../../i18n/fr";',
+      'import { fr } from "../../i18n/fr/auth";',
+      'import { runWithLocale } from "../../adapters/i18n/request-locale";',
+    ]) {
+      const messages = await messagesFor(code, "src/domain/meetings/sample.ts");
+      expect(
+        messages.some((m) => m.startsWith("no-restricted-imports")),
+        code,
+      ).toBe(true);
+    }
+  });
+
   it("allows pure domain-to-domain imports", async () => {
     const messages = await messagesFor(
       'import { y } from "../platform/ids"; export const a = y;',

@@ -4,7 +4,7 @@ A deliberately narrow alternative to Granola for one audience: a **founder** who
 
 Non-goals: secret recording, joining calls as a bot, sales intelligence, inferring employee performance.
 
-Documents: [product.md](product.md) (behavior), [CLAUDE.md](CLAUDE.md) (engineering rules), [docs/PLAN.md](docs/PLAN.md) (technical plan), [docs/DATA_MODEL.md](docs/DATA_MODEL.md) (schema, lifecycle, retention).
+Documents: [product.md](product.md) (behavior), [CLAUDE.md](CLAUDE.md) (engineering rules), [docs/PLAN.md](docs/PLAN.md) (technical plan), [docs/DATA_MODEL.md](docs/DATA_MODEL.md) (schema, lifecycle, retention), [docs/I18N.md](docs/I18N.md) (interface language: English and French).
 
 ## Status
 
@@ -82,6 +82,8 @@ All names live in [.env.example](.env.example) with placeholders. Never commit `
 | `STT_WHISPER_BIN`, `STT_FFMPEG_BIN`, `STT_WHISPER_LANGUAGE`, `STT_WHISPER_MAX_CONCURRENCY` | whisper only, optional (defaults: `whisper-cli`, `ffmpeg`, `auto`, `1`) |
 | `STT_TIMEOUT_MS` | per-request timeout (defaults: 30000 deepgram, 60000 whisper) |
 | `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_API_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_MS` | summaries: `fake` (default) or `anthropic` |
+| `WILLY_DEFAULT_LOCALE` | interface language of signed-out pages and of owners who have not chosen one in Settings: `en` (default) or `fr`. An owner's own choice always wins. See [docs/I18N.md](docs/I18N.md) |
+| `WILLY_I18N_STRICT` | `1`: a French string missing from the catalog fails the request instead of falling back to English (tests and CI use it); `0` or unset: fall back and log `i18n.missing_translation` once per string |
 
 ## Migrations and safe rollback
 
@@ -215,7 +217,7 @@ Cloudflare D1 (once deployed): `wrangler d1 export <database> --output backup.sq
 - Permanent deletion is two steps: the meeting is marked `deleting` immediately (hidden everywhere, guessed URLs return 404), then a retryable job removes stored files, derived search index entries and rows. Only a content-free audit record remains. The job is idempotent and safe to retry.
 - A scheduled retention job applies the owner's retention settings.
 
-Settings (`/settings`) lets the owner choose how long raw audio is kept (default: deleted right after transcription; up to 7 days) and optionally expire old meetings automatically (off by default; turning it on or shortening it needs an explicit tick). Permanent deletion lives at `/meetings/:id/delete`: it states what is destroyed, requires typing `DELETE`, and the settings screen then shows the deletion job (queued, deleting, retrying, failed with a retry button, deleted). The data model for them is in [docs/DATA_MODEL.md](docs/DATA_MODEL.md) section 5.
+Settings (`/settings`) lets the owner choose the interface language (English or Français, own setting first, then `WILLY_DEFAULT_LOCALE`; see [docs/I18N.md](docs/I18N.md)), how long raw audio is kept (default: deleted right after transcription; up to 7 days) and optionally expire old meetings automatically (off by default; turning it on or shortening it needs an explicit tick). Permanent deletion lives at `/meetings/:id/delete`: it states what is destroyed, requires typing `DELETE`, and the settings screen then shows the deletion job (queued, deleting, retrying, failed with a retry button, deleted). The data model for them is in [docs/DATA_MODEL.md](docs/DATA_MODEL.md) section 5.
 
 ## Security decisions
 

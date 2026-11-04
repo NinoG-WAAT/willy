@@ -1,3 +1,5 @@
+import { t } from "../../i18n/translate";
+
 const NOTICES: Readonly<Record<string, string>> = {
   retention_saved: "Retention settings saved.",
   deletion_requested:
@@ -15,5 +17,8 @@ const NOTICES: Readonly<Record<string, string>> = {
  * map to text, so nothing from the URL is ever reflected into the page.
  */
 export function settingsNotice(code: string | null): string | null {
+  // Translated where it is shown, with the literal in view (see docs/I18N.md); the table above
+  // still holds the English-only notices of screens that are not converted yet.
+  if (code === "language_saved") return t("Language saved.");
   return code !== null && Object.hasOwn(NOTICES, code) ? (NOTICES[code] ?? null) : null;
 }

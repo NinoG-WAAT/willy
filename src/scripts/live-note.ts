@@ -1,3 +1,4 @@
+import "./i18n";
 import { formatElapsed } from "./capture/elapsed";
 import { inputLevel } from "./capture/level";
 import { setupNotesAutosave } from "./capture/notes-autosave";

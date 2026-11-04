@@ -10,6 +10,8 @@ import { listDeletions } from "../../app/settings/deletion";
 import { settingsNotice } from "../../app/settings/notices";
 import { loadProviderStatus } from "../../app/settings/provider-status";
 import { loadRetention, saveRetention } from "../../app/settings/retention";
+import { LANGUAGE_CHOICES } from "../../domain/settings/language";
+import { currentLocale, t } from "../../i18n/translate";
 import {
   getDeletionDeps,
   getMeetingListDeps,
@@ -86,6 +88,7 @@ const markers: Record<ProviderState, string> = {
   misconfigured: "✕",
 };
 const csrf = Astro.locals.csrfToken ?? "";
+const locale = Astro.locals.locale ?? currentLocale();
 ---
 
 <Base title="Settings">
@@ -99,6 +102,30 @@ const csrf = Astro.locals.csrfToken ?? "";
     </p>
   )}
   <ErrorSummary errors={errors} />
+
+  <section class="panel" aria-labelledby="language-heading">
+    <h2 id="language-heading">{t("Language")}</h2>
+    <p class="help">
+      {t("Choose the language of the screens and dates. It applies to your account only.")}
+    </p>
+    {/* Both names, always: someone who cannot read this screen's language can still find the field. */}
+    <form class="form form-wide" method="post" action="/settings/language">
+      <input type="hidden" name="csrf_token" value={csrf} />
+      <div class="field">
+        <label for="language">Language / Langue</label>
+        <select id="language" name="language">
+          {LANGUAGE_CHOICES.map((choice) => (
+            <option value={choice.locale} lang={choice.locale} selected={choice.locale === locale}>
+              {choice.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button class="button" type="submit">
+        {t("Save language")}
+      </button>
+    </form>
+  </section>
 
   <section class="panel" aria-labelledby="providers-heading">
     <h2 id="providers-heading">Provider status</h2>

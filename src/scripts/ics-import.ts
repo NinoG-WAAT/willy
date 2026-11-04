@@ -1,3 +1,5 @@
+import "./i18n";
+
 // Progressive enhancement for the ICS import form: default the "time zone for events without one"
 // to the browser's. Without JavaScript the select simply starts at UTC and the owner picks.
 const zone = document.querySelector<HTMLSelectElement>("select[data-browser-zone]");

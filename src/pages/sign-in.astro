@@ -9,6 +9,7 @@ import {
 } from "../app/identity/cookies";
 import { handleSignIn } from "../app/identity/handle-sign-in";
 import { safeNextPath } from "../domain/identity/next-path";
+import { t } from "../i18n/translate";
 
 export const prerender = false;
 
@@ -56,10 +57,10 @@ if (!loginCsrf || Astro.request.method === "POST") {
 }
 ---
 
-<Base title="Sign in" standalone>
-  <h1>Sign in</h1>
+<Base title={t("Sign in")} standalone>
+  <h1>{t("Sign in")}</h1>
   {error === null && Astro.locals.sessionState === "expired" && (
-    <p class="notice">Your session expired. Sign in again to continue.</p>
+    <p class="notice">{t("Your session expired. Sign in again to continue.")}</p>
   )}
   {error !== null && (
     <p class="alert" role="alert">
@@ -70,7 +71,7 @@ if (!loginCsrf || Astro.request.method === "POST") {
     <input type="hidden" name="csrf_token" value={loginCsrf} />
     <input type="hidden" name="next" value={next} />
     <div class="field">
-      <label for="email">Email</label>
+      <label for="email">{t("Email")}</label>
       <input
         id="email"
         name="email"
@@ -82,7 +83,7 @@ if (!loginCsrf || Astro.request.method === "POST") {
       />
     </div>
     <div class="field">
-      <label for="password">Password</label>
+      <label for="password">{t("Password")}</label>
       <input
         id="password"
         name="password"
@@ -93,7 +94,7 @@ if (!loginCsrf || Astro.request.method === "POST") {
       />
     </div>
     <button class="button button-primary" type="submit">
-      Sign in
+      {t("Sign in")}
     </button>
   </form>
 </Base>
