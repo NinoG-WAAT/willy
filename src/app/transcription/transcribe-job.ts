@@ -1,5 +1,6 @@
 import { canViewMeeting } from "../../domain/authz/predicates";
 import { chunkStartOffsets, shiftToMeetingTime } from "../../domain/transcription/chunk-offsets";
+import { correctWithVocabulary } from "../../domain/transcription/vocabulary-correction";
 import { segmentTextContext } from "../../domain/transcription/encryption-context";
 import type { ChunkRepository, ChunkRow } from "../../ports/chunk-repository";
 import type { Clock } from "../../ports/clock";
@@ -202,7 +203,10 @@ async function transcribeChunk(
   // Transcribers report times relative to the chunk's own audio; stored times are meeting-relative.
   for (const [segIndex, s] of shiftToMeetingTime(result.value, offsetMs).entries()) {
     const id = deps.ids.newId();
-    const sealed = await deps.textCipher.encrypt(s.text, segmentTextContext(id));
+    // The transcriber hears the words but spells them its own way ("Salsa", "site tracker"): the
+    // owner's spelling is what gets stored, so search, notes and the summary all use it.
+    const text = correctWithVocabulary(s.text, vocabulary);
+    const sealed = await deps.textCipher.encrypt(text, segmentTextContext(id));
     segments.push({
       id,
       segIndex,

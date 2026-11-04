@@ -192,6 +192,7 @@ Settings > Vocabulary (`/settings/vocabulary`) is the list of words your meeting
 - Add one word, several on separate lines, or several separated by commas. Adding a word that is already there (any case) changes nothing.
 - Deepgram keywords (at most 100, boost 2) are untested against the real service.
 - A word that is not letters, digits, spaces, hyphens or apostrophes (such as `Node.js` or `C++`) still helps the recogniser but is marked "Not auto-corrected in transcripts".
+- After each chunk is transcribed (and before it is stored), the same words fix spelling: "salsa" or "Salsa" becomes "SALSA", "site tracker" becomes "Sitetracker", "go live" becomes "go-live" (case, spaces, hyphens and accents are ignored when matching; nothing else is ever rewritten). A word cut in two by a chunk boundary is not fixed. The summarizer is also given the list so names are written your way. Only transcripts made after a word was added are fixed; existing transcripts are not rewritten.
 
 ## Deployment (Cloudflare)
 

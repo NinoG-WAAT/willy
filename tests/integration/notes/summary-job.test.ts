@@ -8,6 +8,7 @@ import { SqliteJobRepository } from "../../../src/adapters/sqlite/job-repository
 import { SqliteMeetingRepository } from "../../../src/adapters/sqlite/meeting-repository";
 import { SqliteNoteRepository } from "../../../src/adapters/sqlite/note-repository";
 import { SqliteTemplateRepository } from "../../../src/adapters/sqlite/template-repository";
+import { SqliteVocabularyRepository } from "../../../src/adapters/sqlite/vocabulary-repository";
 import { FixedClock, SequentialIds } from "../../../src/adapters/system/fakes";
 import { runDueJobs, type RunnerDeps } from "../../../src/app/jobs/runner";
 import { retryMeetingProcessing } from "../../../src/app/meetings/capture";
@@ -59,6 +60,7 @@ beforeEach(() => {
     meetings,
     notes: new SqliteNoteRepository(db, new SequentialIds("note")),
     templates: new SqliteTemplateRepository(db),
+    vocabulary: new SqliteVocabularyRepository(db),
     summarizer: recording,
     textCipher,
     clock,
@@ -221,6 +223,44 @@ describe("summary generation: draft with source links", () => {
       published_at: null,
     });
     expect(meetingStatus()).not.toBe("published");
+  });
+});
+
+describe("summary generation: the owner's vocabulary (issue #110)", () => {
+  const addTerm = (ownerId: string, id: string, term: string): void => {
+    insert(db, "vocabulary_term", { id, owner_id: ownerId, term, created_at: T0 });
+  };
+
+  it("gives the summarizer the owner's terms in list order, and only theirs", async () => {
+    addTerm("A", "v1", "SALSA");
+    addTerm("A", "v2", "Sitetracker");
+    addTerm("B", "v3", "Secret of B");
+    await transcript("A", "m1", MEETING_LINES);
+    await run();
+    expect(inputs[0]?.vocabulary).toEqual(["SALSA", "Sitetracker"]);
+    expect(JSON.stringify(inputs)).not.toContain("Secret of B");
+  });
+
+  it("gives an empty list when the owner has none", async () => {
+    await transcript("A", "m1", MEETING_LINES);
+    await run();
+    expect(inputs[0]?.vocabulary).toEqual([]);
+  });
+
+  it("still writes the draft when the terms cannot be read, and never logs a term", async () => {
+    addTerm("A", "v1", "SALSA");
+    deps.vocabulary = {
+      list: () => Promise.reject(new Error("locked while reading SALSA")),
+      addMany: () => Promise.reject(new Error("unused")),
+      remove: () => Promise.reject(new Error("unused")),
+    };
+    await transcript("A", "m1", MEETING_LINES);
+    await run();
+    expect(inputs[0]?.vocabulary).toEqual([]);
+    expect(db.prepare("SELECT status FROM meeting WHERE id = 'm1'").get()).toEqual({
+      status: "review",
+    });
+    expect(JSON.stringify(logger.entries)).not.toContain("SALSA");
   });
 });
 

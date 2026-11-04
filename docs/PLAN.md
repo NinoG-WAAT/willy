@@ -269,3 +269,5 @@ LLM safety: transcript text is untrusted data, never instructions; LLM output is
 | 9 | Max chunk size and duration | 1 MiB per chunk, 10-second chunks, max 4 hours per meeting; constants in domain policy, tested. |
 | 10 | Encryption keys | AES-GCM envelope encryption; key from env, key id stored per record; rotation note in README. |
 | 11 | Archive semantics | Hidden from the default list, still searchable only when "include archived" is set; reversible. |
+
+Vocabulary wiring (#110): the transcription job corrects every segment text with `correctWithVocabulary(text, terms)` using the terms it already read once per run, before the text is encrypted and stored (so search, notes and the summary all see the owner's spelling; times and speakers are untouched; replays store the same text). The summary job reads the owner's terms once per summarize run (generation, regenerate-section, regenerate-whole-draft) through `SummaryDeps.vocabulary` and passes them as `SummarizerInput.vocabulary`. A failure to read terms never fails a job (warning with a count of 0, no terms logged).

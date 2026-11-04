@@ -8,6 +8,7 @@ import { SqliteJobRepository } from "../../../src/adapters/sqlite/job-repository
 import { SqliteMeetingRepository } from "../../../src/adapters/sqlite/meeting-repository";
 import { SqliteNoteRepository } from "../../../src/adapters/sqlite/note-repository";
 import { SqliteTemplateRepository } from "../../../src/adapters/sqlite/template-repository";
+import { SqliteVocabularyRepository } from "../../../src/adapters/sqlite/vocabulary-repository";
 import { FixedClock, SequentialIds } from "../../../src/adapters/system/fakes";
 import { runDueJobs, type RunnerDeps } from "../../../src/app/jobs/runner";
 import {
@@ -62,6 +63,7 @@ beforeEach(async () => {
     meetings,
     notes,
     templates: new SqliteTemplateRepository(db),
+    vocabulary: new SqliteVocabularyRepository(db),
     summarizer: recording,
     textCipher,
     clock,
@@ -469,5 +471,15 @@ describe("a failed regeneration keeps the previous draft", () => {
     expect(sections()).toHaveLength(3);
     expect(revision()).toEqual({ revision: 1 });
     expect(db.prepare("SELECT status FROM job").get()).toEqual({ status: "retrying" });
+  });
+});
+
+describe("regenerating the whole draft with the owner's vocabulary (issue #110)", () => {
+  it("gives the summarizer the owner's terms, and only theirs", async () => {
+    insert(db, "vocabulary_term", { id: "v1", owner_id: "A", term: "SALSA", created_at: T0 });
+    insert(db, "vocabulary_term", { id: "v2", owner_id: "B", term: "Secret of B", created_at: T0 });
+    await request();
+    await run();
+    expect(inputs[0]?.vocabulary).toEqual(["SALSA"]);
   });
 });
