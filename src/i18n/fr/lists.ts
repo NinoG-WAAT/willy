@@ -7,7 +7,6 @@
 export const fr: Record<string, string> = {
   // The page frame (src/layouts/Base.astro) and the navigation (src/components/nav-current.ts)
   Main: "Navigation principale",
-  "New note": "Nouvelle note",
   Inbox: "Réception",
   "All notes": "Toutes les notes",
   Search: "Rechercher",
@@ -85,7 +84,6 @@ export const fr: Record<string, string> = {
   "This folder contains {n} note.": "Ce dossier contient {n} note.",
   "This folder contains {n} notes.": "Ce dossier contient {n} notes.",
   "Back to folders": "Retour aux dossiers",
-  Cancel: "Annuler",
   Breadcrumb: "Fil d’Ariane",
   "Private to you": "Privé",
   "Nothing published here yet": "Rien n’a encore été publié ici",
@@ -147,8 +145,6 @@ export const fr: Record<string, string> = {
   "Page {page} of {pageCount}": "Page {page} sur {pageCount}",
 
   // The note card (src/components/MeetingCard.astro, src/domain/meetings/home.ts)
-  "{n} attendee": "{n} participant",
-  "{n} attendees": "{n} participants",
   "From your calendar": "Depuis votre calendrier",
   "Status:": "Statut :",
   "Consent:": "Consentement :",
@@ -189,25 +185,6 @@ export const fr: Record<string, string> = {
   "Template deleted.": "Modèle supprimé.",
   "Regenerating this section. It will update here when it is ready.":
     "Régénération de cette section en cours. Elle sera mise à jour ici dès qu’elle sera prête.",
-  "Note created. It appears under Upcoming.": "Note créée. Elle apparaît sous « À venir ».",
-  "Calendar import finished.": "Import du calendrier terminé.",
-  "Your calendar has no upcoming events to import.":
-    "Votre calendrier ne contient aucun événement à venir à importer.",
-  "Imported {n} new meeting.": "{n} nouvelle réunion importée.",
-  "Imported {n} new meetings.": "{n} nouvelles réunions importées.",
-  "{n} event was already in your list.": "{n} événement figurait déjà dans votre liste.",
-  "{n} events were already in your list.": "{n} événements figuraient déjà dans votre liste.",
-  "Calendar file import finished.": "Import du fichier de calendrier terminé.",
-  "Imported {n} new meeting from the calendar file.":
-    "{n} nouvelle réunion importée depuis le fichier de calendrier.",
-  "Imported {n} new meetings from the calendar file.":
-    "{n} nouvelles réunions importées depuis le fichier de calendrier.",
-  "Your calendar could not be reached. Nothing was changed and your notes are safe. Try again in a moment, or create a note manually.":
-    "Votre calendrier n’a pas pu être joint. Rien n’a été modifié et vos notes sont en sécurité. Réessayez dans un instant, ou créez une note manuellement.",
-  "The calendar service asked us to slow down. Wait a minute and try again.":
-    "Le service de calendrier nous a demandé de ralentir. Patientez une minute puis réessayez.",
-  "Your calendar is not connected, so events cannot be imported. You can still create a note manually.":
-    "Votre calendrier n’est pas connecté, les événements ne peuvent donc pas être importés. Vous pouvez toujours créer une note manuellement.",
 };
 
 /** Strings that are the same word in French: English source -> why it is not translated. */

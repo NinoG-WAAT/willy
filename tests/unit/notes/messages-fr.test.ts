@@ -118,7 +118,7 @@ describe("calendar import feedback in French", () => {
 
   it("says when there is nothing to import, or when the figures are missing", () => {
     expect(imported({ notice: "imported", new: "0", existing: "0" })).toBe(
-      "Votre calendrier ne contient aucun événement à venir à importer.",
+      "Votre calendrier n’a aucun événement à venir à importer.",
     );
     expect(imported({ notice: "imported" })).toBe("Import du calendrier terminé.");
     expect(imported({ notice: "ics_imported" })).toBe("Import du fichier de calendrier terminé.");
@@ -135,7 +135,7 @@ describe("calendar import feedback in French", () => {
 
   it("has a French sentence for each calendar problem and stays English otherwise", () => {
     expect(inLocale("fr", () => problemMessage("calendar_busy"))).toBe(
-      "Le service de calendrier nous a demandé de ralentir. Patientez une minute puis réessayez.",
+      "Le service de calendrier nous a demandé de ralentir. Patientez une minute et réessayez.",
     );
     expect(inLocale("fr", () => problemMessage("calendar_unavailable"))).toMatch(
       /^Votre calendrier n’a pas pu être joint/,
