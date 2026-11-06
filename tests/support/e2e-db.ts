@@ -4,10 +4,14 @@ import { openDatabase } from "../../src/adapters/sqlite/database";
 import { T0, insert } from "./db-fixtures";
 import { seedLongTranscript, seedReviewMeeting } from "./review-fixtures";
 
-/** Moves one session's idle expiry into the past in the e2e server's database (no waiting). */
-export function expireSession(token: string): void {
-  const dir = process.env["E2E_DATA_DIR"];
-  if (!dir) throw new Error("E2E_DATA_DIR is not set (set by playwright.config.ts)");
+/**
+ * Moves one session's idle expiry into the past in the e2e server's database (no waiting). The
+ * French-default server has a database of its own: pass "fr" for a session created there.
+ */
+export function expireSession(token: string, server: "en" | "fr" = "en"): void {
+  const name = server === "en" ? "E2E_DATA_DIR" : "E2E_FR_DATA_DIR";
+  const dir = process.env[name];
+  if (!dir) throw new Error(`${name} is not set (set by playwright.config.ts)`);
   const db = openDatabase(join(dir, "willy.db"));
   try {
     const hash = createHash("sha256").update(token).digest("hex");
