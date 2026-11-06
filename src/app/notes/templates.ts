@@ -1,5 +1,5 @@
 import {
-  DEFAULT_TEMPLATE,
+  builtinTemplate,
   normalizeTemplate,
   type TemplateInput,
   type TemplateSection,
@@ -110,10 +110,11 @@ export async function resolveTemplateForNewMeeting(
   if (owners) {
     return ok({ source: "default", id: owners.id, name: owners.name, sections: owners.sections });
   }
+  const builtin = builtinTemplate();
   return ok({
     source: "builtin",
     id: null,
-    name: DEFAULT_TEMPLATE.name,
-    sections: [...DEFAULT_TEMPLATE.sections],
+    name: builtin.name,
+    sections: builtin.sections,
   });
 }

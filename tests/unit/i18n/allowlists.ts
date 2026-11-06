@@ -9,7 +9,10 @@
  * Files that may call `t()`/`tn()`/`msg()` with something other than a string literal, because
  * the literal is written elsewhere, marked with `msg()`. Path -> reason.
  */
-export const allowedDynamic: Readonly<Record<string, string>> = {};
+export const allowedDynamic: Readonly<Record<string, string>> = {
+  "src/domain/notes/template.ts":
+    "builtinTemplate translates the table of English strings marked with msg() in DEFAULT_TEMPLATE",
+};
 
 /**
  * Files that may join a translated string to other text, because the other text is not a

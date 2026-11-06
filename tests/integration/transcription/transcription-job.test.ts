@@ -29,6 +29,7 @@ import {
 } from "../../../src/app/transcription/transcribe-job";
 import { uploadChunk } from "../../../src/app/transcription/upload-chunk";
 import { segmentTextContext } from "../../../src/domain/transcription/encryption-context";
+import { inLocale } from "../../support/locale";
 import { count, consentedMeeting, freshDb, insert, owner, T0 } from "../../support/db-fixtures";
 
 const chunkKey = parseKeyring(`k1:${Buffer.alloc(32, 1).toString("base64")}`);
@@ -551,6 +552,24 @@ describe("logs and states", () => {
     expect(failed?.["jobId"]).toBeTruthy();
     const dump = JSON.stringify(logger.entries);
     expect(dump).not.toMatch(/Fake transcript|audio-bytes-private|RIFF/);
+  });
+});
+
+describe("spoken language hint (issue #122)", () => {
+  const sentLanguages = () => fake.calls.map((c) => c.language);
+
+  it("hands every chunk the language in force for the job, so the provider can follow the owner's language", async () => {
+    await capture("A", "m1", 2);
+    await stop();
+    await inLocale("fr", run);
+    expect(sentLanguages()).toEqual(["fr", "fr"]);
+  });
+
+  it("follows English as well", async () => {
+    await capture("A", "m1", 1);
+    await stop();
+    await inLocale("en", run);
+    expect(sentLanguages()).toEqual(["en"]);
   });
 });
 

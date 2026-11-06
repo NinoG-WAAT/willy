@@ -17,6 +17,7 @@ import type { SummarizerInput } from "../../../src/domain/notes/summary";
 import { DEFAULT_TEMPLATE } from "../../../src/domain/notes/template";
 import { segmentTextContext } from "../../../src/domain/transcription/encryption-context";
 import type { Summarizer } from "../../../src/ports/summarizer";
+import { inLocale } from "../../support/locale";
 import {
   T0,
   attendee,
@@ -491,6 +492,83 @@ describe("summary generation: failures", () => {
     await run();
     expect(job()).toMatchObject({ status: "failed", last_error_code: "transcript_unreadable" });
     expect(meetingStatus()).toBe("failed");
+  });
+});
+
+describe("summary generation: the owner's language (issue #122)", () => {
+  const sections = () =>
+    db.prepare("SELECT heading, body FROM note_section ORDER BY position").all();
+
+  it("tells the summarizer the language in force for the job: English, then French", async () => {
+    await transcript("A", "m1", MEETING_LINES);
+    await inLocale("en", run);
+    expect(inputs[0]?.language).toBe("en");
+
+    db.prepare("UPDATE meeting SET status = 'processing' WHERE id = 'm1'").run();
+    db.prepare("DELETE FROM note").run();
+    db.prepare("UPDATE job SET status = 'pending', attempts = 0, next_run_at = NULL").run();
+    await inLocale("fr", run);
+    expect(inputs[1]?.language).toBe("fr");
+  });
+
+  it("falls back to the built-in French layout for an owner with no template", async () => {
+    await transcript("A", "m1", MEETING_LINES);
+    await inLocale("fr", run);
+    const french = ["Résumé", "Discussion", "Prochaines étapes"];
+    expect(inputs[0]?.template?.sections.map((s) => s.heading)).toEqual(french);
+    expect(sections().map((s) => s["heading"])).toEqual(french);
+  });
+
+  it("never rewrites the headings of a template the owner wrote, whatever the language", async () => {
+    await transcript("A", "m1", MEETING_LINES);
+    const stored = JSON.stringify([{ heading: "Summary", prompt: "p" }]);
+    insert(db, "template", {
+      id: "t-own",
+      owner_id: "A",
+      name: "Mine",
+      sections_json: stored,
+      is_default: 1,
+      created_at: T0,
+      updated_at: T0,
+    });
+    await inLocale("fr", run);
+    expect(inputs[0]?.template?.sections.map((s) => s.heading)).toEqual(["Summary"]);
+    expect(sections().map((s) => s["heading"])).toEqual(["Summary"]);
+    expect(db.prepare("SELECT sections_json FROM template WHERE id = 't-own'").get()).toEqual({
+      sections_json: stored,
+    });
+  });
+
+  it("stays grounded in French: invented attendees and ungrounded sections are still dropped", async () => {
+    await transcript("A", "m1", MEETING_LINES);
+    fake.script.respondOnce({
+      sections: [
+        { heading: "Résumé", body: "Réel.", source_from: 0, source_to: 1 },
+        { heading: "Discussion", body: "Inventé.", source_from: 777, source_to: 777 },
+      ],
+      decisions: [{ text: "Verser 1 000 000", source_from: 4242, source_to: 4242 }],
+      action_items: [
+        {
+          text: "Payer",
+          assignee_id: "evil@attacker.test",
+          due_date: null,
+          source_from: 1,
+          source_to: 1,
+        },
+      ],
+    });
+    await inLocale("fr", run);
+    expect(sections().map((s) => s["heading"])).toEqual(["Résumé"]);
+    expect(db.prepare("SELECT text FROM decision").all()).toEqual([]);
+    expect(db.prepare("SELECT assignee_attendee_id FROM action_item").all()).toEqual([
+      { assignee_attendee_id: null },
+    ]);
+  });
+
+  it("sends transcript text untouched: a line that looks like a message key is data, never looked up", async () => {
+    await transcript("A", "m1", ["Summary", "Next steps", "Discussion"]);
+    await inLocale("fr", run);
+    expect(inputs[0]?.segments.map((s) => s.text)).toEqual(["Summary", "Next steps", "Discussion"]);
   });
 });
 

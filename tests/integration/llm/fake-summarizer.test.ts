@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createFakeSummarizer } from "../../../src/adapters/llm/fake-summarizer";
+import { inLocale } from "../../support/locale";
 import { INJECTION, sampleInput, summarizerContract } from "./summarizer.contract";
 
 summarizerContract("fake", () => {
@@ -97,6 +98,31 @@ describe("fake summarizer specifics", () => {
     const withTerms = await fake.summarize(sampleInput({ vocabulary: ["SALSA", "Roadmap"] }));
     expect(withTerms).toEqual(plain);
     expect(fake.calls).toEqual([{ segments: 3, attendees: 2, only: null }]);
+  });
+
+  it("writes its stand-in text in the language it is given, whatever the ambient locale", async () => {
+    const fake = createFakeSummarizer();
+    const english = await inLocale("fr", () => fake.summarize(sampleInput({ language: "en" })));
+    const french = await inLocale("en", () => fake.summarize(sampleInput({ language: "fr" })));
+    expect(english.ok && english.value.sections[0]).toMatchObject({
+      heading: "Summary",
+      body: "Covers 3 transcript segments between positions 0 and 10000.",
+    });
+    expect(french.ok && french.value.sections[0]).toMatchObject({
+      heading: "Résumé",
+      body: "Couvre 3 segments de transcription entre les positions 0 et 10000.",
+    });
+  });
+
+  it("keeps the headings of the template it is given, in any language", async () => {
+    const fake = createFakeSummarizer();
+    const result = await fake.summarize(
+      sampleInput({
+        language: "fr",
+        template: { sections: [{ heading: "Summary", prompt: "p" }] },
+      }),
+    );
+    expect(result.ok && result.value.sections.map((s) => s.heading)).toEqual(["Summary"]);
   });
 
   it("records call shapes, never transcript text", async () => {

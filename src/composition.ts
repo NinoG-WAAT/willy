@@ -5,6 +5,7 @@ import { createChunkCipher } from "./adapters/crypto/chunk-cipher";
 import { DEV_FILE_URL_SECRET, DEV_KEYRING } from "./adapters/crypto/dev-keyring";
 import { createEnvelopeCipher, parseKeyring } from "./adapters/crypto/envelope-cipher";
 import { readI18nConfig, type I18nConfig } from "./adapters/i18n/config";
+import { withOwnerLocale } from "./adapters/i18n/job-locale";
 import { installI18n } from "./adapters/i18n/request-locale";
 import { createJsonLogger } from "./adapters/logging/json-logger";
 import { createFileTokenService, type FileTokenService } from "./adapters/crypto/file-tokens";
@@ -354,18 +355,23 @@ function getRunnerDeps(): RunnerDeps {
 /** Job kinds with a handler: transcribe, summarize, retention and delete. */
 function getJobHandlers(): JobHandler[] {
   const deps = getTranscribeDeps();
+  const languages = new SqliteLanguageRepository(getDatabase());
   return [
-    transcribeJobHandler(deps),
-    summaryJobHandler({
-      meetings: deps.meetings,
-      notes: new SqliteNoteRepository(getDatabase(), new RandomIds()),
-      templates: new SqliteTemplateRepository(getDatabase()),
-      vocabulary: deps.vocabulary,
-      summarizer: getSummarizer(),
-      textCipher: deps.textCipher,
-      clock: deps.clock,
-      logger: deps.logger,
-    }),
+    // Transcription and summaries run in the owner's language (docs/I18N.md section 3a).
+    withOwnerLocale(transcribeJobHandler(deps), languages),
+    withOwnerLocale(
+      summaryJobHandler({
+        meetings: deps.meetings,
+        notes: new SqliteNoteRepository(getDatabase(), new RandomIds()),
+        templates: new SqliteTemplateRepository(getDatabase()),
+        vocabulary: deps.vocabulary,
+        summarizer: getSummarizer(),
+        textCipher: deps.textCipher,
+        clock: deps.clock,
+        logger: deps.logger,
+      }),
+      languages,
+    ),
     retentionJobHandler({
       chunks: deps.chunks,
       chunkStore: deps.chunkStore,

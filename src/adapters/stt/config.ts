@@ -9,8 +9,11 @@ export type WhisperSttConfig = {
   ffmpegBin: string;
   /** Absolute path of a ggml model file. */
   modelPath: string;
-  /** Spoken language code, or "auto". */
-  language: string;
+  /**
+   * Spoken language code or "auto", when STT_WHISPER_LANGUAGE is set. Null when it is unset:
+   * each chunk then follows the owner's language (see TranscribeRequest.language).
+   */
+  language: string | null;
   timeoutMs: number;
   /** Most Whisper runs allowed at once (a laptop CPU is the bottleneck). */
   maxConcurrency: number;
@@ -74,8 +77,8 @@ function readWhisperConfig(env: EnvLike): Result<WhisperSttConfig, string> {
   const ffmpegBin = readCommand(env, "STT_FFMPEG_BIN", "ffmpeg");
   if (!ffmpegBin.ok) return ffmpegBin;
 
-  const language = env["STT_WHISPER_LANGUAGE"] || "auto";
-  if (!LANGUAGE.test(language)) {
+  const language = env["STT_WHISPER_LANGUAGE"] || null;
+  if (language !== null && !LANGUAGE.test(language)) {
     return err("STT_WHISPER_LANGUAGE must be 'auto' or a language code such as 'en' or 'fr'");
   }
 

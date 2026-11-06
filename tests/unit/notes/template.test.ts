@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TEMPLATE,
   TEMPLATE_LIMITS,
+  builtinTemplate,
   normalizeTemplate,
 } from "../../../src/domain/notes/template";
+import { inLocale } from "../../support/locale";
 
 const valid = {
   name: "  Weekly   sync ",
@@ -107,6 +109,44 @@ describe("normalizeTemplate", () => {
       sections: [{ heading: "<script>alert(1)</script>", prompt: "<img src=x onerror=1>" }],
     });
     expect(result.ok && result.value.sections[0]?.heading).toBe("<script>alert(1)</script>");
+  });
+});
+
+describe("builtinTemplate: default layout per language (issue #122)", () => {
+  it("is the English layout in English, unchanged", () => {
+    const template = inLocale("en", () => builtinTemplate());
+    expect(template.sections.map((s) => s.heading)).toEqual([
+      "Summary",
+      "Discussion",
+      "Next steps",
+    ]);
+    expect(template).toEqual(DEFAULT_TEMPLATE);
+  });
+
+  it("is Résumé, Discussion, Prochaines étapes in French, with prompts in French", () => {
+    const template = inLocale("fr", () => builtinTemplate());
+    expect(template.sections.map((s) => s.heading)).toEqual([
+      "Résumé",
+      "Discussion",
+      "Prochaines étapes",
+    ]);
+    expect(template.sections.map((s) => s.prompt)).toEqual([
+      "Résumez ce qui a été discuté en quelques phrases.",
+      "Listez les principaux sujets et ce qui a été dit sur chacun.",
+      "Indiquez la suite prévue et les personnes concernées.",
+    ]);
+  });
+
+  it("is a valid template in both languages, so the fallback can never break summaries", () => {
+    for (const locale of ["en", "fr"] as const) {
+      const template = inLocale(locale, () => builtinTemplate());
+      expect(normalizeTemplate({ ...template, isDefault: false }).ok).toBe(true);
+    }
+  });
+
+  it("follows the language in force at each call, never the one at import time", () => {
+    expect(inLocale("fr", () => builtinTemplate()).sections[0]?.heading).toBe("Résumé");
+    expect(inLocale("en", () => builtinTemplate()).sections[0]?.heading).toBe("Summary");
   });
 });
 

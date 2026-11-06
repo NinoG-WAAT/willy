@@ -1,5 +1,6 @@
 import { canViewMeeting } from "../../domain/authz/predicates";
 import { chunkStartOffsets, shiftToMeetingTime } from "../../domain/transcription/chunk-offsets";
+import { currentLocale } from "../../i18n/translate";
 import { correctWithVocabulary } from "../../domain/transcription/vocabulary-correction";
 import { segmentTextContext } from "../../domain/transcription/encryption-context";
 import type { ChunkRepository, ChunkRow } from "../../ports/chunk-repository";
@@ -194,6 +195,7 @@ async function transcribeChunk(
     audio: stored.value.audio,
     contentType: stored.value.contentType,
     vocabulary,
+    language: currentLocale(),
   });
   if (!result.ok) {
     return { seq: chunk.seq, code: `stt_${result.error.kind}`, retryable: result.error.retryable };
