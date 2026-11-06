@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { CONSENT_STATEMENT } from "../../../src/domain/meetings/consent-statement";
 import {
-  CONSENT_STATEMENT,
   CONSENT_STATEMENT_VERSION,
   archiveMeeting,
   completeDeletion,

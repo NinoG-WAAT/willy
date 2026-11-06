@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { normalizeNewMeeting, type RawNewMeeting } from "../../domain/meetings/new-meeting";
 import { err, ok, type Result } from "../../domain/platform/result";
 import type { MeetingCreation } from "../../ports/meeting-creation";
@@ -29,7 +30,7 @@ export async function createMeeting(
     return err({
       kind: "invalid",
       errors: [
-        { field: "submission_id", message: "This form expired. Reload the page and try again." },
+        { field: "submission_id", message: t("This form expired. Reload the page and try again.") },
       ],
     });
   }
@@ -44,7 +45,7 @@ export async function createMeeting(
   if (!template.ok) {
     return err({
       kind: "invalid",
-      errors: [{ field: "template_id", message: "Choose one of your own templates." }],
+      errors: [{ field: "template_id", message: t("Choose one of your own templates.") }],
     });
   }
 

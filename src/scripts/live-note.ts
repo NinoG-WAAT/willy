@@ -1,4 +1,5 @@
 import "./i18n";
+import { t, tn } from "./i18n";
 import { formatElapsed } from "./capture/elapsed";
 import { inputLevel } from "./capture/level";
 import { setupNotesAutosave } from "./capture/notes-autosave";
@@ -102,8 +103,9 @@ function setup(root: HTMLElement): void {
       startButton.disabled = true;
       const note = document.createElement("p");
       note.className = "alert";
-      note.textContent =
-        "This browser cannot record audio, so capture cannot start here. You can still take notes, or open this note in a current browser.";
+      note.textContent = t(
+        "This browser cannot record audio, so capture cannot start here. You can still take notes, or open this note in a current browser.",
+      );
       startForm.append(note);
     } else if (consent) {
       // Hardening only: the server refuses to start without the tick regardless of this button.
@@ -158,19 +160,23 @@ function setup(root: HTMLElement): void {
         nextSeq = Math.max(nextSeq, event.to + 1);
       } else if (event.kind === "stalled") {
         showProblem(
-          "Audio is waiting to upload. Check your connection. Your notes are safe and nothing recorded so far has been lost.",
+          t(
+            "Audio is waiting to upload. Check your connection. Your notes are safe and nothing recorded so far has been lost.",
+          ),
           { upload: true },
         );
       } else if (event.kind === "rejected") {
         showProblem(
-          "The server did not accept part of the audio, so that part is missing from the transcript. Recording continues.",
+          t(
+            "The server did not accept part of the audio, so that part is missing from the transcript. Recording continues.",
+          ),
           {},
         );
       } else if (event.kind === "closed") {
         void closeRecording();
-        setDetail("Capture has ended on the server. Reload the page to see the current state.");
+        setDetail(t("Capture has ended on the server. Reload the page to see the current state."));
         showProblem(
-          "This note is no longer capturing, so no more audio is accepted. Reload the page.",
+          t("This note is no longer capturing, so no more audio is accepted. Reload the page."),
           {},
         );
       } else if (event.kind === "uploaded" && queue.state().stalled === 0) {
@@ -183,10 +189,18 @@ function setup(root: HTMLElement): void {
     if (!uploadStatus) return;
     const { pending, stalled, uploaded } = queue.state();
     if (stalled > 0)
-      uploadStatus.textContent = `Upload problem: ${String(stalled)} audio part(s) are waiting.`;
+      uploadStatus.textContent = tn(
+        "Upload problem: {n} audio part is waiting.",
+        "Upload problem: {n} audio parts are waiting.",
+        stalled,
+      );
     else if (pending > 0)
-      uploadStatus.textContent = `Uploading audio… ${String(pending)} part(s) waiting.`;
-    else if (uploaded > 0) uploadStatus.textContent = "All recorded audio is uploaded.";
+      uploadStatus.textContent = tn(
+        "Uploading audio… {n} part waiting.",
+        "Uploading audio… {n} parts waiting.",
+        pending,
+      );
+    else if (uploaded > 0) uploadStatus.textContent = t("All recorded audio is uploaded.");
   }
 
   // ---------------------------------------------------------------- recording
@@ -200,33 +214,37 @@ function setup(root: HTMLElement): void {
   function micMessage(error: unknown): string {
     const name = error instanceof DOMException ? error.name : "";
     if (name === "NotAllowedError" || name === "SecurityError") {
-      return "Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again. Your notes are not affected.";
+      return t(
+        "Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again. Your notes are not affected.",
+      );
     }
     if (name === "NotFoundError" || name === "OverconstrainedError") {
-      return "No microphone was found. Connect one, then try again.";
+      return t("No microphone was found. Connect one, then try again.");
     }
-    return "The microphone could not be started. Make sure no other app is using it, then try again.";
+    return t(
+      "The microphone could not be started. Make sure no other app is using it, then try again.",
+    );
   }
 
   async function startRecording(): Promise<void> {
     clearProblem();
-    setDetail("Starting the microphone…");
+    setDetail(t("Starting the microphone…"));
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true },
       });
     } catch (error) {
-      setDetail("Not recording in this browser.");
+      setDetail(t("Not recording in this browser."));
       showProblem(micMessage(error), { mic: true, stopAnyway: false });
-      if (retryMic) retryMic.textContent = "Try the microphone again";
+      if (retryMic) retryMic.textContent = t("Try the microphone again");
       return;
     }
     stream.getAudioTracks().forEach((track) => {
       track.addEventListener("ended", () => {
         if (recorder) {
           void closeRecording();
-          setDetail("Not recording in this browser: the microphone was disconnected.");
-          showProblem("The microphone stopped. Reconnect it, then try again.", { mic: true });
+          setDetail(t("Not recording in this browser: the microphone was disconnected."));
+          showProblem(t("The microphone stopped. Reconnect it, then try again."), { mic: true });
         }
       });
     });
@@ -236,7 +254,7 @@ function setup(root: HTMLElement): void {
       renderUploadStatus();
     });
     runStartedAt = performance.now();
-    setDetail("The microphone is on in this browser.");
+    setDetail(t("The microphone is on in this browser."));
     startTimer();
     startLevelMeter(stream);
   }
@@ -275,8 +293,8 @@ function setup(root: HTMLElement): void {
         audioContext?.state !== "running"
           ? ""
           : now - quietSince > 5_000
-            ? "No sound detected. Check that the right microphone is selected."
-            : "The microphone is picking up sound.";
+            ? t("No sound detected. Check that the right microphone is selected.")
+            : t("The microphone is picking up sound.");
       if (message !== lastMessage && levelText) {
         levelText.textContent = message;
         lastMessage = message;
@@ -335,11 +353,15 @@ function setup(root: HTMLElement): void {
           pendingForm = form;
           renderUploadStatus();
           showProblem(
-            `${String(pending + stalled)} audio part(s) are not uploaded yet. Retry the upload before ${action === "stop" ? "stopping" : "pausing"}, or continue anyway and lose that audio.`,
+            tn(
+              "{n} audio part is not uploaded yet. Retry the upload, or continue anyway and lose that audio.",
+              "{n} audio parts are not uploaded yet. Retry the upload, or continue anyway and lose that audio.",
+              pending + stalled,
+            ),
             { upload: true, stopAnyway: true },
           );
           if (stopAnyway)
-            stopAnyway.textContent = action === "stop" ? "Stop anyway" : "Pause anyway";
+            stopAnyway.textContent = action === "stop" ? t("Stop anyway") : t("Pause anyway");
           return;
         }
         flag.clear();
@@ -385,20 +407,24 @@ function setup(root: HTMLElement): void {
   // ---------------------------------------------------------------- initial state
   if (status === "capturing" && banner) {
     if (!supportsRecording()) {
-      setDetail("Not recording in this browser: it cannot record audio.");
+      setDetail(t("Not recording in this browser: it cannot record audio."));
       showProblem(
-        "This browser cannot record audio. Open this note in a current browser to continue capturing, or stop capture.",
+        t(
+          "This browser cannot record audio. Open this note in a current browser to continue capturing, or stop capture.",
+        ),
         {},
       );
     } else if (flag.get()) {
       void startRecording();
     } else {
-      setDetail("Capture is running, but this browser is not recording.");
+      setDetail(t("Capture is running, but this browser is not recording."));
       showProblem(
-        "This note is being captured on another device or tab, or recording stopped here after a reload. Record from this browser to continue.",
+        t(
+          "This note is being captured on another device or tab, or recording stopped here after a reload. Record from this browser to continue.",
+        ),
         { mic: true },
       );
-      if (retryMic) retryMic.textContent = "Record from this browser";
+      if (retryMic) retryMic.textContent = t("Record from this browser");
     }
   }
 }

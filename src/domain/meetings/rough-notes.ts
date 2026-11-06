@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import type { FieldError } from "../platform/text";
 
@@ -9,7 +10,8 @@ export const MAX_ROUGH_NOTES_CHARS = 100_000;
  * endings and control characters are normalized. Too-long notes are rejected, never truncated.
  */
 export function normalizeRoughNotes(raw: unknown): Result<string, FieldError> {
-  if (typeof raw !== "string") return err({ field: "rough_notes", message: "Notes must be text." });
+  if (typeof raw !== "string")
+    return err({ field: "rough_notes", message: t("Notes must be text.") });
   const notes = raw
     .normalize("NFC")
     .replace(/\r\n?/g, "\n")
@@ -17,7 +19,7 @@ export function normalizeRoughNotes(raw: unknown): Result<string, FieldError> {
   if (notes.length > MAX_ROUGH_NOTES_CHARS) {
     return err({
       field: "rough_notes",
-      message: `Notes can be at most ${String(MAX_ROUGH_NOTES_CHARS)} characters.`,
+      message: t("Notes can be at most {max} characters.", { max: String(MAX_ROUGH_NOTES_CHARS) }),
     });
   }
   return ok(notes);

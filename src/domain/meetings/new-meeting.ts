@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import { normalizeLine, normalizeMultiline, type FieldError } from "../platform/text";
 import { zonedLocalToUtc } from "../platform/zoned-time";
@@ -45,15 +46,26 @@ export function parseAttendeeLines(text: string): { name: string; email: string 
     });
 }
 
-const ZONED_MESSAGES = {
-  invalid_date: { field: "date", message: "Enter a valid date." },
-  invalid_time: { field: "time", message: "Enter a valid time." },
-  invalid_timezone: { field: "timezone", message: "Choose a time zone from the list." },
-  nonexistent_time: {
-    field: "time",
-    message: "That time does not exist in this time zone (clocks move forward). Pick another time.",
-  },
-} as const;
+/** A function, not a table: the message is written in the language of the request being served. */
+function zonedError(
+  code: "invalid_date" | "invalid_time" | "invalid_timezone" | "nonexistent_time",
+): FieldError {
+  switch (code) {
+    case "invalid_date":
+      return { field: "date", message: t("Enter a valid date.") };
+    case "invalid_time":
+      return { field: "time", message: t("Enter a valid time.") };
+    case "invalid_timezone":
+      return { field: "timezone", message: t("Choose a time zone from the list.") };
+    case "nonexistent_time":
+      return {
+        field: "time",
+        message: t(
+          "That time does not exist in this time zone (clocks move forward). Pick another time.",
+        ),
+      };
+  }
+}
 
 /**
  * Validates and normalizes the new-note form. Local date and time are interpreted in the chosen
@@ -63,11 +75,13 @@ export function normalizeNewMeeting(raw: RawNewMeeting): Result<NewMeetingInput,
   const errors: FieldError[] = [];
 
   const title = normalizeLine(raw.title) ?? "";
-  if (title === "") errors.push({ field: "title", message: "Enter a title for the meeting." });
+  if (title === "") errors.push({ field: "title", message: t("Enter a title for the meeting.") });
   else if (title.length > NEW_MEETING_LIMITS.title) {
     errors.push({
       field: "title",
-      message: `Titles can be at most ${String(NEW_MEETING_LIMITS.title)} characters.`,
+      message: t("Titles can be at most {max} characters.", {
+        max: String(NEW_MEETING_LIMITS.title),
+      }),
     });
   }
 
@@ -75,7 +89,9 @@ export function normalizeNewMeeting(raw: RawNewMeeting): Result<NewMeetingInput,
   if (agendaText.length > NEW_MEETING_LIMITS.agenda) {
     errors.push({
       field: "agenda",
-      message: `The agenda can be at most ${String(NEW_MEETING_LIMITS.agenda)} characters.`,
+      message: t("The agenda can be at most {max} characters.", {
+        max: String(NEW_MEETING_LIMITS.agenda),
+      }),
     });
   }
 
@@ -93,7 +109,10 @@ export function normalizeNewMeeting(raw: RawNewMeeting): Result<NewMeetingInput,
   ) {
     errors.push({
       field: "duration",
-      message: `Duration must be between ${String(NEW_MEETING_LIMITS.durationMin)} and ${String(NEW_MEETING_LIMITS.durationMax)} minutes.`,
+      message: t("Duration must be between {min} and {max} minutes.", {
+        min: String(NEW_MEETING_LIMITS.durationMin),
+        max: String(NEW_MEETING_LIMITS.durationMax),
+      }),
     });
   }
 
@@ -106,9 +125,9 @@ export function normalizeNewMeeting(raw: RawNewMeeting): Result<NewMeetingInput,
     zonedLocalToUtc("2026-01-01", time, "UTC"),
     zonedLocalToUtc("2026-01-01", "00:00", timezone),
   ];
-  for (const part of parts) if (!part.ok) errors.push(ZONED_MESSAGES[part.error]);
+  for (const part of parts) if (!part.ok) errors.push(zonedError(part.error));
   const start = parts.every((p) => p.ok) ? zonedLocalToUtc(date, time, timezone) : null;
-  if (start && !start.ok) errors.push(ZONED_MESSAGES[start.error]);
+  if (start && !start.ok) errors.push(zonedError(start.error));
 
   const attendeeText = typeof raw.attendees === "string" ? raw.attendees : "";
   const attendees = normalizeAttendees(parseAttendeeLines(attendeeText));

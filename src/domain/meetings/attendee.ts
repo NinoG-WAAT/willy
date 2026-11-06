@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import { normalizeLine, type FieldError } from "../platform/text";
 
@@ -22,26 +23,30 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 export function normalizeAttendees(raw: unknown): Result<Attendee[], FieldError> {
   const fail = (message: string) => err({ field: "attendees", message });
-  if (!Array.isArray(raw)) return fail("Attendees must be a list.");
+  if (!Array.isArray(raw)) return fail(t("Attendees must be a list."));
   if (raw.length > ATTENDEE_LIMITS.count) {
-    return fail(`Add at most ${String(ATTENDEE_LIMITS.count)} attendees.`);
+    return fail(t("Add at most {max} attendees.", { max: String(ATTENDEE_LIMITS.count) }));
   }
   const byEmail = new Set<string>();
   const out: Attendee[] = [];
   for (const item of raw) {
     if (!isRecord(item) || !Object.keys(item).every((k) => ATTENDEE_KEYS.has(k))) {
-      return fail("Unexpected attendee data.");
+      return fail(t("Unexpected attendee data."));
     }
     const name = normalizeLine(item["name"]) ?? "";
     const rawEmail =
       item["email"] === null || item["email"] === undefined ? "" : normalizeLine(item["email"]);
-    if (rawEmail === null) return fail("Attendee emails must be text.");
+    if (rawEmail === null) return fail(t("Attendee emails must be text."));
     const email = rawEmail.toLowerCase();
     if (email !== "" && (email.length > ATTENDEE_LIMITS.email || !EMAIL.test(email))) {
-      return fail(`"${email.slice(0, 40)}" is not a valid email address.`);
+      return fail(t('"{email}" is not a valid email address.', { email: email.slice(0, 40) }));
     }
     if (name.length > ATTENDEE_LIMITS.name) {
-      return fail(`Attendee names can be at most ${String(ATTENDEE_LIMITS.name)} characters.`);
+      return fail(
+        t("Attendee names can be at most {max} characters.", {
+          max: String(ATTENDEE_LIMITS.name),
+        }),
+      );
     }
     if (name === "" && email === "") continue;
     if (email !== "") {
