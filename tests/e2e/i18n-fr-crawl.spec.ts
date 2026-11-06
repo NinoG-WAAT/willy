@@ -559,7 +559,7 @@ test.describe("search and settings", () => {
     const response = await page.request.get("/diagnostics");
     expect(response.status()).toBe(200);
     expect(response.headers()["content-type"]).toContain("application/json");
-    expect(Object.keys(await response.json()).length).toBeGreaterThan(0);
+    expect(Object.keys((await response.json()) as object).length).toBeGreaterThan(0);
   });
 });
 
