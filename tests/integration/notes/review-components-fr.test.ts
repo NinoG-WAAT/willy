@@ -100,6 +100,12 @@ describe("ReviewActionItems in French", () => {
     expect(html).toContain("Ada Lovelace");
   });
 
+  it("names the state of a read-only action in French", async () => {
+    const html = await render("ReviewActionItems", props({ editable: false }));
+    expect(html).toContain("À faire");
+    expect(html).not.toContain("To do");
+  });
+
   it("says overdue in words, in French", async () => {
     const html = await render(
       "ReviewActionItems",

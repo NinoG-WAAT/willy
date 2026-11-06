@@ -220,7 +220,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                     </button>
                   </form>
                 ) : (
-                  <span class="rl-state">{isDone ? t("Done") : t("Open")}</span>
+                  <span class="rl-state">{isDone ? t("Done") : t("To do")}</span>
                 )}
                 <span class="rl-text">
                   {isDone && <span class="sr-only">{t("Done:")} </span>}

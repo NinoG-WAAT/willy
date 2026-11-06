@@ -1,5 +1,4 @@
 import "./i18n";
-import { t } from "./i18n";
 import { formatInstant } from "../components/format-instant";
 import { t } from "../i18n/translate";
 import {

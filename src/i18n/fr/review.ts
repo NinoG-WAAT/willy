@@ -121,7 +121,7 @@ export const fr: Record<string, string> = {
   "Confirm: remove action item": "Confirmer : retirer l’action",
   "Mark done: {text}": "Marquer comme terminée : {text}",
   "Save status": "Enregistrer l’état",
-  Open: "À faire",
+  "To do": "À faire",
   "Done:": "Terminé :",
   "Search match": "Résultat de recherche",
   "Owner:": "Responsable :",
