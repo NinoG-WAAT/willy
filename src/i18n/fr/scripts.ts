@@ -93,6 +93,89 @@ export const fr: Record<string, string> = {
   "Deletion with reference {id}: {label}. {detail}":
     "Suppression de référence {id} : {label}. {detail}",
   "Next attempt: {when}": "Prochaine tentative : {when}",
+
+  // src/domain/progress/text.ts (job progress, also rendered by the review page)
+  "Not started": "Pas encore démarré",
+  "Waiting to start": "En attente de démarrage",
+  Running: "En cours",
+  "Retrying (attempt {attempt} of {max})": "Nouvel essai (tentative {attempt} sur {max})",
+  "Failed after {n} attempt": "Échec après {n} tentative",
+  "Failed after {n} attempts": "Échec après {n} tentatives",
+  "Failed after {n} attempt ({code})": "Échec après {n} tentative ({code})",
+  "Failed after {n} attempts ({code})": "Échec après {n} tentatives ({code})",
+  // Same wording as the status words of the notes (src/domain/meetings/stage.ts, lists package).
+  Done: "Terminée",
+  "Transcript: {status}": "Transcription\u00a0: {status}",
+  "Summary: {status}": "Résumé\u00a0: {status}",
+  "Your draft is ready.": "Votre brouillon est prêt.",
+  "Your draft is ready. Use Check again to open it.":
+    "Votre brouillon est prêt. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour l’ouvrir.",
+  "Processing did not finish. Your rough notes are kept.":
+    "Le traitement ne s’est pas terminé. Vos notes brutes sont conservées.",
+  "Processing did not finish. Use Check again to see what happened and retry. Your rough notes are kept.":
+    "Le traitement ne s’est pas terminé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir ce qui s’est passé et réessayer. Vos notes brutes sont conservées.",
+  "This note has moved on. Use Check again to see where it is now.":
+    "Cette note a avancé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir où elle en est.",
+  "Regeneration: {status}.": "Régénération\u00a0: {status}.",
+  "The new draft of the note is ready. Use Check again to see it.":
+    "Le nouveau brouillon de la note est prêt. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour le voir.",
+  "The new draft of this section is ready. Use Check again to see it.":
+    "Le nouveau brouillon de cette section est prêt. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour le voir.",
+  "It did not finish. Your previous draft is kept. Use Check again to see the details and try again.":
+    "Il ne s’est pas terminé. Votre brouillon précédent est conservé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir les détails et réessayer.",
+  "It did not finish. Use Check again to see the details and try again.":
+    "Il ne s’est pas terminé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir les détails et réessayer.",
+  "{title}: status changed to {status}.": "{title}\u00a0: statut passé à «\u00a0{status}\u00a0».",
+
+  // src/domain/progress/handoff.ts (the live note after Stop, also rendered by the page)
+  "Draft ready, opening it.": "Brouillon prêt, ouverture en cours.",
+  "Draft ready. Use the Open the draft button.":
+    "Brouillon prêt. Utilisez le bouton «\u00a0Ouvrir le brouillon\u00a0».",
+  "Recording finished. Preparing the transcript.":
+    "Enregistrement terminé. Préparation de la transcription.",
+  "Recording finished. A draft is ready for review.":
+    "Enregistrement terminé. Un brouillon est prêt à être relu.",
+  "Recording finished, but processing needs attention.":
+    "Enregistrement terminé, mais le traitement nécessite votre attention.",
+  "Transcribing: {done} of {n} part": "Transcription\u00a0: {done} sur {n} partie",
+  "Transcribing: {done} of {n} parts": "Transcription\u00a0: {done} sur {n} parties",
+  "Transcribing: Done, {n} part": "Transcription\u00a0: Terminée, {n} partie",
+  "Transcribing: Done, {n} parts": "Transcription\u00a0: Terminée, {n} parties",
+  "Transcribing: {status}": "Transcription\u00a0: {status}",
+  "Transcribing: Done": "Transcription\u00a0: Terminée",
+  "Writing the draft: Waiting for the transcript":
+    "Rédaction du brouillon\u00a0: En attente de la transcription",
+  "Writing the draft: Done": "Rédaction du brouillon\u00a0: Terminée",
+  "Writing the draft: {status}": "Rédaction du brouillon\u00a0: {status}",
+  "{n} part could not be transcribed yet.": "{n} partie n’a pas encore pu être transcrite.",
+  "{n} parts could not be transcribed yet.": "{n} parties n’ont pas encore pu être transcrites.",
+  "Retrying automatically (attempt {attempt} of {max}). Parts already done are kept.":
+    "Nouvel essai automatique (tentative {attempt} sur {max}). Les parties déjà traitées sont conservées.",
+  "{n} part could not be transcribed.": "{n} partie n’a pas pu être transcrite.",
+  "{n} parts could not be transcribed.": "{n} parties n’ont pas pu être transcrites.",
+  "{n} part is kept.": "{n} partie est conservée.",
+  "{n} parts are kept.": "{n} parties sont conservées.",
+  "Transcript done. Writing the draft.": "Transcription terminée. Rédaction du brouillon en cours.",
+  "Processing needs attention. Your rough notes are kept. Use the See what happened and retry button.":
+    "Le traitement nécessite votre attention. Vos notes brutes sont conservées. Utilisez le bouton «\u00a0Voir ce qui s’est passé et réessayer\u00a0».",
+  "Live updates stopped because the status could not be checked. Use Check again to see the latest.":
+    "Les mises à jour en direct se sont arrêtées, car l’état n’a pas pu être vérifié. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir la dernière version.",
+  "Live updates stopped after a while. Use Check again to see the latest.":
+    "Les mises à jour en direct se sont arrêtées au bout d’un moment. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir la dernière version.",
+  "Live updates stopped. Use Check again, or sign in again, to see the latest.":
+    "Les mises à jour en direct se sont arrêtées. Utilisez «\u00a0Vérifier à nouveau\u00a0», ou connectez-vous de nouveau, pour voir la dernière version.",
+
+  // src/scripts/job-progress.ts
+  "Draft ready: {title}": "Brouillon prêt\u00a0: {title}",
+  "A meeting": "Une réunion",
+
+  // src/scripts/review.ts
+  "The cited transcript lines are not available.":
+    "Les lignes de transcription citées ne sont pas disponibles.",
+  "{n} cited transcript line is marked.": "{n} ligne de transcription citée est marquée.",
+  "{n} cited transcript lines are marked.": "{n} lignes de transcription citées sont marquées.",
+  "{n} line selected.": "{n} ligne sélectionnée.",
+  "{n} lines selected.": "{n} lignes sélectionnées.",
 };
 
 export const sameInFrench: Record<string, string> = {};

@@ -1,4 +1,5 @@
 ---
+import { t } from "../../i18n/translate";
 import type { ReviewDecision } from "../../ports/review-repository";
 import ReviewSource from "./ReviewSource.astro";
 import type { ErrorsFor, IsHit, SourceLinkFor, Typed } from "./types";
@@ -29,8 +30,8 @@ const addErrors = errorsFor("add_decision", "text");
 ---
 
 <section class="panel review-lists" id="decisions" aria-labelledby="decisions-heading">
-  <h2 id="decisions-heading">Decisions</h2>
-  {decisions.length === 0 && <p>No decisions were recorded.</p>}
+  <h2 id="decisions-heading">{t("Decisions")}</h2>
+  {decisions.length === 0 && <p>{t("No decisions were recorded.")}</p>}
   {decisions.length > 0 && (
     <ul class="rl-list rl-bullets">
       {decisions.map((d) => {
@@ -48,7 +49,7 @@ const addErrors = errorsFor("add_decision", "text");
                   <input type="hidden" name="intent" value="edit_decision" />
                   <input type="hidden" name="id" value={d.id} />
                   <div class="field field-wide">
-                    <label for={`decision-text-${d.id}`}>Decision</label>
+                    <label for={`decision-text-${d.id}`}>{t("Decision")}</label>
                     <input
                       id={`decision-text-${d.id}`}
                       name="text"
@@ -67,25 +68,27 @@ const addErrors = errorsFor("add_decision", "text");
                   </div>
                   <div class="row-actions">
                     <button class="button" type="submit">
-                      Save decision<span class="sr-only">: {d.text}</span>
+                      {t("Save decision")}
+                      <span class="sr-only">{t(": {text}", { text: d.text })}</span>
                     </button>
                     <a href={`${base}#decision-${d.id}`}>
-                      Cancel<span class="sr-only"> editing this decision</span>
+                      {t("Cancel")}
+                      <span class="sr-only"> {t("editing this decision")}</span>
                     </a>
                   </div>
                 </form>
                 <details class="rl-remove">
-                  <summary>Remove this decision</summary>
+                  <summary>{t("Remove this decision")}</summary>
                   <form method="post" action={base} class="form">
                     <input type="hidden" name="csrf_token" value={csrf} />
                     <input type="hidden" name="intent" value="delete_decision" />
                     <input type="hidden" name="id" value={d.id} />
                     <p class="help">
-                      Removes only this decision from the draft. The transcript is untouched.
+                      {t("Removes only this decision from the draft. The transcript is untouched.")}
                     </p>
                     <div class="row-actions">
                       <button class="button button-danger" type="submit">
-                        Confirm: remove decision
+                        {t("Confirm: remove decision")}
                       </button>
                     </div>
                   </form>
@@ -95,12 +98,13 @@ const addErrors = errorsFor("add_decision", "text");
               <div class="rl-line">
                 <span class="rl-text">{d.text}</span>
                 <span class="rl-meta">
-                  {isHit("decision", d.id) && <span class="badge">Search match</span>}
+                  {isHit("decision", d.id) && <span class="badge">{t("Search match")}</span>}
                   <ReviewSource source={sourceLink(d.sourceFrom, d.sourceTo)} chip />
-                  {d.edited && <span class="rl-chip">Edited by you</span>}
+                  {d.edited && <span class="rl-chip">{t("Edited by you")}</span>}
                   {editable && (
                     <a class="rl-edit" href={`${base}?edit=${d.id}#decision-${d.id}`}>
-                      Edit<span class="sr-only"> decision: {d.text}</span>
+                      {t("Edit")}
+                      <span class="sr-only"> {t("decision: {text}", { text: d.text })}</span>
                     </a>
                   )}
                 </span>
@@ -113,12 +117,12 @@ const addErrors = errorsFor("add_decision", "text");
   )}
   {editable && (
     <details class="rl-add" open={addErrors.length > 0}>
-      <summary>Add a decision</summary>
+      <summary>{t("Add a decision")}</summary>
       <form method="post" action={base} class="form form-wide">
         <input type="hidden" name="csrf_token" value={csrf} />
         <input type="hidden" name="intent" value="add_decision" />
         <div class="field field-wide">
-          <label for="new-decision">Decision</label>
+          <label for="new-decision">{t("Decision")}</label>
           <input
             id="new-decision"
             name="text"
@@ -136,7 +140,7 @@ const addErrors = errorsFor("add_decision", "text");
         </div>
         <div class="row-actions">
           <button class="button button-quiet" type="submit">
-            Add decision
+            {t("Add decision")}
           </button>
         </div>
       </form>

@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import { normalizeLine, normalizeMultiline, type FieldError } from "../platform/text";
 import { endOfLocalDayUtc } from "../platform/time";
@@ -95,12 +96,12 @@ export function formatOffset(ms: number): string {
 
 const tooLong = (field: string, max: number): FieldError => ({
   field,
-  message: `Use at most ${String(max)} characters.`,
+  message: t("Use at most {max} characters.", { max }),
 });
 
 export function normalizeSectionBody(raw: unknown): Result<string, FieldError> {
   const body = normalizeMultiline(raw);
-  if (body === null || body === "") return err({ field: "body", message: "Write something." });
+  if (body === null || body === "") return err({ field: "body", message: t("Write something.") });
   if (body.length > MAX_SECTION_BODY_LENGTH) return err(tooLong("body", MAX_SECTION_BODY_LENGTH));
   return ok(body);
 }
@@ -108,7 +109,7 @@ export function normalizeSectionBody(raw: unknown): Result<string, FieldError> {
 export function normalizeDecisionText(raw: unknown): Result<string, FieldError> {
   const text = normalizeLine(raw);
   if (text === null || text === "")
-    return err({ field: "text", message: "Describe the decision." });
+    return err({ field: "text", message: t("Describe the decision.") });
   if (text.length > MAX_ITEM_TEXT_LENGTH) return err(tooLong("text", MAX_ITEM_TEXT_LENGTH));
   return ok(text);
 }
@@ -126,9 +127,12 @@ export function parseLinePositions(
   values: readonly string[],
   field = "lines",
 ): Result<number[], FieldError> {
-  if (values.length === 0) return err({ field, message: "Select at least one line." });
+  if (values.length === 0) return err({ field, message: t("Select at least one line.") });
   if (values.length > MAX_ASSIGNED_LINES) {
-    return err({ field, message: `Select at most ${String(MAX_ASSIGNED_LINES)} lines at a time.` });
+    return err({
+      field,
+      message: t("Select at most {max} lines at a time.", { max: MAX_ASSIGNED_LINES }),
+    });
   }
   const positions = new Set<number>();
   for (const raw of values) {
@@ -136,7 +140,7 @@ export function parseLinePositions(
     if (!LINE_POSITION.test(text)) {
       return err({
         field,
-        message: "Some selected lines are not valid. Reload the page and try again.",
+        message: t("Some selected lines are not valid. Reload the page and try again."),
       });
     }
     positions.add(Number(text));
@@ -146,7 +150,7 @@ export function parseLinePositions(
 
 export function normalizeSpeakerName(raw: unknown, field: string): Result<string, FieldError> {
   const name = normalizeLine(raw);
-  if (name === null || name === "") return err({ field, message: "Enter a name." });
+  if (name === null || name === "") return err({ field, message: t("Enter a name.") });
   if (name.length > MAX_SPEAKER_NAME_LENGTH) return err(tooLong(field, MAX_SPEAKER_NAME_LENGTH));
   return ok(name);
 }
@@ -170,14 +174,15 @@ export function normalizeActionItemInput(
 ): Result<ActionItemFields, FieldError[]> {
   const errors: FieldError[] = [];
   const text = normalizeLine(raw.text);
-  if (text === null || text === "") errors.push({ field: "text", message: "Describe the action." });
+  if (text === null || text === "")
+    errors.push({ field: "text", message: t("Describe the action.") });
   else if (text.length > MAX_ITEM_TEXT_LENGTH) errors.push(tooLong("text", MAX_ITEM_TEXT_LENGTH));
 
   const assignee = normalizeLine(raw.assignee) ?? "";
   const due = normalizeLine(raw.due) ?? "";
   const dueAt = due === "" ? null : endOfLocalDayUtc(due, meetingTimeZone);
   if (due !== "" && dueAt === null) {
-    errors.push({ field: "due", message: "Enter a real date." });
+    errors.push({ field: "due", message: t("Enter a real date.") });
   }
   if (errors.length > 0 || text === null) return err(errors);
   return ok({

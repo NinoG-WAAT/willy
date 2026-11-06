@@ -1,4 +1,5 @@
 ---
+import { t } from "../../i18n/translate";
 import type { SourceLink } from "./types";
 
 /**
@@ -34,7 +35,7 @@ const { source, chip = false } = Astro.props;
     </a>
   </p>
 ) : chip ? (
-  <span class="row-meta">Added by you: no transcript source.</span>
+  <span class="row-meta">{t("Added by you: no transcript source.")}</span>
 ) : (
-  <p class="row-meta">Added by you: no transcript source.</p>
+  <p class="row-meta">{t("Added by you: no transcript source.")}</p>
 )}

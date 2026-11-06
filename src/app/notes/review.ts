@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { canEditMeeting, canViewMeeting } from "../../domain/authz/predicates";
 import {
   publishMeeting,
@@ -117,7 +118,7 @@ type Outcome = "saved" | "missing" | "unknown_assignee";
 function toResult(outcome: Outcome): Result<void, ReviewError> {
   if (outcome === "saved") return ok(undefined);
   if (outcome === "unknown_assignee") {
-    return err(invalid("assignee", "Choose one of this meeting's attendees."));
+    return err(invalid("assignee", t("Choose one of this meeting's attendees.")));
   }
   return err(MISSING);
 }
@@ -284,7 +285,7 @@ export async function renameSpeaker(
   );
   return changed > 0
     ? ok(undefined)
-    : err(invalid("from", "That speaker is not in this transcript."));
+    : err(invalid("from", t("That speaker is not in this transcript.")));
 }
 
 /**
@@ -318,7 +319,7 @@ export async function assignSpeakerToLines(
     : err(
         invalid(
           "lines",
-          "Some selected lines are not in this transcript. Reload the page and try again.",
+          t("Some selected lines are not in this transcript. Reload the page and try again."),
         ),
       );
 }
@@ -369,10 +370,10 @@ export function publishNote(
     if (meeting.status === "published") return alreadyDone(meeting);
     if (meeting.status !== "review") return err({ kind: "not_editable", status: meeting.status });
     if (!input.confirmed) {
-      return err(invalid("confirm", "Tick the box to confirm you want to publish."));
+      return err(invalid("confirm", t("Tick the box to confirm you want to publish.")));
     }
     const folder = await deps.folders.find(ownerId, input.folderId);
-    if (!folder) return err(invalid("folder", "Choose one of your folders."));
+    if (!folder) return err(invalid("folder", t("Choose one of your folders.")));
     const outcome = publishMeeting(meeting, { id: folder.id, ownerId }, deps.clock.now());
     if (!outcome.ok) return err({ kind: "not_editable", status: meeting.status });
     return ok({ outcome: outcome.value, note: { status: "published", folderId: folder.id } });

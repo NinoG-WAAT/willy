@@ -1,4 +1,5 @@
 ---
+import { t } from "../../i18n/translate";
 import type { FieldError } from "../../domain/platform/text";
 
 /**
@@ -20,17 +21,18 @@ const { base, csrf, moveTargets, moveErrors } = Astro.props;
 
 <details class="move-folder" open={moveErrors.length > 0}>
   {/* The redirect after a move lands here, so focus returns to the control it was used from. */}
-  <summary id="move-folder">Move to folder</summary>
+  <summary id="move-folder">{t("Move to folder")}</summary>
   {moveTargets.length === 0 ? (
     <p class="help move-folder-form">
-      You have no other folder to move this note to. <a href="/folders">Create a folder</a>.
+      {t("You have no other folder to move this note to.")}{" "}
+      <a href="/folders">{t("Create a folder")}</a>.
     </p>
   ) : (
     <form method="post" action={base} class="form form-wide move-folder-form">
       <input type="hidden" name="csrf_token" value={csrf} />
       <input type="hidden" name="intent" value="move_note" />
       <div class="field field-wide">
-        <label for="move-folder-select">Move this note to</label>
+        <label for="move-folder-select">{t("Move this note to")}</label>
         <select
           id="move-folder-select"
           name="folder"
@@ -48,11 +50,11 @@ const { base, csrf, moveTargets, moveErrors } = Astro.props;
         ))}
       </div>
       <p id="move-folder-help" class="help">
-        The note stays published and keeps its content. Only its folder changes.
+        {t("The note stays published and keeps its content. Only its folder changes.")}
       </p>
       <div class="row-actions">
         <button class="button" type="submit">
-          Move
+          {t("Move")}
         </button>
       </div>
     </form>

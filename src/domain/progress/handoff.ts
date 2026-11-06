@@ -1,3 +1,4 @@
+import { t, tn } from "../../i18n/translate";
 import {
   describeJob,
   reviewLinkLabel,
@@ -27,19 +28,27 @@ export interface HandoffView {
   settled: boolean;
 }
 
-/** Said in the live region just before the page navigates to the draft. */
-export const OPENING_ANNOUNCEMENT = "Draft ready, opening it.";
+/**
+ * Said in the live region just before the page navigates to the draft. A function, not a
+ * constant: the words depend on the page's language, which is only known per request.
+ */
+export const openingAnnouncement = (): string => t("Draft ready, opening it.");
 /** Said instead when the page stays: the button is the way on. */
-export const STAYING_ANNOUNCEMENT = "Draft ready. Use the Open the draft button.";
+export const stayingAnnouncement = (): string => t("Draft ready. Use the Open the draft button.");
 
 /** Time for the announcement to be heard before the page changes. */
 export const AUTO_OPEN_DELAY_MS = 1_500;
 
-const HEADLINES = {
-  processing: "Recording finished. Preparing the transcript.",
-  review: "Recording finished. A draft is ready for review.",
-  failed: "Recording finished, but processing needs attention.",
-} as const;
+function headline(stage: HandoffStage): string {
+  switch (stage) {
+    case "ready":
+      return t("Recording finished. A draft is ready for review.");
+    case "failed":
+      return t("Recording finished, but processing needs attention.");
+    default:
+      return t("Recording finished. Preparing the transcript.");
+  }
+}
 
 export function handoffStage(payload: ProcessingPayload): HandoffStage {
   switch (payload.meetingStatus) {
@@ -54,28 +63,33 @@ export function handoffStage(payload: ProcessingPayload): HandoffStage {
   }
 }
 
-const parts = (count: number): string => (count === 1 ? "part" : "parts");
-
 /** Parts whose text exists: transcribed, or transcribed and then purged of their raw audio. */
 const done = (chunks: ChunkCounts): number => chunks.transcribed + chunks.purged;
 
 function transcribeLine(payload: ProcessingPayload, stage: HandoffStage): string {
   const { chunks } = payload;
   if (stage === "transcribing" && chunks !== null && chunks.total > 0) {
-    return `Transcribing: ${String(done(chunks))} of ${String(chunks.total)} ${parts(chunks.total)}`;
+    return tn(
+      "Transcribing: {done} of {n} part",
+      "Transcribing: {done} of {n} parts",
+      chunks.total,
+      { done: done(chunks) },
+    );
   }
   if (stage === "writing" && chunks !== null && chunks.total > 0) {
-    return `Transcribing: Done, ${String(chunks.total)} ${parts(chunks.total)}`;
+    return tn("Transcribing: Done, {n} part", "Transcribing: Done, {n} parts", chunks.total);
   }
-  return `Transcribing: ${describeJob(payload.job)}`;
+  return t("Transcribing: {status}", { status: describeJob(payload.job) });
 }
 
 function draftLine(payload: ProcessingPayload, stage: HandoffStage): string {
-  if (stage === "transcribing") return "Writing the draft: Waiting for the transcript";
-  if (stage === "ready") return "Writing the draft: Done";
+  if (stage === "transcribing") return t("Writing the draft: Waiting for the transcript");
+  if (stage === "ready") return t("Writing the draft: Done");
   const summary: JobProgress | null = payload.summary;
-  if (summary !== null) return `Writing the draft: ${describeJob(summary)}`;
-  return `Writing the draft: ${stage === "writing" ? "Waiting to start" : "Not started"}`;
+  if (summary !== null) return t("Writing the draft: {status}", { status: describeJob(summary) });
+  return t("Writing the draft: {status}", {
+    status: stage === "writing" ? t("Waiting to start") : t("Not started"),
+  });
 }
 
 function noteLine(payload: ProcessingPayload, stage: HandoffStage): string {
@@ -84,22 +98,33 @@ function noteLine(payload: ProcessingPayload, stage: HandoffStage): string {
   if (stage === "transcribing") {
     if (chunks !== null && chunks.failed > 0) {
       sentences.push(
-        `${String(chunks.failed)} ${parts(chunks.failed)} could not be transcribed yet.`,
+        tn(
+          "{n} part could not be transcribed yet.",
+          "{n} parts could not be transcribed yet.",
+          chunks.failed,
+        ),
       );
     }
     if (job?.status === "retrying") {
       sentences.push(
-        `Retrying automatically (attempt ${String(job.attempts)} of ${String(job.maxAttempts)}). Parts already done are kept.`,
+        t("Retrying automatically (attempt {attempt} of {max}). Parts already done are kept.", {
+          attempt: job.attempts,
+          max: job.maxAttempts,
+        }),
       );
     }
   } else if (stage === "failed" && chunks !== null) {
     if (chunks.failed > 0) {
-      sentences.push(`${String(chunks.failed)} ${parts(chunks.failed)} could not be transcribed.`);
+      sentences.push(
+        tn(
+          "{n} part could not be transcribed.",
+          "{n} parts could not be transcribed.",
+          chunks.failed,
+        ),
+      );
     }
     if (done(chunks) > 0) {
-      sentences.push(
-        `${String(done(chunks))} ${parts(done(chunks))} ${done(chunks) === 1 ? "is" : "are"} kept.`,
-      );
+      sentences.push(tn("{n} part is kept.", "{n} parts are kept.", done(chunks)));
     }
   }
   return sentences.join(" ");
@@ -116,12 +141,7 @@ export function handoffProgress(
   const stage = handoffStage(payload);
   const link = reviewLinkLabel(payload.meetingStatus) ?? "";
   const fields: Record<string, string> = {
-    headline:
-      stage === "ready"
-        ? HEADLINES.review
-        : stage === "failed"
-          ? HEADLINES.failed
-          : HEADLINES.processing,
+    headline: headline(stage),
     transcribe: transcribeLine(payload, stage),
     draft: draftLine(payload, stage),
     note: noteLine(payload, stage),
@@ -134,20 +154,22 @@ export function handoffProgress(
     case "transcribing":
       break;
     case "writing":
-      fields["announce"] = "Transcript done. Writing the draft.";
+      fields["announce"] = t("Transcript done. Writing the draft.");
       break;
     case "ready":
-      fields["transcribe"] = "Transcribing: Done";
-      fields["outcome"] = "Your draft is ready.";
-      fields["announce"] = options.autoOpening ? OPENING_ANNOUNCEMENT : STAYING_ANNOUNCEMENT;
+      fields["transcribe"] = t("Transcribing: Done");
+      fields["outcome"] = t("Your draft is ready.");
+      fields["announce"] = options.autoOpening ? openingAnnouncement() : stayingAnnouncement();
       break;
     case "failed":
-      fields["outcome"] = "Processing did not finish. Your rough notes are kept.";
-      fields["announce"] =
-        "Processing needs attention. Your rough notes are kept. Use the See what happened and retry button.";
+      fields["outcome"] = t("Processing did not finish. Your rough notes are kept.");
+      fields["announce"] = t(
+        "Processing needs attention. Your rough notes are kept. " +
+          "Use the See what happened and retry button.",
+      );
       break;
     case "moved":
-      fields["outcome"] = "This note has moved on. Use Check again to see where it is now.";
+      fields["outcome"] = t("This note has moved on. Use Check again to see where it is now.");
       break;
   }
 

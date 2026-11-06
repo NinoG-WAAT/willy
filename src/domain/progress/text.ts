@@ -1,3 +1,4 @@
+import { t, tn } from "../../i18n/translate";
 import { describeMeeting } from "../meetings/home";
 import type { MeetingStatus } from "../meetings/lifecycle";
 import { OPEN_DRAFT_LABEL, RETRY_LINK_LABEL, statusLabel } from "../meetings/stage";
@@ -67,18 +68,31 @@ export interface ProgressView {
 }
 
 export function describeJob(job: JobProgress | null): string {
-  if (job === null) return "Not started";
+  if (job === null) return t("Not started");
   switch (job.status) {
     case "pending":
-      return "Waiting to start";
+      return t("Waiting to start");
     case "running":
-      return "Running";
+      return t("Running");
     case "retrying":
-      return `Retrying (attempt ${String(job.attempts)} of ${String(job.maxAttempts)})`;
+      return t("Retrying (attempt {attempt} of {max})", {
+        attempt: job.attempts,
+        max: job.maxAttempts,
+      });
     case "failed":
-      return `Failed after ${String(job.attempts)} attempts${job.lastErrorCode === null ? "" : ` (${job.lastErrorCode})`}`;
+      // The code stays as the code it is (docs/I18N.md 3c): only the sentence around it is translated.
+      return job.lastErrorCode === null
+        ? tn("Failed after {n} attempt", "Failed after {n} attempts", job.attempts)
+        : tn(
+            "Failed after {n} attempt ({code})",
+            "Failed after {n} attempts ({code})",
+            job.attempts,
+            {
+              code: job.lastErrorCode,
+            },
+          );
     case "succeeded":
-      return "Done";
+      return t("Done");
   }
 }
 
@@ -108,8 +122,8 @@ export function reviewLinkLabel(status: MeetingStatus): string | null {
  */
 export function processingProgress(payload: ProcessingPayload, withLink = false): ProgressView {
   const fields: Record<string, string> = {
-    transcript: `Transcript: ${describeJob(payload.job)}`,
-    summary: `Summary: ${describeJob(payload.summary)}`,
+    transcript: t("Transcript: {status}", { status: describeJob(payload.job) }),
+    summary: t("Summary: {status}", { status: describeJob(payload.summary) }),
     outcome: "",
   };
   const settled = payload.meetingStatus !== "processing";
@@ -118,16 +132,19 @@ export function processingProgress(payload: ProcessingPayload, withLink = false)
   if (settled) {
     if (payload.meetingStatus === "review") {
       fields["outcome"] = withLink
-        ? "Your draft is ready."
-        : "Your draft is ready. Use Check again to open it.";
+        ? t("Your draft is ready.")
+        : t("Your draft is ready. Use Check again to open it.");
       fields["badge"] = statusLabel("review");
     } else if (payload.meetingStatus === "failed") {
       fields["outcome"] = withLink
-        ? "Processing did not finish. Your rough notes are kept."
-        : "Processing did not finish. Use Check again to see what happened and retry. Your rough notes are kept.";
+        ? t("Processing did not finish. Your rough notes are kept.")
+        : t(
+            "Processing did not finish. Use Check again to see what happened and retry. " +
+              "Your rough notes are kept.",
+          );
       fields["badge"] = statusLabel("failed");
     } else {
-      fields["outcome"] = "This note has moved on. Use Check again to see where it is now.";
+      fields["outcome"] = t("This note has moved on. Use Check again to see where it is now.");
     }
   }
   return { fields, settled, announce: null };
@@ -146,18 +163,21 @@ export function regenerationProgress(
     return { fields: {}, settled: false, announce: null };
   }
   const fields: Record<string, string> = {
-    text: `Regeneration: ${describeJob(regeneration)}.`,
+    text: t("Regeneration: {status}.", { status: describeJob(regeneration) }),
     outcome: "",
   };
   const whole = sectionId === null;
   if (regeneration.status === "succeeded") {
     fields["outcome"] = whole
-      ? "The new draft of the note is ready. Use Check again to see it."
-      : "The new draft of this section is ready. Use Check again to see it.";
+      ? t("The new draft of the note is ready. Use Check again to see it.")
+      : t("The new draft of this section is ready. Use Check again to see it.");
   } else if (regeneration.status === "failed") {
     fields["outcome"] = whole
-      ? "It did not finish. Your previous draft is kept. Use Check again to see the details and try again."
-      : "It did not finish. Use Check again to see the details and try again.";
+      ? t(
+          "It did not finish. Your previous draft is kept. " +
+            "Use Check again to see the details and try again.",
+        )
+      : t("It did not finish. Use Check again to see the details and try again.");
   }
   return {
     fields,
@@ -187,7 +207,12 @@ export function cardProgress(
       marker: description.marker,
     },
     settled,
-    announce: settled ? `${title}: status changed to ${lowerFirst(description.label)}.` : null,
+    announce: settled
+      ? t("{title}: status changed to {status}.", {
+          title,
+          status: lowerFirst(description.label),
+        })
+      : null,
   };
 }
 
@@ -206,11 +231,14 @@ export type StopReason = "settled" | "unavailable" | "errors" | "timeout";
 export function stoppedMessage(reason: Exclude<StopReason, "settled">): string {
   switch (reason) {
     case "errors":
-      return "Live updates stopped because the status could not be checked. Use Check again to see the latest.";
+      return t(
+        "Live updates stopped because the status could not be checked. " +
+          "Use Check again to see the latest.",
+      );
     case "timeout":
-      return "Live updates stopped after a while. Use Check again to see the latest.";
+      return t("Live updates stopped after a while. Use Check again to see the latest.");
     case "unavailable":
-      return "Live updates stopped. Use Check again, or sign in again, to see the latest.";
+      return t("Live updates stopped. Use Check again, or sign in again, to see the latest.");
   }
 }
 

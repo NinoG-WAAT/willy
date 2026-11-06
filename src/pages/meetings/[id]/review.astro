@@ -1,5 +1,6 @@
 ---
 import Base from "../../../layouts/Base.astro";
+import { t } from "../../../i18n/translate";
 import MeetingHeader from "../../../components/MeetingHeader.astro";
 import { requireOwner } from "../../../app/identity/require-owner";
 import ReviewActionItems from "../../../components/review/ReviewActionItems.astro";
@@ -110,8 +111,8 @@ const sourceLink: SourceLinkFor = (from, to) => {
   const b = startOf.get(to);
   const label =
     a === undefined || b === undefined
-      ? "Source in the transcript"
-      : `Source: transcript ${formatOffset(a)} to ${formatOffset(b)}`;
+      ? t("Source in the transcript")
+      : t("Source: transcript {from} to {to}", { from: formatOffset(a), to: formatOffset(b) });
   return {
     label,
     chip: sourceLabel(from, to, (position) => startOf.get(position)),
@@ -160,7 +161,7 @@ const draftRegeneration =
 ---
 
 <Base
-  title={`Review: ${meeting.title}`}
+  title={t("Review: {title}", { title: meeting.title })}
   noteFolderId={note?.status === "published" ? note.folderId : null}
 >
   <MeetingHeader
@@ -184,10 +185,11 @@ const draftRegeneration =
       />
     )}
     <a slot="links" href={`/meetings/${meeting.id}/export.md`} download>
-      Export as Markdown<span class="sr-only"> ({meeting.title})</span>
+      {t("Export as Markdown")}
+      <span class="sr-only"> ({meeting.title})</span>
     </a>
     <a slot="links" href={`/meetings/${meeting.id}`}>
-      Rough notes
+      {t("Rough notes")}
     </a>
   </MeetingHeader>
 
@@ -205,7 +207,7 @@ const draftRegeneration =
 
   {meeting.status === "processing" && (
     <section class="panel" aria-labelledby="pending-heading">
-      <h2 id="pending-heading">Your transcript and summary are being prepared</h2>
+      <h2 id="pending-heading">{t("Your transcript and summary are being prepared")}</h2>
       <div
         id="processing-progress"
         role="status"
@@ -215,33 +217,37 @@ const draftRegeneration =
         data-progress-url={`/api/meetings/${id}/status`}
       >
         <ul class="plain">
-          <li data-field="transcript">Transcript: {describeJob(progress?.job ?? null)}</li>
-          <li data-field="summary">Summary: {describeJob(progress?.summary ?? null)}</li>
+          <li data-field="transcript">
+            {t("Transcript: {status}", { status: describeJob(progress?.job ?? null) })}
+          </li>
+          <li data-field="summary">
+            {t("Summary: {status}", { status: describeJob(progress?.summary ?? null) })}
+          </li>
         </ul>
         <p data-field="outcome" data-optional hidden></p>
       </div>
       <p class="help">
-        This can take a few minutes. <a href={base}>Check again</a>. Your rough notes are kept
-        below.
+        {t("This can take a few minutes.")} <a href={base}>{t("Check again")}</a>.{" "}
+        {t("Your rough notes are kept below.")}
       </p>
     </section>
   )}
 
   {meeting.status === "failed" && (
     <section class="panel" aria-labelledby="failed-heading">
-      <h2 id="failed-heading">Transcription did not finish</h2>
+      <h2 id="failed-heading">{t("Transcription did not finish")}</h2>
       <p class="alert" role="alert">
-        {describeJob(progress?.job ?? null)}. Nothing you wrote was lost.
+        {describeJob(progress?.job ?? null)}. {t("Nothing you wrote was lost.")}
       </p>
       <form method="post" action={base} class="form form-wide">
         <input type="hidden" name="csrf_token" value={csrf} />
         <input type="hidden" name="intent" value="retry_transcription" />
         <p class="help">
-          Retrying redoes only the parts that failed and never duplicates transcript lines.
+          {t("Retrying redoes only the parts that failed and never duplicates transcript lines.")}
         </p>
         <div class="row-actions">
           <button class="button button-primary" type="submit">
-            Retry transcription
+            {t("Retry transcription")}
           </button>
         </div>
       </form>
@@ -250,9 +256,9 @@ const draftRegeneration =
 
   {note === null && (
     <section class="panel" aria-labelledby="rough-heading">
-      <h2 id="rough-heading">Your rough notes</h2>
+      <h2 id="rough-heading">{t("Your rough notes")}</h2>
       {meeting.roughNotes === "" ? (
-        <p>You did not take rough notes.</p>
+        <p>{t("You did not take rough notes.")}</p>
       ) : (
         <p class="prewrap">{meeting.roughNotes}</p>
       )}
@@ -264,7 +270,7 @@ const draftRegeneration =
       <div id="summary" class="review-column">
         <p class="jump-link-row">
           <a class="jump-link" href="#transcript-panel">
-            Jump to the transcript
+            {t("Jump to the transcript")}
           </a>
         </p>
 
@@ -327,7 +333,7 @@ const draftRegeneration =
         />
       </div>
 
-      <aside class="review-transcript" id="transcript" aria-label="Transcript and speakers">
+      <aside class="review-transcript" id="transcript" aria-label={t("Transcript and speakers")}>
         <ReviewSpeakers
           base={base}
           csrf={csrf}
@@ -375,13 +381,13 @@ const draftRegeneration =
 
   {note === null && segments.length > 0 && (
     <section class="panel" aria-labelledby="lines-heading-alone">
-      <h2 id="lines-heading-alone">Transcript so far</h2>
+      <h2 id="lines-heading-alone">{t("Transcript so far")}</h2>
       <ol class="transcript">
         {segments.map((s) => (
           <li id={`seg-${s.position}`}>
             <span class="seg-time">{formatOffset(s.startMs)}</span> <strong>{s.speaker}</strong>
             <span class="sr-only">:</span>
-            {s.text === null ? <em>This line could not be read.</em> : s.text}
+            {s.text === null ? <em>{t("This line could not be read.")}</em> : s.text}
           </li>
         ))}
       </ol>

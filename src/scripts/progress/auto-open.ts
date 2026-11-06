@@ -1,5 +1,5 @@
 import {
-  STAYING_ANNOUNCEMENT,
+  stayingAnnouncement,
   decideAutoOpen,
   type AutoOpenDecision,
   type HandoffStage,
@@ -41,6 +41,6 @@ export function scheduleAutoOpen(deps: AutoOpenDeps, decision: AutoOpenDecision)
     if (done) return;
     done = true;
     if (decideNow(deps, "ready").open) deps.navigate();
-    else deps.announce(STAYING_ANNOUNCEMENT);
+    else deps.announce(stayingAnnouncement());
   }, decision.delayMs);
 }
