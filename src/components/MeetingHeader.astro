@@ -2,6 +2,7 @@
 import type { MeetingStatus } from "../domain/meetings/lifecycle";
 import { headerAction, headerChips, stageFor, statusLabel } from "../domain/meetings/stage";
 import type { HeaderPage } from "../domain/meetings/stage";
+import { t } from "../i18n/translate";
 import { formatSchedule } from "./format-schedule";
 
 /**
@@ -51,7 +52,7 @@ const pillAttrs =
       {statusLabel(meeting.status)}
     </span>
     <span class="badge" data-not-published hidden={meeting.status !== "review"}>
-      Not published
+      {t("Not published")}
     </span>
   </div>
 
@@ -62,7 +63,7 @@ const pillAttrs =
   </p>
 
   {chips.length > 0 && (
-    <ul class="chips meeting-chips" aria-label="Where this note lives">
+    <ul class="chips meeting-chips" aria-label={t("Where this note lives")}>
       {chips.map((chip) => (
         <li>
           <a class="chip" href={chip.href}>
@@ -81,7 +82,7 @@ const pillAttrs =
 
   {stage.kind === "flow" && (
     <div class="stage">
-      <ol class="stepper" aria-label="Note stage" data-stepper>
+      <ol class="stepper" aria-label={t("Note stage")} data-stepper>
         {stage.steps.map((step) => (
           <li
             class="step"
@@ -109,7 +110,7 @@ const pillAttrs =
   )}
   {stage.kind === "archived" && (
     <p class="stage-summary" data-stage-summary>
-      This note is archived.
+      {t("This note is archived.")}
     </p>
   )}
 

@@ -1,3 +1,4 @@
+import { tn } from "../../i18n/translate";
 import { canDeleteFolder, normalizeFolderName } from "../../domain/notes/folder";
 import { err, ok, type Result } from "../../domain/platform/result";
 import type { Folder, FolderWithCount } from "../../ports/folder-repository";
@@ -6,7 +7,11 @@ import { NOT_FOUND, nameTaken, type NotesError } from "./errors";
 
 const notEmpty = (count: number): NotesError => ({
   kind: "blocked",
-  message: `This folder still contains ${String(count)} ${count === 1 ? "note" : "notes"}. Move or delete them first.`,
+  message: tn(
+    "This folder still contains {n} note. Move or delete them first.",
+    "This folder still contains {n} notes. Move or delete them first.",
+    count,
+  ),
 });
 
 export function listFolders(deps: NotesDeps, ownerId: string): Promise<FolderWithCount[]> {

@@ -1,12 +1,37 @@
+import { t } from "../i18n/translate";
+
 /** The shell's navigation, in order. The Inbox is `/`; All notes is `/notes` (UX 2b, #72). */
-export const NAV_LINKS: readonly { href: string; label: string }[] = [
-  { href: "/", label: "Inbox" },
-  { href: "/notes", label: "All notes" },
-  { href: "/search", label: "Search" },
-  { href: "/folders", label: "Folders" },
-  { href: "/settings/templates", label: "Templates" },
-  { href: "/settings", label: "Settings" },
-];
+const NAV_HREFS = [
+  "/",
+  "/notes",
+  "/search",
+  "/folders",
+  "/settings/templates",
+  "/settings",
+] as const;
+type NavHref = (typeof NAV_HREFS)[number];
+
+function navLabel(href: NavHref): string {
+  switch (href) {
+    case "/":
+      return t("Inbox");
+    case "/notes":
+      return t("All notes");
+    case "/search":
+      return t("Search");
+    case "/folders":
+      return t("Folders");
+    case "/settings/templates":
+      return t("Templates");
+    case "/settings":
+      return t("Settings");
+  }
+}
+
+/** The links with their words for the request's language: call it per request, never at load. */
+export function navLinks(): readonly { href: NavHref; label: string }[] {
+  return NAV_HREFS.map((href) => ({ href, label: navLabel(href) }));
+}
 
 const within = (pathname: string, href: string): boolean =>
   pathname === href || pathname.startsWith(`${href}/`);
@@ -19,7 +44,7 @@ const within = (pathname: string, href: string): boolean =>
 export function currentNavHref(pathname: string): string | null {
   if (pathname === "/meetings" || pathname.startsWith("/meetings/")) return "/";
   let best: string | null = null;
-  for (const { href } of NAV_LINKS) {
+  for (const href of NAV_HREFS) {
     if (href === "/") continue;
     if (within(pathname, href) && (best === null || href.length > best.length)) best = href;
   }

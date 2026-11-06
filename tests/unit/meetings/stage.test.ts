@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MeetingStatus } from "../../../src/domain/meetings/lifecycle";
 import {
-  STAGE_STEPS,
-  STATUS_LABELS,
   headerAction,
   headerChips,
   stageFor,
@@ -25,7 +23,6 @@ const ALL: MeetingStatus[] = [
 describe("statusLabel: one word per status, used by the header, the cards and the progress text", () => {
   it("has a label for every status", () => {
     for (const status of ALL) expect(statusLabel(status).length).toBeGreaterThan(0);
-    expect(Object.keys(STATUS_LABELS).sort()).toEqual([...ALL].sort());
   });
 
   it.each([
@@ -53,7 +50,9 @@ describe("statusLabel: one word per status, used by the header, the cards and th
 
 describe("stageFor: the five steps of the stepper", () => {
   it("names the steps in lifecycle order", () => {
-    expect(STAGE_STEPS.map((s) => s.label)).toEqual([
+    const stage = stageFor("scheduled");
+    if (stage.kind !== "flow") throw new Error("expected a flow");
+    expect(stage.steps.map((s) => s.label)).toEqual([
       "Scheduled",
       "Capturing",
       "Processing",

@@ -1,6 +1,7 @@
 ---
 import { consentLabel, describeMeeting } from "../domain/meetings/home";
 import type { MeetingListItem } from "../domain/meetings/list-item";
+import { tn, t } from "../i18n/translate";
 import { formatSchedule } from "./format-schedule";
 
 interface Props {
@@ -11,7 +12,7 @@ const { item } = Astro.props;
 const description = describeMeeting(item);
 // A meeting still being processed is watched for progress (src/scripts/job-progress.ts).
 const watching = item.status === "processing";
-const attendees = `${String(item.attendeeCount)} ${item.attendeeCount === 1 ? "attendee" : "attendees"}`;
+const attendees = tn("{n} attendee", "{n} attendees", item.attendeeCount);
 ---
 
 <li
@@ -30,23 +31,24 @@ const attendees = `${String(item.attendeeCount)} ${item.attendeeCount === 1 ? "a
       {formatSchedule(item.scheduledStartAt, item.timezone)}
     </time>
     {item.attendeeCount > 0 && <span> · {attendees}</span>}
-    {item.calendarProvider !== null && <span> · From your calendar</span>}
+    {item.calendarProvider !== null && <span> · {t("From your calendar")}</span>}
   </p>
   <ul class="facts">
     <li>
       <span class="marker" aria-hidden="true" data-field="marker">
         {description.marker}
       </span>
-      <span class="fact-label">Status:</span> <span data-field="label">{description.label}</span>
+      <span class="fact-label">{t("Status:")}</span>{" "}
+      <span data-field="label">{description.label}</span>
     </li>
     <li>
-      <span class="fact-label">Consent:</span> {consentLabel(item)}
+      <span class="fact-label">{t("Consent:")}</span> {consentLabel(item)}
     </li>
   </ul>
   <div class="row-actions">
     <a class="button" href={description.href}>
       <span data-field="action">{description.actionLabel}</span>
-      <span class="sr-only"> for {item.title}</span>
+      <span class="sr-only"> {t("for {title}", { title: item.title })}</span>
     </a>
   </div>
 </li>

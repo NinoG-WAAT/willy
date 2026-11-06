@@ -5,6 +5,7 @@ import { createFolder, listFolders, renameFolder } from "../../app/notes/folders
 import { noticeText } from "../../app/notes/notices";
 import { readFormFields, single } from "../../app/platform/form";
 import { getNotesDeps } from "../../composition";
+import { t, tn } from "../../i18n/translate";
 import { FOLDER_NAME_MAX } from "../../domain/notes/folder";
 import type { FieldError } from "../../domain/platform/text";
 
@@ -55,13 +56,14 @@ const createError = failedRenameId === null ? errors[0] : undefined;
 const renameError = failedRenameId === null ? undefined : errors[0];
 ---
 
-<Base title="Folders">
+<Base title={t("Folders")}>
   <div class="page-head">
-    <h1>Folders</h1>
+    <h1>{t("Folders")}</h1>
   </div>
   <p>
-    Folders are private to you. You choose one when you publish a note, so finished notes stay
-    organised. Open a folder to read the notes inside it.
+    {t(
+      "Folders are private to you. You choose one when you publish a note, so finished notes stay organised. Open a folder to read the notes inside it.",
+    )}
   </p>
 
   {notice !== null && (
@@ -75,12 +77,12 @@ const renameError = failedRenameId === null ? undefined : errors[0];
     </p>
   )}
 
-  <h2>New folder</h2>
+  <h2>{t("New folder")}</h2>
   <form class="form" method="post" action="/folders">
     <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
     <input type="hidden" name="intent" value="create" />
     <div class="field">
-      <label for="new-folder-name">Folder name</label>
+      <label for="new-folder-name">{t("Folder name")}</label>
       <input
         id="new-folder-name"
         name="name"
@@ -98,13 +100,13 @@ const renameError = failedRenameId === null ? undefined : errors[0];
       )}
     </div>
     <button class="button button-primary" type="submit">
-      Create folder
+      {t("Create folder")}
     </button>
   </form>
 
-  <h2>Your folders</h2>
+  <h2>{t("Your folders")}</h2>
   {folders.length === 0 ? (
-    <p>You have no folders yet. Create one above, then pick it when you publish a note.</p>
+    <p>{t("You have no folders yet. Create one above, then pick it when you publish a note.")}</p>
   ) : (
     <ul class="rows">
       {folders.map((folder) => (
@@ -112,9 +114,7 @@ const renameError = failedRenameId === null ? undefined : errors[0];
           <h3 class="row-title">
             <a href={`/folders/${folder.id}`}>{folder.name}</a>
           </h3>
-          <p class="row-meta">
-            {folder.publishedCount} {folder.publishedCount === 1 ? "note" : "notes"}
-          </p>
+          <p class="row-meta">{tn("{n} note", "{n} notes", folder.publishedCount)}</p>
           <div class="row-actions">
             <form class="inline-form" method="post" action="/folders">
               <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
@@ -122,7 +122,7 @@ const renameError = failedRenameId === null ? undefined : errors[0];
               <input type="hidden" name="id" value={folder.id} />
               <div class="field">
                 <label class="sr-only" for={`rename-${folder.id}`}>
-                  New name for folder {folder.name}
+                  {t("New name for folder {name}", { name: folder.name })}
                 </label>
                 <input
                   id={`rename-${folder.id}`}
@@ -135,11 +135,13 @@ const renameError = failedRenameId === null ? undefined : errors[0];
                 />
               </div>
               <button class="button button-quiet" type="submit">
-                Rename<span class="sr-only"> {folder.name}</span>
+                {t("Rename")}
+                <span class="sr-only"> {folder.name}</span>
               </button>
             </form>
             <a href={`/folders/${folder.id}/delete`}>
-              Delete<span class="sr-only"> folder {folder.name}</span>
+              {t("Delete")}
+              <span class="sr-only"> {t("folder {name}", { name: folder.name })}</span>
             </a>
           </div>
         </li>

@@ -63,11 +63,13 @@ export function normalizeTemplate(raw: RawTemplate): Result<TemplateInput, Field
   const errors: FieldError[] = [];
 
   const name = normalizeLine(raw.name) ?? "";
-  if (name === "") errors.push({ field: "name", message: "Enter a template name." });
+  if (name === "") errors.push({ field: "name", message: t("Enter a template name.") });
   else if (name.length > TEMPLATE_LIMITS.name) {
     errors.push({
       field: "name",
-      message: `Template names can be at most ${String(TEMPLATE_LIMITS.name)} characters.`,
+      message: t("Template names can be at most {max} characters.", {
+        max: TEMPLATE_LIMITS.name,
+      }),
     });
   }
 
@@ -79,32 +81,32 @@ export function normalizeTemplate(raw: RawTemplate): Result<TemplateInput, Field
     if (heading === "" && prompt === "") return;
     const at = (part: string) => `sections.${String(index)}.${part}`;
     if (heading === "") {
-      errors.push({ field: at("heading"), message: "Give this section a heading." });
+      errors.push({ field: at("heading"), message: t("Give this section a heading.") });
     } else if (heading.length > TEMPLATE_LIMITS.heading) {
       errors.push({
         field: at("heading"),
-        message: `Headings can be at most ${String(TEMPLATE_LIMITS.heading)} characters.`,
+        message: t("Headings can be at most {max} characters.", { max: TEMPLATE_LIMITS.heading }),
       });
     } else if (seen.has(heading.toLowerCase())) {
-      errors.push({ field: at("heading"), message: "Each section needs a different heading." });
+      errors.push({ field: at("heading"), message: t("Each section needs a different heading.") });
     }
     seen.add(heading.toLowerCase());
     if (prompt.length > TEMPLATE_LIMITS.prompt) {
       errors.push({
         field: at("prompt"),
-        message: `Prompts can be at most ${String(TEMPLATE_LIMITS.prompt)} characters.`,
+        message: t("Prompts can be at most {max} characters.", { max: TEMPLATE_LIMITS.prompt }),
       });
     }
     sections.push({ heading, prompt });
   });
 
   if (sections.length === 0 && !errors.some((e) => e.field.startsWith("sections."))) {
-    errors.push({ field: "sections", message: "Add at least one section." });
+    errors.push({ field: "sections", message: t("Add at least one section.") });
   }
   if (sections.length > TEMPLATE_LIMITS.sections) {
     errors.push({
       field: "sections",
-      message: `A template can have at most ${String(TEMPLATE_LIMITS.sections)} sections.`,
+      message: t("A template can have at most {max} sections.", { max: TEMPLATE_LIMITS.sections }),
     });
   }
 

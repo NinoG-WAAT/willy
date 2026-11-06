@@ -176,6 +176,47 @@ export const fr: Record<string, string> = {
   "{n} cited transcript lines are marked.": "{n} lignes de transcription citées sont marquées.",
   "{n} line selected.": "{n} ligne sélectionnée.",
   "{n} lines selected.": "{n} lignes sélectionnées.",
+
+  // src/domain/meetings/stage.ts, src/domain/meetings/home.ts and src/domain/progress/text.ts:
+  // the status words, the stepper and the note card, shown by the page and by the progress script.
+  Scheduled: "Planifiée",
+  Recording: "Enregistrement en cours",
+  "Recording paused": "Enregistrement en pause",
+  Processing: "Traitement",
+  Draft: "Brouillon",
+  Published: "Publiée",
+  "Needs attention": "Attention requise",
+  Archived: "Archivée",
+  Unavailable: "Indisponible",
+  Capturing: "Enregistrement",
+  "Current step": "Étape en cours",
+  Upcoming: "À venir",
+  "Step {current} of {total}": "Étape {current} sur {total}",
+  "Step {current} of {total}: {step}": "Étape {current} sur {total}\u00a0: {step}",
+  "Step {current} of {total}: {step}, needs attention":
+    "Étape {current} sur {total}\u00a0: {step}, attention requise",
+  "Step {current} of {total}: {step}, paused":
+    "Étape {current} sur {total}\u00a0: {step}, en pause",
+  "Open the draft": "Ouvrir le brouillon",
+  "See what happened and retry": "Voir ce qui s’est passé et réessayer",
+  "Start capture": "Démarrer l’enregistrement",
+  "Open the published note": "Ouvrir la note publiée",
+  "Publish to folder": "Publier dans un dossier",
+  "Reopen for editing": "Rouvrir pour modifier",
+  "Folder: {name}": "Dossier\u00a0: {name}",
+  "Template: {name}": "Modèle\u00a0: {name}",
+  "Published to {folder}": "Publiée dans {folder}",
+  "Start note": "Démarrer la note",
+  "Return to recording": "Revenir à l’enregistrement",
+  "Resume note": "Reprendre la note",
+  "View progress": "Voir l’avancement",
+  "Review note": "Relire la note",
+  "Open note": "Ouvrir la note",
+  "Open and retry": "Ouvrir et réessayer",
+  Back: "Retour",
+  "Your consent confirmation is still needed before capture":
+    "Votre confirmation du consentement est encore nécessaire avant l’enregistrement",
+  "You confirmed consent": "Vous avez confirmé le consentement",
 };
 
 export const sameInFrench: Record<string, string> = {};
