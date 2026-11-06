@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTO_OPEN_DELAY_MS, STAYING_ANNOUNCEMENT } from "../../../src/domain/progress/handoff";
+import { AUTO_OPEN_DELAY_MS, stayingAnnouncement } from "../../../src/domain/progress/handoff";
 import {
   decideNow,
   scheduleAutoOpen,
@@ -56,7 +56,7 @@ describe("scheduleAutoOpen", () => {
     scheduleAutoOpen(deps, open);
     current.focusInTextField = true;
     timers[0]?.run();
-    expect(log).toEqual([`announce: ${STAYING_ANNOUNCEMENT}`]);
+    expect(log).toEqual([`announce: ${stayingAnnouncement()}`]);
   });
 
   it("does not navigate if notes became unsaved in the meantime", () => {
@@ -64,7 +64,7 @@ describe("scheduleAutoOpen", () => {
     scheduleAutoOpen(deps, open);
     current.unsavedNotes = true;
     timers[0]?.run();
-    expect(log).toEqual([`announce: ${STAYING_ANNOUNCEMENT}`]);
+    expect(log).toEqual([`announce: ${stayingAnnouncement()}`]);
   });
 
   it("does nothing at all when the decision was not to open", () => {

@@ -103,7 +103,8 @@ export const fr: Record<string, string> = {
   "Failed after {n} attempts": "Échec après {n} tentatives",
   "Failed after {n} attempt ({code})": "Échec après {n} tentative ({code})",
   "Failed after {n} attempts ({code})": "Échec après {n} tentatives ({code})",
-  Done: "Terminé",
+  // Same wording as the status words of the notes (src/domain/meetings/stage.ts, lists package).
+  Done: "Terminée",
   "Transcript: {status}": "Transcription\u00a0: {status}",
   "Summary: {status}": "Résumé\u00a0: {status}",
   "Your draft is ready.": "Votre brouillon est prêt.",
@@ -124,7 +125,39 @@ export const fr: Record<string, string> = {
     "Il ne s’est pas terminé. Votre brouillon précédent est conservé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir les détails et réessayer.",
   "It did not finish. Use Check again to see the details and try again.":
     "Il ne s’est pas terminé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir les détails et réessayer.",
-  "{title}: status changed to {status}.": "{title}\u00a0: le statut est passé à {status}.",
+  "{title}: status changed to {status}.": "{title}\u00a0: statut passé à «\u00a0{status}\u00a0».",
+
+  // src/domain/progress/handoff.ts (the live note after Stop, also rendered by the page)
+  "Draft ready, opening it.": "Brouillon prêt, ouverture en cours.",
+  "Draft ready. Use the Open the draft button.":
+    "Brouillon prêt. Utilisez le bouton «\u00a0Ouvrir le brouillon\u00a0».",
+  "Recording finished. Preparing the transcript.":
+    "Enregistrement terminé. Préparation de la transcription.",
+  "Recording finished. A draft is ready for review.":
+    "Enregistrement terminé. Un brouillon est prêt à être relu.",
+  "Recording finished, but processing needs attention.":
+    "Enregistrement terminé, mais le traitement nécessite votre attention.",
+  "Transcribing: {done} of {n} part": "Transcription\u00a0: {done} sur {n} partie",
+  "Transcribing: {done} of {n} parts": "Transcription\u00a0: {done} sur {n} parties",
+  "Transcribing: Done, {n} part": "Transcription\u00a0: Terminée, {n} partie",
+  "Transcribing: Done, {n} parts": "Transcription\u00a0: Terminée, {n} parties",
+  "Transcribing: {status}": "Transcription\u00a0: {status}",
+  "Transcribing: Done": "Transcription\u00a0: Terminée",
+  "Writing the draft: Waiting for the transcript":
+    "Rédaction du brouillon\u00a0: En attente de la transcription",
+  "Writing the draft: Done": "Rédaction du brouillon\u00a0: Terminée",
+  "Writing the draft: {status}": "Rédaction du brouillon\u00a0: {status}",
+  "{n} part could not be transcribed yet.": "{n} partie n’a pas encore pu être transcrite.",
+  "{n} parts could not be transcribed yet.": "{n} parties n’ont pas encore pu être transcrites.",
+  "Retrying automatically (attempt {attempt} of {max}). Parts already done are kept.":
+    "Nouvel essai automatique (tentative {attempt} sur {max}). Les parties déjà traitées sont conservées.",
+  "{n} part could not be transcribed.": "{n} partie n’a pas pu être transcrite.",
+  "{n} parts could not be transcribed.": "{n} parties n’ont pas pu être transcrites.",
+  "{n} part is kept.": "{n} partie est conservée.",
+  "{n} parts are kept.": "{n} parties sont conservées.",
+  "Transcript done. Writing the draft.": "Transcription terminée. Rédaction du brouillon en cours.",
+  "Processing needs attention. Your rough notes are kept. Use the See what happened and retry button.":
+    "Le traitement nécessite votre attention. Vos notes brutes sont conservées. Utilisez le bouton «\u00a0Voir ce qui s’est passé et réessayer\u00a0».",
   "Live updates stopped because the status could not be checked. Use Check again to see the latest.":
     "Les mises à jour en direct se sont arrêtées, car l’état n’a pas pu être vérifié. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir la dernière version.",
   "Live updates stopped after a while. Use Check again to see the latest.":

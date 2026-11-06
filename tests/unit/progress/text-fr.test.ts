@@ -38,7 +38,7 @@ describe("describeJob in French", () => {
       job({ status: "failed", attempts: 5, lastErrorCode: "llm_unavailable" }),
       "Échec après 5 tentatives (llm_unavailable)",
     ],
-    [job({ status: "succeeded" }), "Terminé"],
+    [job({ status: "succeeded" }), "Terminée"],
   ])("%j -> %s", (progress, expected) => {
     expect(inLocale("fr", () => describeJob(progress))).toBe(expected);
   });
@@ -49,7 +49,7 @@ describe("processing and regeneration lines in French", () => {
     const view = inLocale("fr", () =>
       processingProgress(payload({ meetingStatus: "review", job: job({ status: "succeeded" }) })),
     );
-    expect(view.fields["transcript"]).toBe("Transcription : Terminé");
+    expect(view.fields["transcript"]).toBe("Transcription : Terminée");
     expect(view.fields["summary"]).toBe("Résumé : Pas encore démarré");
     expect(view.fields["outcome"]).toBe(
       "Votre brouillon est prêt. Utilisez « Vérifier à nouveau » pour l’ouvrir.",

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   AUTO_OPEN_DELAY_MS,
-  OPENING_ANNOUNCEMENT,
   decideAutoOpen,
   handoffProgress,
+  openingAnnouncement,
   handoffStage,
   isTypingTarget,
 } from "../../../src/domain/progress/handoff";
@@ -165,8 +165,8 @@ describe("handoffProgress when the draft is ready", () => {
       "Draft ready. Use the Open the draft button.",
     );
     const opening = handoffProgress(ready, { autoOpening: true });
-    expect(opening.fields["announce"]).toBe(OPENING_ANNOUNCEMENT);
-    expect(OPENING_ANNOUNCEMENT).toBe("Draft ready, opening it.");
+    expect(opening.fields["announce"]).toBe(openingAnnouncement());
+    expect(openingAnnouncement()).toBe("Draft ready, opening it.");
     // The button stays either way, in case the owner is quicker or the navigation fails.
     expect(opening.fields["link"]).toBe("Open the draft");
   });
@@ -197,7 +197,7 @@ describe("handoffProgress when processing failed", () => {
 
   it("never auto-opens: the retry is the owner's call", () => {
     expect(handoffProgress(failed, { autoOpening: true }).fields["announce"]).not.toBe(
-      OPENING_ANNOUNCEMENT,
+      openingAnnouncement(),
     );
   });
 });
