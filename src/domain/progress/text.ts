@@ -2,7 +2,6 @@ import { t, tn } from "../../i18n/translate";
 import { describeMeeting } from "../meetings/home";
 import type { MeetingStatus } from "../meetings/lifecycle";
 import { openDraftLabel, retryLinkLabel, statusLabel } from "../meetings/stage";
-import { t } from "../../i18n/translate";
 import { describeDeletion, type DeletionDescription } from "../settings/deletion-status";
 
 /**
