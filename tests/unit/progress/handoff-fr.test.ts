@@ -53,7 +53,7 @@ describe("the hand-off after Stop, in French", () => {
     );
     expect(view.fields["note"]).toBe(
       "2 parties n’ont pas encore pu être transcrites. " +
-        "Nouvel essai automatique (tentative 2 sur 5). Les parties déjà traitées sont conservées.",
+        "Nouvelle tentative automatique (2 sur 5). Les parties déjà traitées sont conservées.",
     );
   });
 

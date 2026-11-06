@@ -98,7 +98,7 @@ export const fr: Record<string, string> = {
   "Not started": "Pas encore démarré",
   "Waiting to start": "En attente de démarrage",
   Running: "En cours",
-  "Retrying (attempt {attempt} of {max})": "Nouvel essai (tentative {attempt} sur {max})",
+  "Retrying (attempt {attempt} of {max})": "Nouvelle tentative ({attempt} sur {max})",
   "Failed after {n} attempt": "Échec après {n} tentative",
   "Failed after {n} attempts": "Échec après {n} tentatives",
   "Failed after {n} attempt ({code})": "Échec après {n} tentative ({code})",
@@ -150,7 +150,7 @@ export const fr: Record<string, string> = {
   "{n} part could not be transcribed yet.": "{n} partie n’a pas encore pu être transcrite.",
   "{n} parts could not be transcribed yet.": "{n} parties n’ont pas encore pu être transcrites.",
   "Retrying automatically (attempt {attempt} of {max}). Parts already done are kept.":
-    "Nouvel essai automatique (tentative {attempt} sur {max}). Les parties déjà traitées sont conservées.",
+    "Nouvelle tentative automatique ({attempt} sur {max}). Les parties déjà traitées sont conservées.",
   "{n} part could not be transcribed.": "{n} partie n’a pas pu être transcrite.",
   "{n} parts could not be transcribed.": "{n} parties n’ont pas pu être transcrites.",
   "{n} part is kept.": "{n} partie est conservée.",

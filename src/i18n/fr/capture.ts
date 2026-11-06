@@ -22,8 +22,11 @@ export const fr: Record<string, string> = {
   "Time zone": "Fuseau horaire",
   "Agenda (optional)": "Ordre du jour (facultatif)",
   "Attendees (optional)": "Participants (facultatif)",
-  "One per line: {example}, an email, or just a name. Only list people who will be in the meeting. Listing someone here does not record their consent.":
-    "Un par ligne : {example}, une adresse e-mail ou simplement un nom. Ne listez que les personnes qui seront présentes à la réunion. Ajouter quelqu’un ici n’enregistre pas son consentement.",
+  "One per line: {name} <{email}>, an email, or just a name. Only list people who will be in the meeting. Listing someone here does not record their consent.":
+    "Un par ligne : {name} <{email}>, une adresse e-mail ou simplement un nom. Ne listez que les personnes qui seront présentes à la réunion. Ajouter quelqu’un ici n’enregistre pas son consentement.",
+  // The two words of the example shape "Name <email>": the parser takes any name before <...>.
+  Name: "Nom",
+  email: "adresse e-mail",
   Template: "Modèle",
   "My default ({name})": "Mon modèle par défaut ({name})",
   "Built-in layout": "Structure intégrée",
@@ -143,7 +146,7 @@ export const fr: Record<string, string> = {
   "The file has no single meetings that can be imported.":
     "Le fichier ne contient aucune réunion unique pouvant être importée.",
   "Try another file": "Essayer un autre fichier",
-  "Importing…": "Importation…",
+  "Importing…": "Import en cours…",
   "Events to import": "Événements à importer",
   "{day}, all day": "{day}, toute la journée",
   "{when} ({n} min)": "{when} ({n} min)",
@@ -221,7 +224,7 @@ export const fr: Record<string, string> = {
   "{n} events were already in your list.": "{n} événements figuraient déjà dans votre liste.",
   "Note created. It appears under Upcoming.": "Note créée. Elle apparaît sous « À venir ».",
   "Your calendar could not be reached. Nothing was changed and your notes are safe. Try again in a moment, or create a note manually.":
-    "Votre calendrier n’a pas pu être joint. Rien n’a été modifié et vos notes sont en sécurité. Réessayez dans un instant, ou créez une note manuellement.",
+    "Votre calendrier n’a pas pu être contacté. Rien n’a été modifié et vos notes sont en sécurité. Réessayez dans un instant, ou créez une note manuellement.",
   "The calendar service asked us to slow down. Wait a minute and try again.":
     "Le service de calendrier nous a demandé de ralentir. Patientez une minute et réessayez.",
   "Your calendar is not connected, so events cannot be imported. You can still create a note manually.":

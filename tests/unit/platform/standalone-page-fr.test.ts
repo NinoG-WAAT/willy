@@ -70,7 +70,7 @@ describe("failure responses in French", () => {
     const large = await tooLarge.text();
     expect(large).toContain("<h1>Fichier trop volumineux</h1>");
     expect(large).toContain(
-      '<a href="/meetings/import/ics">Retour à l’importation du fichier de calendrier</a>',
+      '<a href="/meetings/import/ics">Retour à l’import du fichier de calendrier</a>',
     );
     const unsized = inLocale("fr", () => bodyTooLargeResponse(411));
     expect(await unsized.text()).toContain("<h1>Envoi non accepté</h1>");
