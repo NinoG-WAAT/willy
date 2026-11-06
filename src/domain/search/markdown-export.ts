@@ -1,3 +1,4 @@
+import { currentLocale, intlLocale, t, type Locale } from "../../i18n/translate";
 import type { MeetingStatus } from "../meetings/lifecycle";
 
 export interface ExportActionItem {
@@ -50,8 +51,16 @@ export function escapeMarkdown(text: string): string {
 
 const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
 
-function wallClock(utc: string, timeZone: string): { date: string; time: string } {
-  const parts = new Intl.DateTimeFormat("en-CA", {
+/**
+ * The wall time in the meeting's own zone. English keeps the sortable `2026-11-06` form the file
+ * has always had; French reads `06/11/2026`, the day-first order the reader expects.
+ */
+function wallClock(
+  utc: string,
+  timeZone: string,
+  locale: Locale = currentLocale(),
+): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat(locale === "en" ? "en-CA" : intlLocale(locale), {
     timeZone: safeZone(timeZone),
     hourCycle: "h23",
     year: "numeric",
@@ -62,7 +71,10 @@ function wallClock(utc: string, timeZone: string): { date: string; time: string 
   }).formatToParts(new Date(utc));
   const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? "";
   return {
-    date: `${get("year")}-${get("month")}-${get("day")}`,
+    date:
+      locale === "en"
+        ? `${get("year")}-${get("month")}-${get("day")}`
+        : `${get("day")}/${get("month")}/${get("year")}`,
     time: `${get("hour")}:${get("minute")}`,
   };
 }
@@ -77,21 +89,29 @@ function safeZone(timeZone: string): string {
 }
 
 function noteState(note: ExportNote | null): string {
-  if (note === null) return "No summary yet";
-  return note.status === "published" ? "Published" : "Draft summary, not yet published";
+  if (note === null) return t("No summary yet");
+  return note.status === "published" ? t("Published") : t("Draft summary, not yet published");
 }
 
-/** Renders one meeting and its note as Markdown. Pure: the output depends only on `data`. */
+const field = (label: string, value: string): string => `- **${label}** ${value}`;
+const h2 = (text: string): string => `## ${text}`;
+
+/**
+ * Renders one meeting and its note as Markdown. Pure: the output depends only on `data` and the
+ * request's language. The fixed labels and dates follow the language; everything the owner wrote
+ * is escaped exactly as before and never translated.
+ */
 export function renderMarkdown(data: ExportData): string {
   const when = wallClock(data.scheduledStartAt, data.timezone);
   const lines: string[] = [`# ${escapeMarkdown(oneLine(data.title))}`, ""];
-  lines.push(`- **When:** ${when.date} ${when.time} (${escapeMarkdown(data.timezone)})`);
-  lines.push(`- **Status:** ${noteState(data.note)}`);
-  if (data.folderName !== null)
-    lines.push(`- **Folder:** ${escapeMarkdown(oneLine(data.folderName))}`);
+  lines.push(field(t("When:"), `${when.date} ${when.time} (${escapeMarkdown(data.timezone)})`));
+  lines.push(field(t("Status:"), noteState(data.note)));
+  if (data.folderName !== null) {
+    lines.push(field(t("Folder:"), escapeMarkdown(oneLine(data.folderName))));
+  }
   if (data.attendees.length > 0) {
     lines.push(
-      `- **Attendees:** ${data.attendees.map((a) => escapeMarkdown(oneLine(a))).join(", ")}`,
+      field(t("Attendees:"), data.attendees.map((a) => escapeMarkdown(oneLine(a))).join(", ")),
     );
   }
   lines.push("");
@@ -100,13 +120,13 @@ export function renderMarkdown(data: ExportData): string {
     if (text === null || text.trim() === "") return;
     lines.push(`## ${heading}`, "", escapeMarkdown(text.trim()), "");
   };
-  block("Agenda", data.agenda);
-  block("Rough notes", data.roughNotes);
+  block(t("Agenda"), data.agenda);
+  block(t("Rough notes"), data.roughNotes);
 
   const { note } = data;
   if (note !== null) {
     if (note.sections.length > 0) {
-      lines.push("## Summary", "");
+      lines.push(h2(t("Summary")), "");
       for (const section of note.sections) {
         lines.push(
           `### ${escapeMarkdown(oneLine(section.heading))}`,
@@ -117,19 +137,22 @@ export function renderMarkdown(data: ExportData): string {
       }
     }
     if (note.decisions.length > 0) {
-      lines.push("## Decisions", "");
+      lines.push(h2(t("Decisions")), "");
       for (const decision of note.decisions) {
         lines.push(`- ${escapeMarkdown(decision.trim()).replace(/\n/g, "\n  ")}`);
       }
       lines.push("");
     }
     if (note.actionItems.length > 0) {
-      lines.push("## Action items", "");
+      lines.push(h2(t("Action items")), "");
       for (const item of note.actionItems) {
         const meta: string[] = [];
-        if (item.assignee !== null) meta.push(`owner: ${escapeMarkdown(oneLine(item.assignee))}`);
+        if (item.assignee !== null)
+          meta.push(t("owner: {name}", { name: escapeMarkdown(oneLine(item.assignee)) }));
         if (item.dueAt !== null) {
-          meta.push(`due ${wallClock(item.dueAt, item.dueTimezone ?? "UTC").date}`);
+          meta.push(
+            t("due {date}", { date: wallClock(item.dueAt, item.dueTimezone ?? "UTC").date }),
+          );
         }
         const suffix = meta.length > 0 ? ` (${meta.join(", ")})` : "";
         lines.push(`- [${item.done ? "x" : " "}] ${escapeMarkdown(oneLine(item.text))}${suffix}`);

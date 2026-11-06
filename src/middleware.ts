@@ -1,3 +1,4 @@
+import type { APIContext } from "astro";
 import { defineMiddleware, sequence } from "astro:middleware";
 import { authenticateSession } from "./app/identity/authenticate";
 import { clearCookieOptions, SESSION_COOKIE } from "./app/identity/cookies";
@@ -13,6 +14,7 @@ import { enforceRateLimit, rateLimitedResponse } from "./app/ops/rate-limits";
 import { observeRequest } from "./app/ops/request-observer";
 import { securityHeaders } from "./app/ops/security-headers";
 import { isSameOrigin, requiresCsrf, tokensMatch } from "./domain/identity/csrf";
+import type { Locale } from "./i18n/translate";
 import {
   ensureJobRunner,
   getDefaultLocale,
@@ -33,6 +35,9 @@ const observe = defineMiddleware((context, next) =>
       pathname: context.url.pathname,
       inboundRequestId: context.request.headers.get("x-request-id"),
       ownerId: () => context.locals.owner?.id,
+      // The language middleware has been left by then, so the 500 page re-enters the language it
+      // resolved (or the server default when the failure came before that).
+      inRequestLocale: (fn) => runWithLocale(context.locals.locale ?? getDefaultLocale(), fn),
     },
     ({ requestId, log }) => {
       context.locals.requestId = requestId;
@@ -72,6 +77,30 @@ async function submittedCsrfToken(request: Request): Promise<string | null> {
   }
 }
 
+/** The language of this request: the signed-in owner's choice, else the server default. */
+function resolveLocale(context: APIContext): Promise<Locale> {
+  return resolveRequestLocale(
+    getLanguageDeps(),
+    context.locals.owner?.id,
+    getDefaultLocale(),
+    (cause) => {
+      context.locals.log?.warn("i18n.locale_unavailable", {
+        errorName: cause instanceof Error ? cause.name : "unknown",
+      });
+    },
+  );
+}
+
+/**
+ * Builds a response `auth` answers itself (403, 429, 411/413) in the request's language. Those
+ * run before the `language` middleware, so they open the same per-request language here.
+ */
+async function answerInLocale(context: APIContext, build: () => Response): Promise<Response> {
+  const locale = await resolveLocale(context);
+  context.locals.locale = locale;
+  return runWithLocale(locale, build);
+}
+
 /**
  * Default-deny authentication and CSRF for every route except the public and webhook lists in
  * `classifyRoute`. Owner routes get `locals.owner`; everything that changes state needs the
@@ -89,7 +118,9 @@ const auth = defineMiddleware(async (context, next) => {
       ownerId: undefined,
       clientAddress: context.clientAddress,
     });
-    return limited ? rateLimitedResponse(limited.retryAfterSeconds, url.pathname) : next();
+    return limited
+      ? answerInLocale(context, () => rateLimitedResponse(limited.retryAfterSeconds, url.pathname))
+      : next();
   }
 
   const token = cookies.get(SESSION_COOKIE)?.value;
@@ -114,41 +145,37 @@ const auth = defineMiddleware(async (context, next) => {
     ownerId: result.owner.id,
     clientAddress: context.clientAddress,
   });
-  if (limited) return rateLimitedResponse(limited.retryAfterSeconds, url.pathname);
+  if (limited) {
+    return answerInLocale(context, () =>
+      rateLimitedResponse(limited.retryAfterSeconds, url.pathname),
+    );
+  }
 
   // Before anything reads the body: the CSRF check below buffers form posts.
   const bodyLimit = maxBodyBytesFor(request.method, url.pathname);
   if (bodyLimit !== null) {
     const refused = checkBodyLength(request.headers.get("content-length"), bodyLimit);
-    if (refused !== null) return bodyTooLargeResponse(refused);
+    if (refused !== null) return answerInLocale(context, () => bodyTooLargeResponse(refused));
   }
 
   if (requiresCsrf(request.method)) {
     const proven =
       isSameOrigin(request.headers.get("origin"), url.origin) &&
       tokensMatch(result.session.csrfSecret, await submittedCsrfToken(request));
-    if (!proven) return forbiddenResponse(url);
+    if (!proven) return answerInLocale(context, () => forbiddenResponse(url));
   }
   return next();
 });
 
 /**
  * Sets the interface language for everything below: the signed-in owner's choice, else
- * WILLY_DEFAULT_LOCALE. Runs after `auth`, so `locals.owner` is known; a request that `auth`
- * answered itself (redirect to sign-in, 403, 429) is not translated yet. Every `t()` call in
- * pages, components, use cases and the domain reads the locale from the storage this opens.
+ * WILLY_DEFAULT_LOCALE. Runs after `auth`, so `locals.owner` is known. A request that `auth`
+ * answers itself speaks the same language (`answerInLocale`); a redirect to sign-in has no text.
+ * Every `t()` call in pages, components, use cases and the domain reads the locale from the
+ * storage this opens.
  */
 const language = defineMiddleware(async (context, next) => {
-  const locale = await resolveRequestLocale(
-    getLanguageDeps(),
-    context.locals.owner?.id,
-    getDefaultLocale(),
-    (cause) => {
-      context.locals.log?.warn("i18n.locale_unavailable", {
-        errorName: cause instanceof Error ? cause.name : "unknown",
-      });
-    },
-  );
+  const locale = await resolveLocale(context);
   context.locals.locale = locale;
   return runWithLocale(locale, next);
 });

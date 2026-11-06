@@ -1,5 +1,6 @@
 import { requiresCsrf } from "../../domain/identity/csrf";
-import { standalonePage } from "../platform/standalone-page";
+import { t } from "../../i18n/translate";
+import { paragraph, standalonePage } from "../platform/standalone-page";
 
 export type RouteAccess = "public" | "signature" | "owner";
 
@@ -51,8 +52,8 @@ export function forbiddenResponse(url: URL): Response {
   if (isApiPath(url.pathname)) return json(403, { error: "csrf_failed" });
   return new Response(
     standalonePage(
-      "Request refused",
-      "<p>Your request could not be verified. Go back, reload the page and try again.</p>",
+      t("Request refused"),
+      paragraph(t("Your request could not be verified. Go back, reload the page and try again.")),
     ),
     { status: 403, headers: { "Content-Type": "text/html; charset=utf-8", ...NO_STORE } },
   );

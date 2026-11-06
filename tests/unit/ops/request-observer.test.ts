@@ -23,6 +23,7 @@ const info = (over: Partial<Parameters<typeof observeRequest>[1]> = {}) => ({
   pathname: "/meetings/m1",
   inboundRequestId: null,
   ownerId: () => undefined as string | undefined,
+  inRequestLocale: <T>(fn: () => T): T => fn(),
   ...over,
 });
 

@@ -2,6 +2,7 @@ import { mergeCatalogs } from "../merge-catalogs";
 import * as auth from "./auth";
 import * as capture from "./capture";
 import * as scripts from "./scripts";
+import * as search from "./search";
 import * as settings from "./settings";
 import * as shell from "./shell";
 import * as summaries from "./summaries";
@@ -15,6 +16,7 @@ const AREAS: Record<string, AreaModule> = {
   shell,
   auth,
   settings,
+  search,
   scripts,
   summaries,
   capture,

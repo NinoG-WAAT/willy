@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import { type FieldError } from "../platform/text";
 
@@ -12,16 +13,16 @@ const invalid = (message: string): Result<never, FieldError> => err({ field: "q"
  * syntax: no operators, column filters or unbalanced quotes reach the index (A03).
  */
 export function parseSearchQuery(raw: unknown): Result<string[], FieldError> {
-  if (typeof raw !== "string") return invalid("Enter something to search for.");
+  if (typeof raw !== "string") return invalid(t("Enter something to search for."));
   const terms = raw
     .normalize("NFC")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter((term) => term !== "");
-  if (terms.length === 0) return invalid("Enter at least one word to search for.");
-  if (terms.length > MAX_TERMS) return invalid(`Use at most ${String(MAX_TERMS)} words.`);
+  if (terms.length === 0) return invalid(t("Enter at least one word to search for."));
+  if (terms.length > MAX_TERMS) return invalid(t("Use at most {max} words.", { max: MAX_TERMS }));
   if (terms.some((term) => term.length > MAX_TERM_CHARS)) {
-    return invalid(`Words can be at most ${String(MAX_TERM_CHARS)} characters.`);
+    return invalid(t("Words can be at most {max} characters.", { max: MAX_TERM_CHARS }));
   }
   return ok(terms);
 }

@@ -72,6 +72,27 @@ export const fr: Record<string, string> = {
   "This note is being captured on another device or tab, or recording stopped here after a reload. Record from this browser to continue.":
     "Cette note est enregistrée sur un autre appareil ou un autre onglet, ou l’enregistrement s’est arrêté ici après un rechargement. Enregistrez depuis ce navigateur pour continuer.",
   "Record from this browser": "Enregistrer depuis ce navigateur",
+  // src/domain/settings/deletion-status.ts and the deletions panel of src/scripts/job-progress.ts
+  Queued: "En attente",
+  "The meeting is already hidden. Removing its files and records has not started yet.":
+    "La réunion est déjà masquée. La suppression de ses fichiers et de ses données n’a pas encore commencé.",
+  Deleting: "Suppression en cours",
+  "The meeting is already hidden. Its files and records are being removed.":
+    "La réunion est déjà masquée. Ses fichiers et ses données sont en cours de suppression.",
+  Retrying: "Nouvelle tentative",
+  "Attempt {attempt} of {max} did not finish{reason}. It will try again automatically.":
+    "La tentative {attempt} sur {max} n’a pas abouti{reason}. Une nouvelle tentative aura lieu automatiquement.",
+  Failed: "Échec",
+  "Deletion stopped after {n} attempt{reason}. The meeting stays hidden. It will be retried automatically within the hour, or you can retry now.":
+    "La suppression s’est arrêtée après {n} tentative{reason}. La réunion reste masquée. Elle sera relancée automatiquement dans l’heure, ou vous pouvez réessayer maintenant.",
+  "Deletion stopped after {n} attempts{reason}. The meeting stays hidden. It will be retried automatically within the hour, or you can retry now.":
+    "La suppression s’est arrêtée après {n} tentatives{reason}. La réunion reste masquée. Elle sera relancée automatiquement dans l’heure, ou vous pouvez réessayer maintenant.",
+  Deleted: "Supprimée",
+  "The note, transcript, audio and search entries are gone.":
+    "La note, la transcription, l’audio et les entrées de recherche ont disparu.",
+  "Deletion with reference {id}: {label}. {detail}":
+    "Suppression de référence {id} : {label}. {detail}",
+  "Next attempt: {when}": "Prochaine tentative : {when}",
 };
 
 export const sameInFrench: Record<string, string> = {};

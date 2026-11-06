@@ -6,6 +6,7 @@ import { readFormFields, single } from "../../../app/platform/form";
 import { confirmMeetingDeletion, loadDeletionPrompt } from "../../../app/settings/deletion";
 import { getDeletionDeps } from "../../../composition";
 import { DELETION_CONFIRMATION_WORD } from "../../../domain/settings/deletion-confirmation";
+import { t } from "../../../i18n/translate";
 
 export const prerender = false;
 
@@ -48,52 +49,56 @@ if (Astro.request.method === "POST") {
 
 const meeting = prompt.value;
 const recording = meeting.status === "capturing" || meeting.status === "paused";
+const when = formatSchedule(meeting.scheduledStartAt, meeting.timezone);
 ---
 
-<Base title="Delete meeting permanently">
-  <h1>Delete meeting permanently</h1>
+<Base title={t("Delete meeting permanently")}>
+  <h1>{t("Delete meeting permanently")}</h1>
   <p>
-    You are about to delete <strong>{meeting.title}</strong>, scheduled for{" "}
-    <time datetime={meeting.scheduledStartAt}>
-      {formatSchedule(meeting.scheduledStartAt, meeting.timezone)}
-    </time>
-    .
+    {t("You are about to delete {title}, scheduled for {when}.", { title: meeting.title, when })}
   </p>
 
   {recording && (
     <p class="alert" role="alert">
-      This meeting is recording right now. Deleting it stops the capture and discards what was
-      recorded.
+      {t(
+        "This meeting is recording right now. Deleting it stops the capture and discards what was recorded.",
+      )}
     </p>
   )}
   {problem === "busy" && (
     <p class="alert" role="alert">
-      Something changed at the same moment, so nothing was deleted. Check the settings page, then
-      try again.
+      {t(
+        "Something changed at the same moment, so nothing was deleted. Check the settings page, then try again.",
+      )}
     </p>
   )}
 
   <section class="panel" aria-labelledby="scope-heading">
-    <h2 id="scope-heading">What will be destroyed</h2>
+    <h2 id="scope-heading">{t("What will be destroyed")}</h2>
     <ul class="plain">
-      <li>The note: its summary sections, decisions and action items, as a draft or published.</li>
-      <li>The transcript, including speaker corrections.</li>
-      <li>The audio: any raw audio chunks that are still stored.</li>
-      <li>The search entries for this meeting, so it no longer appears in any result.</li>
-      <li>Your rough notes, the agenda and the attendee list.</li>
+      <li>
+        {t("The note: its summary sections, decisions and action items, as a draft or published.")}
+      </li>
+      <li>{t("The transcript, including speaker corrections.")}</li>
+      <li>{t("The audio: any raw audio chunks that are still stored.")}</li>
+      <li>{t("The search entries for this meeting, so it no longer appears in any result.")}</li>
+      <li>{t("Your rough notes, the agenda and the attendee list.")}</li>
     </ul>
     <p>
-      Only a short record that a deletion happened stays, with no title or text. Files you already
-      exported or downloaded, and the event in your calendar, are not touched.
+      {t(
+        "Only a short record that a deletion happened stays, with no title or text. Files you already exported or downloaded, and the event in your calendar, are not touched.",
+      )}
     </p>
     <p>
-      <strong>This cannot be undone.</strong> The meeting disappears at once. A background job then
-      removes the files and records, and you can follow it on the settings page.
+      <strong>{t("This cannot be undone.")}</strong>{" "}
+      {t(
+        "The meeting disappears at once. A background job then removes the files and records, and you can follow it on the settings page.",
+      )}
     </p>
     <p>
-      Want a copy first?{" "}
-      <a href={`/meetings/${meeting.id}/export.md`}>Export this note to Markdown</a>. The export has
-      no transcript or audio.
+      {t("Want a copy first?")}{" "}
+      <a href={`/meetings/${meeting.id}/export.md`}>{t("Export this note to Markdown")}</a>.{" "}
+      {t("The export has no transcript or audio.")}
     </p>
   </section>
 
@@ -101,11 +106,13 @@ const recording = meeting.status === "capturing" || meeting.status === "paused";
     class="form"
     method="post"
     action={`/meetings/${meeting.id}/delete`}
-    data-pending-text="Deleting…"
+    data-pending-text={t("Deleting…")}
   >
     <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
     <div class="field">
-      <label for="confirmation">Type {DELETION_CONFIRMATION_WORD} to confirm</label>
+      <label for="confirmation">
+        {t("Type {word} to confirm", { word: DELETION_CONFIRMATION_WORD })}
+      </label>
       <input
         id="confirmation"
         name="confirmation"
@@ -118,15 +125,17 @@ const recording = meeting.status === "capturing" || meeting.status === "paused";
       />
       {problem === "confirmation" && (
         <p class="field-error" id="confirmation-error">
-          Type {DELETION_CONFIRMATION_WORD} in capital letters to confirm. Nothing was deleted.
+          {t("Type {word} in capital letters to confirm. Nothing was deleted.", {
+            word: DELETION_CONFIRMATION_WORD,
+          })}
         </p>
       )}
     </div>
     <div class="row-actions">
       <button class="button button-danger" type="submit">
-        Delete permanently
+        {t("Delete permanently")}
       </button>
-      <a href="/settings">Cancel</a>
+      <a href="/settings">{t("Cancel")}</a>
     </div>
   </form>
   <p id="pending-status" class="sr-only" role="status"></p>

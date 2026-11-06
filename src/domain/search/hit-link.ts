@@ -1,13 +1,7 @@
+import { t } from "../../i18n/translate";
 import type { MeetingStatus } from "../meetings/lifecycle";
 
 const REVIEWED: readonly MeetingStatus[] = ["processing", "review", "published", "failed"];
-
-const KIND_LABELS: Readonly<Record<string, string>> = {
-  meeting: "Title, agenda or rough notes",
-  note_section: "Summary section",
-  decision: "Decision",
-  action_item: "Action item",
-};
 
 /** Where a hit opens: the review screen once there is a summary, otherwise the live note. */
 export function hitHref(
@@ -21,6 +15,18 @@ export function hitHref(
   return `${base}?${params.toString()}`;
 }
 
+/** What part of a meeting matched, in the page language. */
 export function hitKindLabel(kind: string): string {
-  return KIND_LABELS[kind] ?? "Note";
+  switch (kind) {
+    case "meeting":
+      return t("Title, agenda or rough notes");
+    case "note_section":
+      return t("Summary section");
+    case "decision":
+      return t("Decision");
+    case "action_item":
+      return t("Action item");
+    default:
+      return t("Note");
+  }
 }

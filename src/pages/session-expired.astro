@@ -1,6 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import { safeNextPath } from "../domain/identity/next-path";
+import { t } from "../i18n/translate";
 
 export const prerender = false;
 
@@ -8,12 +9,14 @@ const next = safeNextPath(Astro.url.searchParams.get("next"));
 const signInHref = next === "/" ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`;
 ---
 
-<Base title="Session expired" standalone>
-  <h1>Your session expired</h1>
-  <p>For your security you were signed out after a period of inactivity. Your notes are safe.</p>
+<Base title={t("Session expired")} standalone>
+  <h1>{t("Your session expired")}</h1>
+  <p>
+    {t("For your security you were signed out after a period of inactivity. Your notes are safe.")}
+  </p>
   <p>
     <a class="button button-primary" href={signInHref}>
-      Sign in again
+      {t("Sign in again")}
     </a>
   </p>
 </Base>

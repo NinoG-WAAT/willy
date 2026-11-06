@@ -1,3 +1,4 @@
+import { t, tn } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import type { FieldError } from "../platform/text";
 
@@ -26,19 +27,25 @@ export const rawAudioChoices = (current: number): number[] => withCurrent(RAW_AU
 export const noteRetentionChoices = (current: number | null): number[] =>
   withCurrent(NOTE_DAYS, current);
 
-const plural = (n: number, one: string, many: string) => `${String(n)} ${n === 1 ? one : many}`;
-
 export function describeRawAudioRetention(hours: number): string {
-  if (hours === 0) return "Delete right after successful transcription (default)";
-  const span =
-    hours % 24 === 0 ? plural(hours / 24, "day", "days") : plural(hours, "hour", "hours");
-  return `Keep for ${span} after transcription`;
+  if (hours === 0) return t("Delete right after successful transcription (default)");
+  return hours % 24 === 0
+    ? tn(
+        "Keep for {n} day after transcription",
+        "Keep for {n} days after transcription",
+        hours / 24,
+      )
+    : tn("Keep for {n} hour after transcription", "Keep for {n} hours after transcription", hours);
 }
 
 export function describeNoteRetention(days: number | null): string {
   return days === null
-    ? "Keep notes and transcripts until you delete them (default)"
-    : `Permanently delete meetings ${plural(days, "day", "days")} after their scheduled start`;
+    ? t("Keep notes and transcripts until you delete them (default)")
+    : tn(
+        "Permanently delete meetings {n} day after their scheduled start",
+        "Permanently delete meetings {n} days after their scheduled start",
+        days,
+      );
 }
 
 export interface RetentionInput {
@@ -68,7 +75,7 @@ export function parseRetention(
   if (hours === null || !rawAudioChoices(current.rawAudioRetentionHours).includes(hours)) {
     errors.push({
       field: "raw_audio_retention_hours",
-      message: "Choose how long raw audio is kept from the list.",
+      message: t("Choose how long raw audio is kept from the list."),
     });
   }
 
@@ -78,7 +85,7 @@ export function parseRetention(
     if (days === null || !noteRetentionChoices(current.noteRetentionDays).includes(days)) {
       errors.push({
         field: "note_retention_days",
-        message: "Choose how long notes are kept from the list.",
+        message: t("Choose how long notes are kept from the list."),
       });
     }
   }
@@ -91,7 +98,7 @@ export function parseRetention(
     return err([
       {
         field: "acknowledge_note_retention",
-        message: "Tick the box to confirm that older meetings will be deleted permanently.",
+        message: t("Tick the box to confirm that older meetings will be deleted permanently."),
       },
     ]);
   }

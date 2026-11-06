@@ -1,5 +1,7 @@
 ---
 import type { FieldError } from "../../domain/platform/text";
+import { TERM_MAX_LENGTH } from "../../domain/transcription/vocabulary";
+import { t } from "../../i18n/translate";
 
 /**
  * One small field for adding words. Pasted lines or comma-separated words are all added, which a
@@ -19,11 +21,11 @@ const invalid = errors.length > 0;
 ---
 
 <details class="rl-add" open={open || invalid}>
-  <summary>Add words</summary>
+  <summary>{t("Add words")}</summary>
   <form method="post" action="/settings/vocabulary" class="form form-wide">
     <input type="hidden" name="csrf_token" value={csrf} />
     <div class="field field-wide">
-      <label for="term">Words to add</label>
+      <label for="term">{t("Words to add")}</label>
       <textarea
         id="term"
         name="term"
@@ -38,8 +40,10 @@ const invalid = errors.length > 0;
         )}
       >{typed}</textarea>
       <p class="help" id="term-help">
-        One word or name per line, or several separated by commas. Up to {maxTerms} words, each at
-        most 80 characters.
+        {t(
+          "One word or name per line, or several separated by commas. Up to {max} words, each at most {length} characters.",
+          { max: maxTerms, length: TERM_MAX_LENGTH },
+        )}
       </p>
       {errors.map((e, i) => (
         <p class="field-error" id={`term-error-${String(i)}`}>
@@ -49,7 +53,7 @@ const invalid = errors.length > 0;
     </div>
     <div class="row-actions">
       <button class="button button-quiet" type="submit">
-        Add
+        {t("Add")}
       </button>
     </div>
   </form>

@@ -89,11 +89,15 @@ const markers: Record<ProviderState, string> = {
 };
 const csrf = Astro.locals.csrfToken ?? "";
 const locale = Astro.locals.locale ?? currentLocale();
+const retentionSummary = t("Currently: {audio}. {notes}.", {
+  audio: describeRawAudioRetention(retention.rawAudioRetentionHours).toLowerCase(),
+  notes: describeNoteRetention(retention.noteRetentionDays),
+});
 ---
 
-<Base title="Settings">
+<Base title={t("Settings")}>
   <div class="page-head">
-    <h1>Settings</h1>
+    <h1>{t("Settings")}</h1>
   </div>
 
   {notice !== null && (
@@ -128,10 +132,11 @@ const locale = Astro.locals.locale ?? currentLocale();
   </section>
 
   <section class="panel" aria-labelledby="providers-heading">
-    <h2 id="providers-heading">Provider status</h2>
+    <h2 id="providers-heading">{t("Provider status")}</h2>
     <p class="help">
-      What Willycrumbs talks to, and whether it is working for you right now. Fake mode means a
-      built-in stand-in is used and nothing leaves this server.
+      {t(
+        "What Willycrumbs talks to, and whether it is working for you right now. Fake mode means a built-in stand-in is used and nothing leaves this server.",
+      )}
     </p>
     <ul class="rows">
       {providers.map((provider) => (
@@ -146,7 +151,8 @@ const locale = Astro.locals.locale ?? currentLocale();
           <p class="row-meta">{provider.modeText}</p>
           {provider.lastError !== null && (
             <p>
-              Last error: <code>{provider.lastError.code}</code>. {provider.lastError.summary}
+              {t("Last error:")} <code>{provider.lastError.code}</code>.{" "}
+              {provider.lastError.summary}
               {provider.lastError.at !== null && (
                 <span> ({formatInstant(provider.lastError.at)})</span>
               )}
@@ -158,15 +164,12 @@ const locale = Astro.locals.locale ?? currentLocale();
   </section>
 
   <section class="panel" aria-labelledby="retention-heading">
-    <h2 id="retention-heading">Retention</h2>
-    <p class="help">
-      Currently: {describeRawAudioRetention(retention.rawAudioRetentionHours).toLowerCase()}.{" "}
-      {describeNoteRetention(retention.noteRetentionDays)}.
-    </p>
+    <h2 id="retention-heading">{t("Retention")}</h2>
+    <p class="help">{retentionSummary}</p>
     <form class="form form-wide" method="post" action="/settings">
       <input type="hidden" name="csrf_token" value={csrf} />
       <div class="field">
-        <label for="raw_audio_retention_hours">Raw audio</label>
+        <label for="raw_audio_retention_hours">{t("Raw audio")}</label>
         <select
           id="raw_audio_retention_hours"
           name="raw_audio_retention_hours"
@@ -180,11 +183,13 @@ const locale = Astro.locals.locale ?? currentLocale();
           ))}
         </select>
         <p class="help" id="raw-audio-help">
-          Raw audio is only needed to transcribe it. Keeping it longer stores more sensitive data.
+          {t(
+            "Raw audio is only needed to transcribe it. Keeping it longer stores more sensitive data.",
+          )}
         </p>
       </div>
       <div class="field">
-        <label for="note_retention_days">Notes and transcripts</label>
+        <label for="note_retention_days">{t("Notes and transcripts")}</label>
         <select
           id="note_retention_days"
           name="note_retention_days"
@@ -201,8 +206,9 @@ const locale = Astro.locals.locale ?? currentLocale();
           ))}
         </select>
         <p class="help" id="notes-help">
-          When a period is set, meetings that are finished, published, archived or failed and older
-          than it are deleted permanently and automatically, with their transcript and audio.
+          {t(
+            "When a period is set, meetings that are finished, published, archived or failed and older than it are deleted permanently and automatically, with their transcript and audio.",
+          )}
         </p>
       </div>
       <div class="field">
@@ -216,8 +222,9 @@ const locale = Astro.locals.locale ?? currentLocale();
             aria-invalid={fieldError("acknowledge_note_retention") ? "true" : undefined}
           />
           <label for="acknowledge_note_retention">
-            I understand that meetings older than the period I choose are deleted permanently and
-            automatically. Needed when you turn this on or make the period shorter.
+            {t(
+              "I understand that meetings older than the period I choose are deleted permanently and automatically. Needed when you turn this on or make the period shorter.",
+            )}
           </label>
         </div>
         {fieldError("acknowledge_note_retention") && (
@@ -225,66 +232,68 @@ const locale = Astro.locals.locale ?? currentLocale();
         )}
       </div>
       <button class="button button-primary" type="submit">
-        Save retention
+        {t("Save retention")}
       </button>
     </form>
   </section>
 
   <section class="panel" aria-labelledby="templates-heading">
-    <h2 id="templates-heading">Templates and folders</h2>
+    <h2 id="templates-heading">{t("Templates and folders")}</h2>
     <p>
-      Templates set the sections of the note generated after a meeting. Folders are private places
-      to publish finished notes.
+      {t(
+        "Templates set the sections of the note generated after a meeting. Folders are private places to publish finished notes.",
+      )}
     </p>
     <p class="row-actions">
       <a class="button button-quiet" href="/settings/templates">
-        Edit templates
+        {t("Edit templates")}
       </a>
       <a class="button button-quiet" href="/folders">
-        Manage folders
+        {t("Manage folders")}
       </a>
     </p>
   </section>
 
   <section class="panel" aria-labelledby="vocabulary-heading">
-    <h2 id="vocabulary-heading">Vocabulary</h2>
+    <h2 id="vocabulary-heading">{t("Vocabulary")}</h2>
     <p>
-      Words your meetings use that a speech recogniser does not know: project names, clients,
-      acronyms. They help it spell them correctly in the transcript.
+      {t(
+        "Words your meetings use that a speech recogniser does not know: project names, clients, acronyms. They help it spell them correctly in the transcript.",
+      )}
     </p>
     <p class="row-actions">
       <a class="button button-quiet" href="/settings/vocabulary">
-        Edit vocabulary
+        {t("Edit vocabulary")}
       </a>
     </p>
   </section>
 
   <section class="panel" aria-labelledby="export-heading">
-    <h2 id="export-heading">Export</h2>
+    <h2 id="export-heading">{t("Export")}</h2>
     <p>
-      Every note can be exported to a Markdown file from its search result or from the list below.
-      The export has the title, agenda, notes, decisions and action items. It never includes the
-      transcript, audio or email addresses.
+      {t(
+        "Every note can be exported to a Markdown file from its search result or from the list below. The export has the title, agenda, notes, decisions and action items. It never includes the transcript, audio or email addresses.",
+      )}
     </p>
     <p class="row-actions">
       <a class="button button-quiet" href="/search">
-        Find a note to export
+        {t("Find a note to export")}
       </a>
     </p>
   </section>
 
   <section class="panel" aria-labelledby="deletion-heading">
-    <h2 id="deletion-heading">Permanent deletion</h2>
+    <h2 id="deletion-heading">{t("Permanent deletion")}</h2>
     <p>
-      Deleting a meeting destroys its note, transcript, audio and search entries, and cannot be
-      undone. You confirm by typing a word on the next page. The meeting disappears at once; the
-      files and records are then removed by a background job whose progress is shown here.
+      {t(
+        "Deleting a meeting destroys its note, transcript, audio and search entries, and cannot be undone. You confirm by typing a word on the next page. The meeting disappears at once; the files and records are then removed by a background job whose progress is shown here.",
+      )}
     </p>
 
-    <h3 id="deletions">Deletions</h3>
+    <h3 id="deletions">{t("Deletions")}</h3>
     <p id="deletion-announce" class="sr-only" role="status" aria-live="polite"></p>
     {deletions.length === 0 ? (
-      <p>No deletions yet.</p>
+      <p>{t("No deletions yet.")}</p>
     ) : (
       <div
         data-progress={deletionsRunning ? "deletions" : undefined}
@@ -300,8 +309,9 @@ const locale = Astro.locals.locale ?? currentLocale();
                 </span>
               </p>
               <p class="row-meta">
-                Requested {formatInstant(entry.requestedAt)} · Reference{" "}
-                <code>{entry.meetingId}</code>
+                {t("Requested {when}", { when: formatInstant(entry.requestedAt) })}
+                {" · "}
+                {t("Reference")} <code>{entry.meetingId}</code>
               </p>
               <p data-field="detail">{entry.view.detail}</p>
               {entry.view.inProgress && (
@@ -312,12 +322,14 @@ const locale = Astro.locals.locale ?? currentLocale();
                   hidden={!(entry.view.state === "retrying" && entry.nextRunAt !== null)}
                 >
                   {entry.view.state === "retrying" && entry.nextRunAt !== null
-                    ? `Next attempt: ${formatInstant(entry.nextRunAt)}`
+                    ? t("Next attempt: {when}", { when: formatInstant(entry.nextRunAt) })
                     : ""}
                 </p>
               )}
               {entry.view.state === "succeeded" && (
-                <p class="row-meta">Finished {formatInstant(entry.updatedAt)}</p>
+                <p class="row-meta">
+                  {t("Finished {when}", { when: formatInstant(entry.updatedAt) })}
+                </p>
               )}
               {(entry.view.canRetry || entry.view.inProgress) && (
                 <form
@@ -329,7 +341,8 @@ const locale = Astro.locals.locale ?? currentLocale();
                 >
                   <input type="hidden" name="csrf_token" value={csrf} />
                   <button class="button button-quiet" type="submit">
-                    Retry deletion<span class="sr-only"> for reference {entry.meetingId}</span>
+                    {t("Retry deletion")}
+                    <span class="sr-only"> {t("for reference {id}", { id: entry.meetingId })}</span>
                   </button>
                 </form>
               )}
@@ -339,15 +352,16 @@ const locale = Astro.locals.locale ?? currentLocale();
         <p data-field="outcome" class="help" data-optional hidden></p>
         {deletionsRunning && (
           <p class="help" data-while-running>
-            A deletion is still running. <a href="/settings">Check again</a> in a moment.
+            {t("A deletion is still running.")}{" "}
+            <a href="/settings">{t("Check again in a moment.")}</a>
           </p>
         )}
       </div>
     )}
 
-    <h3>Delete a meeting</h3>
+    <h3>{t("Delete a meeting")}</h3>
     {meetings.length === 0 ? (
-      <p>You have no meetings to delete.</p>
+      <p>{t("You have no meetings to delete.")}</p>
     ) : (
       <ul class="rows">
         {meetings.map((item) => (
@@ -362,10 +376,12 @@ const locale = Astro.locals.locale ?? currentLocale();
             </p>
             <div class="row-actions">
               <a href={`/meetings/${item.id}/export.md`}>
-                Export Markdown<span class="sr-only"> of {item.title}</span>
+                {t("Export Markdown")}
+                <span class="sr-only"> {t("of {title}", { title: item.title })}</span>
               </a>
               <a class="button button-danger" href={`/meetings/${item.id}/delete`}>
-                Delete permanently<span class="sr-only"> {item.title}</span>
+                {t("Delete permanently")}
+                <span class="sr-only"> {item.title}</span>
               </a>
             </div>
           </li>

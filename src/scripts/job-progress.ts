@@ -1,5 +1,6 @@
 import "./i18n";
 import { formatInstant } from "../components/format-instant";
+import { t } from "../i18n/translate";
 import {
   cardProgress,
   deletionRowProgress,
@@ -191,14 +192,20 @@ const renderers: Record<string, Render> = {
       const view = deletionRowProgress(row);
       const label = item.querySelector<HTMLElement>('[data-field="label"]');
       if (label && label.textContent !== view.label) {
-        changed.push(`Deletion with reference ${id}: ${view.label}. ${view.detail}`);
+        changed.push(
+          t("Deletion with reference {id}: {label}. {detail}", {
+            id,
+            label: view.label,
+            detail: view.detail,
+          }),
+        );
       }
       writeFields(item, "", {
         label: view.label,
         detail: view.detail,
         next:
           row.status === "retrying" && row.nextRunAt !== null
-            ? `Next attempt: ${formatInstant(row.nextRunAt)}`
+            ? t("Next attempt: {when}", { when: formatInstant(row.nextRunAt) })
             : "",
       });
       const retry = item.querySelector<HTMLElement>('[data-field="retry"]');

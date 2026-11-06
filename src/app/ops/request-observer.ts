@@ -1,5 +1,6 @@
 import type { Logger } from "../../ports/logger";
-import { standalonePage } from "../platform/standalone-page";
+import { t } from "../../i18n/translate";
+import { escapeHtml, paragraph, standalonePage } from "../platform/standalone-page";
 
 export interface ObserveDeps {
   logger: Logger;
@@ -15,6 +16,12 @@ export interface RequestInfo {
   inboundRequestId: string | null;
   /** Evaluated after the handler ran, when the session has been resolved. */
   ownerId: () => string | undefined;
+  /**
+   * Runs `fn` in the language the request was served in (the owner's choice, else the server
+   * default), so the failure page below speaks it. Evaluated after the handler ran, when the
+   * language middleware has already been left.
+   */
+  inRequestLocale: <T>(fn: () => T) => T;
 }
 
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
@@ -32,10 +39,13 @@ export function routeForLog(pathname: string): string {
 }
 
 function failurePage(requestId: string): Response {
+  const reassurance = paragraph(t("Your notes are safe. Try again in a moment."));
+  const reference = escapeHtml(t("If it keeps happening, quote this reference:"));
   return new Response(
     standalonePage(
-      "Something went wrong",
-      `<p>Your notes are safe. Try again in a moment. If it keeps happening, quote this reference: <code>${requestId}</code>.</p>`,
+      t("Something went wrong"),
+      // The request id is generated or validated by this module (letters, digits, "_" and "-").
+      `${reassurance}<p>${reference} <code>${requestId}</code></p>`,
     ),
     {
       status: 500,
@@ -74,7 +84,7 @@ export async function observeRequest(
       ...fields(500),
       errorName: cause instanceof Error ? cause.name : "unknown",
     });
-    response = failurePage(requestId);
+    response = info.inRequestLocale(() => failurePage(requestId));
     response.headers.set("X-Request-Id", requestId);
     return response;
   }
