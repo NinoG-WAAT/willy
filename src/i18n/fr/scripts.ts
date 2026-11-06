@@ -177,7 +177,6 @@ export const fr: Record<string, string> = {
   "{n} line selected.": "{n} ligne sélectionnée.",
   "{n} lines selected.": "{n} lignes sélectionnées.",
 
-
   // src/domain/meetings/stage.ts, src/domain/meetings/home.ts and src/domain/progress/text.ts:
   // the status words, the stepper and the note card, shown by the page and by the progress script.
   Scheduled: "Planifiée",

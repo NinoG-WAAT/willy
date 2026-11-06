@@ -133,7 +133,7 @@ test.describe("vocabulary in French", () => {
     const owner = await signInInFrench(page);
     await page.goto("/settings/vocabulary");
     await expect(page).toHaveTitle("Vocabulaire - Willycrumbs");
-    await expect(page.getByRole("link", { name: "Paramètres" })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("link", { name: "Paramètres" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Fil d’Ariane" })).toBeVisible();
     await expect(
       page.getByText(
