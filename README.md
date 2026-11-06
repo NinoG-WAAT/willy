@@ -79,7 +79,7 @@ All names live in [.env.example](.env.example) with placeholders. Never commit `
 | `STT_PROVIDER` | `fake` (default), `deepgram` (paid cloud) or `whisper` (local and free, see [Using real providers](#using-real-providers)) |
 | `STT_API_KEY`, `STT_API_BASE_URL` | Deepgram only |
 | `STT_WHISPER_MODEL` | whisper only, required: absolute path of a ggml model file |
-| `STT_WHISPER_BIN`, `STT_FFMPEG_BIN`, `STT_WHISPER_LANGUAGE`, `STT_WHISPER_MAX_CONCURRENCY` | whisper only, optional (defaults: `whisper-cli`, `ffmpeg`, `auto`, `1`) |
+| `STT_WHISPER_BIN`, `STT_FFMPEG_BIN`, `STT_WHISPER_LANGUAGE`, `STT_WHISPER_MAX_CONCURRENCY` | whisper only, optional (defaults: `whisper-cli`, `ffmpeg`, the owner's language, `1`; set `STT_WHISPER_LANGUAGE=auto` to detect it instead) |
 | `STT_TIMEOUT_MS` | per-request timeout (defaults: 30000 deepgram, 60000 whisper) |
 | `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_API_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_MS` | summaries: `fake` (default) or `anthropic` |
 | `WILLY_DEFAULT_LOCALE` | interface language of signed-out pages and of owners who have not chosen one in Settings: `en` (default) or `fr`. An owner's own choice always wins. See [docs/I18N.md](docs/I18N.md) |
@@ -138,7 +138,7 @@ Model size trade-off (approximate download sizes; the speed column is a rule of 
 ```bash
 STT_PROVIDER=whisper
 STT_WHISPER_MODEL=/Users/you/whisper-models/ggml-base.bin
-# optional: STT_WHISPER_LANGUAGE=en   (default auto-detects per chunk; a fixed language is typically faster and steadier)
+# optional: STT_WHISPER_LANGUAGE=en   (unset: follows the owner's language from Settings; `auto` detects per chunk; a fixed language is typically faster and steadier)
 # optional: STT_TIMEOUT_MS=60000, STT_WHISPER_MAX_CONCURRENCY=1, STT_WHISPER_BIN=/opt/homebrew/bin/whisper-cli, STT_FFMPEG_BIN=/opt/homebrew/bin/ffmpeg
 ```
 

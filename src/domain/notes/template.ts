@@ -1,3 +1,4 @@
+import { msg, t } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import { normalizeLine, normalizeMultiline, type FieldError } from "../platform/text";
 
@@ -14,16 +15,38 @@ export interface TemplateInput {
 
 export const TEMPLATE_LIMITS = { name: 100, sections: 12, heading: 80, prompt: 500 } as const;
 
-/** Used when an owner has no default template of their own. */
+/**
+ * The built-in layout in English: the source strings of the table `builtinTemplate` translates.
+ * `msg()` only marks them for the French catalog (no `t()` at module level).
+ */
 export const DEFAULT_TEMPLATE: Readonly<TemplateInput> = {
-  name: "Default",
+  name: msg("Default"),
   isDefault: true,
   sections: [
-    { heading: "Summary", prompt: "Summarize what was discussed in a few sentences." },
-    { heading: "Discussion", prompt: "List the main topics and what was said about each." },
-    { heading: "Next steps", prompt: "Note what happens next and who is involved." },
+    { heading: msg("Summary"), prompt: msg("Summarize what was discussed in a few sentences.") },
+    {
+      heading: msg("Discussion"),
+      prompt: msg("List the main topics and what was said about each."),
+    },
+    { heading: msg("Next steps"), prompt: msg("Note what happens next and who is involved.") },
   ],
 };
+
+/**
+ * The built-in layout in the language in force (the owner's), used when an owner has no default
+ * template of their own. It is only ever the starting point for a new owner or a new template: a
+ * template an owner stored keeps the headings they wrote, and nothing here rewrites stored data.
+ */
+export function builtinTemplate(): TemplateInput {
+  return {
+    name: t(DEFAULT_TEMPLATE.name),
+    isDefault: DEFAULT_TEMPLATE.isDefault,
+    sections: DEFAULT_TEMPLATE.sections.map((s) => ({
+      heading: t(s.heading),
+      prompt: t(s.prompt),
+    })),
+  };
+}
 
 interface RawTemplate {
   name: unknown;

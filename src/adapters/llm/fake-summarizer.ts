@@ -1,8 +1,10 @@
 import type { SummarizerInput } from "../../domain/notes/summary";
 import { providerError, type ProviderErrorKind } from "../../domain/platform/provider-error";
 import { err } from "../../domain/platform/result";
+import { t } from "../../i18n/translate";
 import type { Summarizer } from "../../ports/summarizer";
 import { checkInput, finalizeModelOutput } from "./finalize";
+import { inSummaryLanguage } from "./language";
 
 export interface FakeSummarizer extends Summarizer {
   /** Call shapes only: transcript text is never kept. */
@@ -29,7 +31,12 @@ function defaultOutput(input: SummarizerInput): unknown {
     ? [input.only.heading]
     : input.template && input.template.sections.length > 0
       ? input.template.sections.map((s) => s.heading)
-      : ["Summary"];
+      : [t("Summary")];
+  const body = t("Covers {segments} transcript segments between positions {from} and {to}.", {
+    segments: input.segments.length,
+    from: first,
+    to: last,
+  });
 
   const named = (text: string): string | null =>
     input.attendees.find((a) =>
@@ -42,7 +49,7 @@ function defaultOutput(input: SummarizerInput): unknown {
   return {
     sections: headings.map((heading) => ({
       heading,
-      body: `Covers ${String(input.segments.length)} transcript segments between positions ${String(first)} and ${String(last)}.`,
+      body,
       source_from: first,
       source_to: last,
     })),
@@ -88,7 +95,10 @@ export function createFakeSummarizer(): FakeSummarizer {
       if (kind !== undefined) {
         return Promise.resolve(err(providerError(kind, `fake provider ${kind}`)));
       }
-      const output = outputs.length > 0 ? outputs.shift() : defaultOutput(input);
+      const output =
+        outputs.length > 0
+          ? outputs.shift()
+          : inSummaryLanguage(input.language, () => defaultOutput(input));
       return Promise.resolve(finalizeModelOutput(input, output));
     },
   };

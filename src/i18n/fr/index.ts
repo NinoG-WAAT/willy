@@ -3,13 +3,14 @@ import * as auth from "./auth";
 import * as scripts from "./scripts";
 import * as settings from "./settings";
 import * as shell from "./shell";
+import * as summaries from "./summaries";
 
 /**
  * One module per area, so parallel work never edits the same file. To add an area: create
  * `src/i18n/fr/<area>.ts` exporting `fr` (and `sameInFrench` for words that are identical in
  * French) and list it here. See docs/I18N.md.
  */
-const AREAS: Record<string, AreaModule> = { shell, auth, settings, scripts };
+const AREAS: Record<string, AreaModule> = { shell, auth, settings, scripts, summaries };
 
 interface AreaModule {
   fr: Record<string, string>;

@@ -14,9 +14,20 @@ import {
 } from "../../domain/transcription/segments";
 import type { Transcriber } from "../../ports/transcriber";
 import { runCommand, type CommandOutcome, type CommandRunner } from "../process/run-command";
+import { LOCALES, type Locale } from "../../i18n/translate";
 import type { WhisperSttConfig } from "./config";
 
 export type WhisperCppConfig = Omit<WhisperSttConfig, "mode">;
+
+/**
+ * The `-l` value. A configured language (STT_WHISPER_LANGUAGE, "auto" included) always wins; with
+ * none configured the owner's language is used, and only if it is one of ours (the value ends up
+ * on a command line, so anything else is dropped); otherwise whisper detects it.
+ */
+function spokenLanguage(configured: string | null, requested: Locale | undefined): string {
+  if (configured !== null) return configured;
+  return LOCALES.find((locale) => locale === requested) ?? "auto";
+}
 
 export interface WhisperCppDeps {
   /** Injected so tests never need a real binary. */
@@ -138,6 +149,7 @@ export function createWhisperCppTranscriber(
     format: { demuxer: string; extension: string },
     deadline: number,
     vocabulary: readonly string[] | undefined,
+    language: string,
   ): Promise<Result<TranscribedSegment[], ProviderError>> {
     const input = join(dir, `chunk.${format.extension}`);
     const wav = join(dir, "chunk.wav");
@@ -186,7 +198,7 @@ export function createWhisperCppTranscriber(
         "-f",
         wav,
         "-l",
-        config.language,
+        language,
         "-oj",
         "-of",
         outputPrefix,
@@ -232,7 +244,14 @@ export function createWhisperCppTranscriber(
       let dir: string | undefined;
       try {
         dir = await mkdtemp(join(tempRoot, "willy-stt-"));
-        return await convertAndTranscribe(dir, request.audio, format, deadline, request.vocabulary);
+        return await convertAndTranscribe(
+          dir,
+          request.audio,
+          format,
+          deadline,
+          request.vocabulary,
+          spokenLanguage(config.language, request.language),
+        );
       } catch {
         return err(
           providerError("unavailable", "local speech-to-text could not use its temp files"),

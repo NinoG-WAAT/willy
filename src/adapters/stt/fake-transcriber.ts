@@ -2,6 +2,7 @@ import { providerError, type ProviderErrorKind } from "../../domain/platform/pro
 import { err, ok } from "../../domain/platform/result";
 import { MAX_CHUNK_BYTES, normalizeAudioContentType } from "../../domain/transcription/audio";
 import { normalizeSegments } from "../../domain/transcription/segments";
+import type { Locale } from "../../i18n/translate";
 import type { Transcriber, TranscribeRequest } from "../../ports/transcriber";
 
 export interface Utterance {
@@ -19,6 +20,8 @@ export interface FakeTranscriber extends Transcriber {
     contentType: string;
     /** The vocabulary the call carried, as a copy; undefined when it carried none. */
     vocabulary: string[] | undefined;
+    /** The language hint the call carried; undefined when it carried none. */
+    language: Locale | undefined;
   }[];
   script: {
     respondOnce(utterances: Utterance[]): void;
@@ -67,6 +70,7 @@ export function createFakeTranscriber(): FakeTranscriber {
         bytes: request.audio.byteLength,
         contentType: request.contentType,
         vocabulary: request.vocabulary === undefined ? undefined : [...request.vocabulary],
+        language: request.language,
       });
 
       const once = failures.shift();

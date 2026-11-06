@@ -210,6 +210,42 @@ describe("whisper.cpp transcriber specifics", () => {
     expect(w).toContain("-np");
   });
 
+  describe("spoken language (issue #122)", () => {
+    const languageUsed = async (
+      config: Partial<WhisperCppConfig>,
+      language?: "en" | "fr",
+    ): Promise<string> => {
+      const { stub, transcriber } = build(config);
+      stub.respondWith([{ startMs: 0, endMs: 900, speaker: null, text: "Bonjour" }]);
+      await transcriber.transcribe({ ...request(), ...(language ? { language } : {}) });
+      return flagValue(defined(stub.calls[1]).args, "-l");
+    };
+
+    it("follows the owner's language when no language is configured", async () => {
+      expect(await languageUsed({ language: null }, "fr")).toBe("fr");
+      expect(await languageUsed({ language: null }, "en")).toBe("en");
+    });
+
+    it("auto-detects when no language is configured and the call names none", async () => {
+      expect(await languageUsed({ language: null })).toBe("auto");
+    });
+
+    it("never overrides a configured language (STT_WHISPER_LANGUAGE wins)", async () => {
+      expect(await languageUsed({ language: "en" }, "fr")).toBe("en");
+      expect(await languageUsed({ language: "auto" }, "fr")).toBe("auto");
+    });
+
+    it("ignores a language value that is not one of ours instead of passing it to the program", async () => {
+      const { stub, transcriber } = build({ language: null });
+      stub.respondWith([{ startMs: 0, endMs: 900, speaker: null, text: "Bonjour" }]);
+      await transcriber.transcribe({
+        ...request(),
+        language: "--help" as unknown as "fr",
+      });
+      expect(flagValue(defined(stub.calls[1]).args, "-l")).toBe("auto");
+    });
+  });
+
   it.each([
     ["audio/webm", "matroska,webm"],
     ["audio/ogg;codecs=opus", "ogg"],

@@ -1,3 +1,4 @@
+import type { Locale } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 
 export const MAX_SECTIONS = 20;
@@ -33,6 +34,12 @@ export interface SummarizerInput {
   only: TemplateSection | null;
   /** The owner's exact spellings of company words: spellings only, never facts about the meeting. */
   vocabulary?: readonly string[];
+  /**
+   * The owner's language: the one the summary, decisions and action items are written in, whatever
+   * language the meeting was held in. Absent means the language of the transcript. It comes from
+   * the owner's settings, never from the meeting's content.
+   */
+  language?: Locale;
 }
 
 export interface SourceRange {

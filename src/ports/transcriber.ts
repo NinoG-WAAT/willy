@@ -1,6 +1,7 @@
 import type { ProviderError } from "../domain/platform/provider-error";
 import type { Result } from "../domain/platform/result";
 import type { TranscribedSegment } from "../domain/transcription/segments";
+import type { Locale } from "../i18n/translate";
 
 export interface TranscribeRequest {
   /** Stable id of the chunk (idempotency: the same chunk always maps to the same segments). */
@@ -16,6 +17,12 @@ export interface TranscribeRequest {
    * means no hint. It can hold sensitive names: never logged, never put in an error message.
    */
   vocabulary?: readonly string[];
+  /**
+   * The owner's language, as a hint for the language spoken. An adapter uses it only when its own
+   * configuration does not fix a language, and only if it is one of ours; absent means detect.
+   * Never taken from meeting content.
+   */
+  language?: Locale;
 }
 
 /**

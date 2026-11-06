@@ -2,8 +2,9 @@ import { canViewMeeting } from "../../domain/authz/predicates";
 import { completeProcessing } from "../../domain/meetings/lifecycle";
 import { toNewDraft } from "../../domain/notes/draft";
 import type { SummarizerInput, SummaryDraft } from "../../domain/notes/summary";
-import { DEFAULT_TEMPLATE } from "../../domain/notes/template";
+import { builtinTemplate } from "../../domain/notes/template";
 import { segmentTextContext } from "../../domain/transcription/encryption-context";
+import { currentLocale } from "../../i18n/translate";
 import type { Clock } from "../../ports/clock";
 import type { Logger } from "../../ports/logger";
 import type { JobRow } from "../../ports/job-repository";
@@ -51,7 +52,7 @@ async function templateSections(
   const chosen =
     (templateId === null ? null : await deps.templates.find(ownerId, templateId)) ??
     (await deps.templates.findDefault(ownerId));
-  const sections = chosen?.sections ?? DEFAULT_TEMPLATE.sections;
+  const sections = chosen?.sections ?? builtinTemplate().sections;
   return sections.map((s) => ({ heading: s.heading, prompt: s.prompt }));
 }
 
@@ -123,6 +124,7 @@ async function generateDraft(deps: SummaryDeps, job: JobRow, log: Logger): Promi
       template: { sections: await templateSections(deps, ownerId, context.templateId) },
       only: null,
       vocabulary: await loadVocabulary(deps, log, ownerId),
+      language: currentLocale(),
     });
     if (!result.ok) {
       const errorCode = `llm_${result.error.kind}`;
@@ -211,6 +213,7 @@ async function regenerateSection(deps: SummaryDeps, job: JobRow, log: Logger): P
       prompt: await promptFor(deps, ownerId, context.templateId, section.heading),
     },
     vocabulary: await loadVocabulary(deps, log, ownerId),
+    language: currentLocale(),
   });
   if (!result.ok) {
     const errorCode = `llm_${result.error.kind}`;
@@ -276,6 +279,7 @@ async function regenerateDraft(deps: SummaryDeps, job: JobRow, log: Logger): Pro
     template: { sections: await templateSections(deps, ownerId, context.templateId) },
     only: null,
     vocabulary: await loadVocabulary(deps, log, ownerId),
+    language: currentLocale(),
   });
   if (!result.ok) {
     const errorCode = `llm_${result.error.kind}`;

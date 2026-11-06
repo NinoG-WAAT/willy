@@ -59,7 +59,7 @@ describe("readSttConfig", () => {
   describe("whisper (local, audio never leaves the machine)", () => {
     const base = { STT_PROVIDER: "whisper", STT_WHISPER_MODEL: "/models/ggml-base.bin" };
 
-    it("needs only the model path and defaults everything else", () => {
+    it("needs only the model path and defaults everything else (language: follow the owner's)", () => {
       expect(readSttConfig(base)).toEqual({
         ok: true,
         value: {
@@ -67,11 +67,21 @@ describe("readSttConfig", () => {
           whisperBin: "whisper-cli",
           ffmpegBin: "ffmpeg",
           modelPath: "/models/ggml-base.bin",
-          language: "auto",
+          language: null,
           timeoutMs: 60000,
           maxConcurrency: 1,
         },
       });
+    });
+
+    it("treats an explicit 'auto' as a configured language and an empty value as unset", () => {
+      const language = (value: string | undefined) => {
+        const result = readSttConfig({ ...base, STT_WHISPER_LANGUAGE: value });
+        return result.ok && result.value.mode === "whisper" ? result.value.language : "error";
+      };
+      expect(language("auto")).toBe("auto");
+      expect(language("")).toBeNull();
+      expect(language(undefined)).toBeNull();
     });
 
     it("reads explicit binaries, language, timeout and concurrency", () => {
