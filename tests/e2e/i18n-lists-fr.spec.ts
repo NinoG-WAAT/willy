@@ -50,8 +50,8 @@ test.describe("the frame and the Inbox in French", () => {
     page,
   }) => {
     await signIn(page, "ada@example.test");
-    await expect(page).toHaveTitle("Boîte de réception - Willycrumbs");
-    await expect(page.getByRole("heading", { level: 1, name: "Boîte de réception" })).toBeVisible();
+    await expect(page).toHaveTitle("Réception - Willycrumbs");
+    await expect(page.getByRole("heading", { level: 1, name: "Réception" })).toBeVisible();
     for (const heading of ["En cours", "À venir", "Brouillons à relire"]) {
       await expect(page.getByRole("heading", { level: 2, name: heading })).toBeVisible();
     }
@@ -66,7 +66,7 @@ test.describe("the frame and the Inbox in French", () => {
     const links = phone(page) ? page.locator(".tabbar") : page.locator(".side-nav");
     await expect(links).toBeVisible();
     await expect(nav.first()).toBeVisible();
-    await expect(links.getByText("Boîte de réception")).toBeVisible();
+    await expect(links.getByText("Réception")).toBeVisible();
     await expect(links.getByText("Rechercher")).toBeVisible();
     await expect(links.getByText("Dossiers").first()).toBeVisible();
 
@@ -154,12 +154,12 @@ test.describe("Folders in French", () => {
     await expect(page).toHaveTitle("Dossiers - Willycrumbs");
     await expect(page.getByText("Vous n’avez pas encore de dossier.")).toBeVisible();
 
-    await page.getByLabel("Nom du dossier").fill("Clients");
+    await page.getByLabel("Nom du dossier", { exact: true }).fill("Clients");
     await page.getByRole("button", { name: "Créer le dossier" }).click();
     await expect(page.getByText("Dossier créé.")).toBeVisible();
-    await expect(page.getByText("0 note", { exact: true })).toBeVisible();
+    await expect(page.locator("#main").getByText("0 note", { exact: true })).toBeVisible();
 
-    await page.getByLabel("Nom du dossier").fill("clients");
+    await page.getByLabel("Nom du dossier", { exact: true }).fill("clients");
     await page.getByRole("button", { name: "Créer le dossier" }).click();
     await expect(page.locator(".field-error")).toHaveText(
       "Vous avez déjà un dossier portant ce nom.",

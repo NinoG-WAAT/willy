@@ -8,7 +8,7 @@ export const fr: Record<string, string> = {
   // The page frame (src/layouts/Base.astro) and the navigation (src/components/nav-current.ts)
   Main: "Navigation principale",
   "New note": "Nouvelle note",
-  Inbox: "Boîte de réception",
+  Inbox: "Réception",
   "All notes": "Toutes les notes",
   Search: "Rechercher",
   Folders: "Dossiers",

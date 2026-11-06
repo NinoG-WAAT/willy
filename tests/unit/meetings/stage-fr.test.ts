@@ -195,7 +195,7 @@ describe("the note card in French", () => {
 describe("the navigation in French", () => {
   it("translates every link and keeps the paths", () => {
     expect(inLocale("fr", () => navLinks())).toEqual([
-      { href: "/", label: "Boîte de réception" },
+      { href: "/", label: "Réception" },
       { href: "/notes", label: "Toutes les notes" },
       { href: "/search", label: "Rechercher" },
       { href: "/folders", label: "Dossiers" },
@@ -207,6 +207,6 @@ describe("the navigation in French", () => {
   it("is computed per call, so two requests in two languages do not share words", () => {
     const fr = inLocale("fr", () => navLinks()[0]?.label);
     const en = inLocale("en", () => navLinks()[0]?.label);
-    expect([fr, en]).toEqual(["Boîte de réception", "Inbox"]);
+    expect([fr, en]).toEqual(["Réception", "Inbox"]);
   });
 });
