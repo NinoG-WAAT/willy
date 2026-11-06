@@ -56,7 +56,7 @@ export const fr: Record<string, string> = {
   "Words your meetings use that a speech recogniser does not know: project names, clients, acronyms. They help it spell them correctly in the transcript.":
     "Les mots que vos réunions emploient et qu’un moteur de reconnaissance vocale ne connaît pas : noms de projets, clients, acronymes. Ils l’aident à les orthographier correctement dans la transcription.",
   "Edit vocabulary": "Modifier le vocabulaire",
-  Export: "Exportation",
+  Export: "Export",
   "Every note can be exported to a Markdown file from its search result or from the list below. The export has the title, agenda, notes, decisions and action items. It never includes the transcript, audio or email addresses.":
     "Chaque note peut être exportée dans un fichier Markdown depuis son résultat de recherche ou depuis la liste ci-dessous. L’export contient le titre, l’ordre du jour, les notes, les décisions et les actions. Il n’inclut jamais la transcription, l’audio ni les adresses e-mail.",
   "Find a note to export": "Trouver une note à exporter",
@@ -115,7 +115,7 @@ export const fr: Record<string, string> = {
   "Audio storage asked us to slow down.": "Le stockage audio nous a demandé de ralentir.",
   "Your calendar is not connected, so events cannot be imported.":
     "Votre calendrier n’est pas connecté : les événements ne peuvent pas être importés.",
-  "The calendar could not be reached.": "Le calendrier n’a pas pu être joint.",
+  "The calendar could not be reached.": "Le calendrier n’a pas pu être contacté.",
   "The provider reported a problem.": "Le fournisseur a signalé un problème.",
   Configured: "Configuré",
   Degraded: "Dégradé",
@@ -182,7 +182,7 @@ export const fr: Record<string, string> = {
   "The transcript, including speaker corrections.":
     "La transcription, y compris les corrections d’intervenants.",
   "The audio: any raw audio chunks that are still stored.":
-    "L’audio : tous les fragments d’audio brut encore stockés.",
+    "L’audio : toutes les parties d’audio brut encore stockées.",
   "The search entries for this meeting, so it no longer appears in any result.":
     "Les entrées de recherche de cette réunion, afin qu’elle n’apparaisse plus dans aucun résultat.",
   "Your rough notes, the agenda and the attendee list.":
@@ -227,8 +227,8 @@ export const fr: Record<string, string> = {
   "That upload is too large. Export a shorter date range from your calendar and try again.":
     "Ce fichier est trop volumineux. Exportez une période plus courte depuis votre calendrier, puis réessayez.",
   "That upload could not be sized. Try again from the import page.":
-    "La taille de ce fichier n’a pas pu être déterminée. Réessayez depuis la page d’importation.",
-  "Back to the calendar file import": "Retour à l’importation du fichier de calendrier",
+    "La taille de ce fichier n’a pas pu être déterminée. Réessayez depuis la page d’import.",
+  "Back to the calendar file import": "Retour à l’import du fichier de calendrier",
   "Something went wrong": "Une erreur est survenue",
   "Your notes are safe. Try again in a moment.":
     "Vos notes sont en sécurité. Réessayez dans un instant.",
@@ -236,4 +236,6 @@ export const fr: Record<string, string> = {
     "Si le problème persiste, indiquez cette référence :",
 };
 
-export const sameInFrench: Record<string, string> = {};
+export const sameInFrench: Record<string, string> = {
+  Export: "Same word in French",
+};

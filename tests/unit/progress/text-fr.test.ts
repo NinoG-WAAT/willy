@@ -31,7 +31,7 @@ describe("describeJob in French", () => {
     [null, "Pas encore démarré"],
     [job({ status: "pending" }), "En attente de démarrage"],
     [job({ status: "running" }), "En cours"],
-    [job({ status: "retrying", attempts: 2 }), "Nouvel essai (tentative 2 sur 5)"],
+    [job({ status: "retrying", attempts: 2 }), "Nouvelle tentative (2 sur 5)"],
     [job({ status: "failed", attempts: 5 }), "Échec après 5 tentatives"],
     [job({ status: "failed", attempts: 1 }), "Échec après 1 tentative"],
     [

@@ -138,7 +138,7 @@ describe("calendar import feedback in French", () => {
       "Le service de calendrier nous a demandé de ralentir. Patientez une minute et réessayez.",
     );
     expect(inLocale("fr", () => problemMessage("calendar_unavailable"))).toMatch(
-      /^Votre calendrier n’a pas pu être joint/,
+      /^Votre calendrier n’a pas pu être contacté/,
     );
     expect(inLocale("fr", () => problemMessage("calendar_not_connected"))).toMatch(
       /n’est pas connecté/,

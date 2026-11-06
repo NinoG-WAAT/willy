@@ -218,8 +218,8 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
       >{values.attendees}</textarea>
       <p id="attendees-help" class="help">
         {t(
-          "One per line: {example}, an email, or just a name. Only list people who will be in the meeting. Listing someone here does not record their consent.",
-          { example: "Name <email>" },
+          "One per line: {name} <{email}>, an email, or just a name. Only list people who will be in the meeting. Listing someone here does not record their consent.",
+          { name: t("Name"), email: t("email") },
         )}
       </p>
       {errorFor("attendees") && (

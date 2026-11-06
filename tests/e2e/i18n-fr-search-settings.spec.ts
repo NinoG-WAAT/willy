@@ -61,7 +61,7 @@ test.describe("settings hub in French", () => {
       "Conservation",
       "Modèles et dossiers",
       "Vocabulaire",
-      "Exportation",
+      "Export",
       "Suppression définitive",
     ]) {
       await expect(page.getByRole("heading", { level: 2, name: heading })).toBeVisible();
