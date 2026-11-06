@@ -1,3 +1,4 @@
+import { t, tn } from "../../i18n/translate";
 import { formatOffset } from "./review";
 import type { Highlight } from "./review";
 
@@ -17,14 +18,16 @@ export interface TranscriptSummary {
 
 export function transcriptSummary(segments: readonly { startMs: number }[]): TranscriptSummary {
   if (segments.length === 0) {
-    return { duration: null, lines: 0, text: "Transcript, no lines" };
+    return { duration: null, lines: 0, text: t("Transcript, no lines") };
   }
   const duration = formatOffset(Math.max(...segments.map((s) => s.startMs)));
   const lines = segments.length;
   return {
     duration,
     lines,
-    text: `Transcript, ${duration}, ${String(lines)} ${lines === 1 ? "line" : "lines"}`,
+    text: tn("Transcript, {duration}, {n} line", "Transcript, {duration}, {n} lines", lines, {
+      duration,
+    }),
   };
 }
 

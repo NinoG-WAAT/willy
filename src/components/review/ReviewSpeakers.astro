@@ -1,4 +1,5 @@
 ---
+import { t, tn } from "../../i18n/translate";
 import type { ErrorsFor, Speaker, Typed } from "./types";
 
 /**
@@ -24,30 +25,28 @@ const { base, csrf, editable, speakers, formsOpen, typed, errorsFor } = Astro.pr
 
 <section class="review-speakers" id="speakers" aria-labelledby="speakers-heading">
   <h2 id="speakers-heading" class="review-label">
-    Speakers
+    {t("Speakers")}
   </h2>
   {speakers.length === 0 ? (
-    <p class="help">No speakers were recognised.</p>
+    <p class="help">{t("No speakers were recognised.")}</p>
   ) : (
     <ul class="speaker-chips">
       {speakers.map((sp) => (
         <li class="speaker-chip">
           <span class="speaker-name">{sp.name}</span>
-          <span class="speaker-lines">
-            {sp.lines} {sp.lines === 1 ? "line" : "lines"}
-          </span>
+          <span class="speaker-lines">{tn("{n} line", "{n} lines", sp.lines)}</span>
         </li>
       ))}
     </ul>
   )}
   {editable && speakers.length > 0 && (
     <details class="speaker-forms" open={formsOpen}>
-      <summary>Rename or merge speakers</summary>
+      <summary>{t("Rename or merge speakers")}</summary>
       <form method="post" action={base} class="form">
         <input type="hidden" name="csrf_token" value={csrf} />
         <input type="hidden" name="intent" value="rename_speaker" />
         <div class="field">
-          <label for="rename-from">Speaker to rename</label>
+          <label for="rename-from">{t("Speaker to rename")}</label>
           <select id="rename-from" name="from">
             {speakers.map((sp) => (
               <option value={sp.name} selected={typed("rename_speaker", "from", "") === sp.name}>
@@ -60,7 +59,7 @@ const { base, csrf, editable, speakers, formsOpen, typed, errorsFor } = Astro.pr
           ))}
         </div>
         <div class="field">
-          <label for="rename-to">New name</label>
+          <label for="rename-to">{t("New name")}</label>
           <input
             id="rename-to"
             name="to"
@@ -73,10 +72,10 @@ const { base, csrf, editable, speakers, formsOpen, typed, errorsFor } = Astro.pr
             <p class="field-error">{e.message}</p>
           ))}
         </div>
-        <p class="help">Applies to every line of this transcript.</p>
+        <p class="help">{t("Applies to every line of this transcript.")}</p>
         <div class="row-actions">
           <button class="button button-quiet" type="submit">
-            Rename speaker
+            {t("Rename speaker")}
           </button>
         </div>
       </form>
@@ -85,7 +84,7 @@ const { base, csrf, editable, speakers, formsOpen, typed, errorsFor } = Astro.pr
           <input type="hidden" name="csrf_token" value={csrf} />
           <input type="hidden" name="intent" value="merge_speaker" />
           <div class="field">
-            <label for="merge-from">Merge this speaker</label>
+            <label for="merge-from">{t("Merge this speaker")}</label>
             <select id="merge-from" name="from">
               {speakers.map((sp) => (
                 <option value={sp.name}>{sp.name}</option>
@@ -96,7 +95,7 @@ const { base, csrf, editable, speakers, formsOpen, typed, errorsFor } = Astro.pr
             ))}
           </div>
           <div class="field">
-            <label for="merge-to">into</label>
+            <label for="merge-to">{t("into")}</label>
             <select id="merge-to" name="to">
               {speakers.map((sp, index) => (
                 <option value={sp.name} selected={index === 1}>
@@ -109,12 +108,14 @@ const { base, csrf, editable, speakers, formsOpen, typed, errorsFor } = Astro.pr
             ))}
           </div>
           <p class="help">
-            Their lines are relabelled to the second speaker. This applies to every line of this
-            transcript.
+            {t(
+              "Their lines are relabelled to the second speaker. " +
+                "This applies to every line of this transcript.",
+            )}
           </p>
           <div class="row-actions">
             <button class="button button-quiet" type="submit">
-              Merge speakers
+              {t("Merge speakers")}
             </button>
           </div>
         </form>

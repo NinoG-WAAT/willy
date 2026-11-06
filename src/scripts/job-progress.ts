@@ -1,4 +1,5 @@
 import "./i18n";
+import { t } from "./i18n";
 import { formatInstant } from "../components/format-instant";
 import { t } from "../i18n/translate";
 import {
@@ -144,8 +145,10 @@ function renderHandoff(el: HTMLElement, body: unknown): { settled: boolean } | n
   }
   if (view.stage === "ready") {
     // For someone who switched windows while waiting.
-    if (!document.title.startsWith("Draft ready"))
-      document.title = `Draft ready: ${document.title}`;
+    // The prefix as it reads in this page's language, so a second update never stacks a second one.
+    const prefix = t("Draft ready: {title}", { title: "" });
+    if (!document.title.startsWith(prefix))
+      document.title = t("Draft ready: {title}", { title: document.title });
     const animate = decision.open ? decision.animate : !readAutoOpenState().reducedMotion;
     if (link && wasHidden && animate) link.classList.add("handoff-reveal");
   }
@@ -176,7 +179,11 @@ const renderers: Record<string, Render> = {
     return payload
       ? show(
           el,
-          cardProgress(payload, el.dataset["title"] ?? "A meeting", el.dataset["meetingId"] ?? ""),
+          cardProgress(
+            payload,
+            el.dataset["title"] ?? t("A meeting"),
+            el.dataset["meetingId"] ?? "",
+          ),
         )
       : null;
   },

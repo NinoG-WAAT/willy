@@ -1,3 +1,4 @@
+import { currentLocale, intlLocale, t } from "../../i18n/translate";
 import { isOverdue } from "./review";
 
 /** What the review outline says about one ActionItem, as short words for chips. Null: no chip. */
@@ -26,11 +27,13 @@ interface ChipContext {
 }
 
 function inZone(instant: Date, timeZone: string, options: Intl.DateTimeFormatOptions): string {
+  // The page's language, not the server's: en-GB or fr-FR (docs/I18N.md section 10).
+  const locale = intlLocale(currentLocale());
   try {
-    return new Intl.DateTimeFormat("en-GB", { ...options, timeZone }).format(instant);
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone }).format(instant);
   } catch {
     // A zone name this runtime does not know: UTC is wrong by hours at worst, never a crash.
-    return new Intl.DateTimeFormat("en-GB", { ...options, timeZone: "UTC" }).format(instant);
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).format(instant);
   }
 }
 
@@ -39,15 +42,17 @@ function dueText(dueAt: string, zone: string, now: Date): string {
   const day = inZone(due, zone, { weekday: "short", day: "numeric", month: "short" });
   const year = inZone(due, zone, { year: "numeric" });
   const thisYear = inZone(now, zone, { year: "numeric" });
-  return year === thisYear ? `Due ${day}` : `Due ${day} ${year}`;
+  return year === thisYear ? t("Due {day}", { day }) : t("Due {day} {year}", { day, year });
 }
 
 export function actionItemChips(item: ChipSource, context: ChipContext): ActionItemChips {
   const zone = item.dueTimezone ?? context.meetingTimezone;
   return {
     assignee:
-      item.assigneeId === null ? null : (context.attendeeNames.get(item.assigneeId) ?? "Unknown"),
+      item.assigneeId === null
+        ? null
+        : (context.attendeeNames.get(item.assigneeId) ?? t("Unknown")),
     due: item.dueAt === null ? null : dueText(item.dueAt, zone, context.now),
-    overdue: isOverdue(item, context.now) ? "Overdue" : null,
+    overdue: isOverdue(item, context.now) ? t("Overdue") : null,
   };
 }

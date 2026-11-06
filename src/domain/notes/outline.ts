@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { formatOffset } from "./review";
 
 /** Nesting below the top level, at most two levels deep (so three visual levels). */
@@ -26,7 +27,6 @@ const MAX_LEVELS = DEPTHS.length;
 const MAX_MARKER_DIGITS = 3;
 /** A tab is wider than a space, but only the order of indents matters, not their width. */
 const TAB_WIDTH = 4;
-const FALLBACK_LABEL = "Source in the transcript";
 
 const isBlank = (c: string | undefined): boolean => c === " " || c === "\t";
 const isDigit = (c: string | undefined): boolean => c !== undefined && c >= "0" && c <= "9";
@@ -188,12 +188,12 @@ export function sourceLabel(
   to: number | null,
   timeOf: (position: number) => number | undefined,
 ): string {
-  if (from === null || to === null) return FALLBACK_LABEL;
+  if (from === null || to === null) return t("Source in the transcript");
   const start = timeOf(from);
   const end = timeOf(to);
-  if (start === undefined || end === undefined) return FALLBACK_LABEL;
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return FALLBACK_LABEL;
+  if (start === undefined || end === undefined) return t("Source in the transcript");
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return t("Source in the transcript");
   const a = formatOffset(start);
   const b = formatOffset(end);
-  return from === to || a === b ? a : `${a} to ${b}`;
+  return from === to || a === b ? a : t("{from} to {to}", { from: a, to: b });
 }

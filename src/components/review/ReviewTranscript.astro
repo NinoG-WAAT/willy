@@ -1,4 +1,5 @@
 ---
+import { t } from "../../i18n/translate";
 import { formatOffset } from "../../domain/notes/review";
 import type { ReviewSegmentText } from "../../app/notes/review";
 import type { ErrorsFor, InSource, Typed } from "./types";
@@ -54,18 +55,20 @@ const assigning = editable && segments.length > 0;
 <details class="transcript-panel" id="transcript-panel" open={open}>
   <summary>{summary}</summary>
   <p class="transcript-back">
-    <a href="#summary">Back to the summary</a>
+    <a href="#summary">{t("Back to the summary")}</a>
   </p>
   {assigning && (
     <form method="post" action={base} id="assign-form" class="assign-bar">
       <input type="hidden" name="csrf_token" value={csrf} />
       <input type="hidden" name="intent" value="assign_speaker" />
       <p class="help" id="assign-help">
-        Tick the lines one person said, then give them a name. Lines can be moved to another speaker
-        again later.
+        {t(
+          "Tick the lines one person said, then give them a name. " +
+            "Lines can be moved to another speaker again later.",
+        )}
       </p>
       <div class="field">
-        <label for="assign-to">Assign the ticked lines to</label>
+        <label for="assign-to">{t("Assign the ticked lines to")}</label>
         <input
           id="assign-to"
           name="to"
@@ -92,16 +95,16 @@ const assigning = editable && segments.length > 0;
       </div>
       <div class="row-actions">
         <button class="button button-quiet" type="submit">
-          Assign
+          {t("Assign")}
         </button>
         <span id="assign-status" class="help" role="status" aria-live="polite" />
       </div>
     </form>
   )}
   {segments.length === 0 ? (
-    <p>No transcript lines were produced for this meeting.</p>
+    <p>{t("No transcript lines were produced for this meeting.")}</p>
   ) : (
-    <ol class="transcript" aria-label="Transcript lines">
+    <ol class="transcript" aria-label={t("Transcript lines")}>
       {segments.map((s) => (
         <li
           id={`seg-${s.position}`}
@@ -118,17 +121,20 @@ const assigning = editable && segments.length > 0;
                 value={String(s.position)}
                 form="assign-form"
                 checked={selected.has(String(s.position))}
-                aria-label={`Select the line at ${formatOffset(s.startMs)} by ${s.speaker}`}
+                aria-label={t("Select the line at {time} by {speaker}", {
+                  time: formatOffset(s.startMs),
+                  speaker: s.speaker,
+                })}
               />
             </label>
           )}
           <span class="seg-time">{formatOffset(s.startMs)}</span>
           <strong class="seg-speaker">{s.speaker}</strong>
           <span class="seg-flag" hidden={!inSource(s.position)}>
-            Cited
+            {t("Cited")}
           </span>
           <span class="sr-only">:</span>
-          {s.text === null ? <em>This line could not be read.</em> : s.text}
+          {s.text === null ? <em>{t("This line could not be read.")}</em> : s.text}
         </li>
       ))}
     </ol>

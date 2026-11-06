@@ -93,6 +93,56 @@ export const fr: Record<string, string> = {
   "Deletion with reference {id}: {label}. {detail}":
     "Suppression de référence {id} : {label}. {detail}",
   "Next attempt: {when}": "Prochaine tentative : {when}",
+
+  // src/domain/progress/text.ts (job progress, also rendered by the review page)
+  "Not started": "Pas encore démarré",
+  "Waiting to start": "En attente de démarrage",
+  Running: "En cours",
+  "Retrying (attempt {attempt} of {max})": "Nouvel essai (tentative {attempt} sur {max})",
+  "Failed after {n} attempt": "Échec après {n} tentative",
+  "Failed after {n} attempts": "Échec après {n} tentatives",
+  "Failed after {n} attempt ({code})": "Échec après {n} tentative ({code})",
+  "Failed after {n} attempts ({code})": "Échec après {n} tentatives ({code})",
+  Done: "Terminé",
+  "Transcript: {status}": "Transcription\u00a0: {status}",
+  "Summary: {status}": "Résumé\u00a0: {status}",
+  "Your draft is ready.": "Votre brouillon est prêt.",
+  "Your draft is ready. Use Check again to open it.":
+    "Votre brouillon est prêt. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour l’ouvrir.",
+  "Processing did not finish. Your rough notes are kept.":
+    "Le traitement ne s’est pas terminé. Vos notes brutes sont conservées.",
+  "Processing did not finish. Use Check again to see what happened and retry. Your rough notes are kept.":
+    "Le traitement ne s’est pas terminé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir ce qui s’est passé et réessayer. Vos notes brutes sont conservées.",
+  "This note has moved on. Use Check again to see where it is now.":
+    "Cette note a avancé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir où elle en est.",
+  "Regeneration: {status}.": "Régénération\u00a0: {status}.",
+  "The new draft of the note is ready. Use Check again to see it.":
+    "Le nouveau brouillon de la note est prêt. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour le voir.",
+  "The new draft of this section is ready. Use Check again to see it.":
+    "Le nouveau brouillon de cette section est prêt. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour le voir.",
+  "It did not finish. Your previous draft is kept. Use Check again to see the details and try again.":
+    "Il ne s’est pas terminé. Votre brouillon précédent est conservé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir les détails et réessayer.",
+  "It did not finish. Use Check again to see the details and try again.":
+    "Il ne s’est pas terminé. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir les détails et réessayer.",
+  "{title}: status changed to {status}.": "{title}\u00a0: le statut est passé à {status}.",
+  "Live updates stopped because the status could not be checked. Use Check again to see the latest.":
+    "Les mises à jour en direct se sont arrêtées, car l’état n’a pas pu être vérifié. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir la dernière version.",
+  "Live updates stopped after a while. Use Check again to see the latest.":
+    "Les mises à jour en direct se sont arrêtées au bout d’un moment. Utilisez «\u00a0Vérifier à nouveau\u00a0» pour voir la dernière version.",
+  "Live updates stopped. Use Check again, or sign in again, to see the latest.":
+    "Les mises à jour en direct se sont arrêtées. Utilisez «\u00a0Vérifier à nouveau\u00a0», ou connectez-vous de nouveau, pour voir la dernière version.",
+
+  // src/scripts/job-progress.ts
+  "Draft ready: {title}": "Brouillon prêt\u00a0: {title}",
+  "A meeting": "Une réunion",
+
+  // src/scripts/review.ts
+  "The cited transcript lines are not available.":
+    "Les lignes de transcription citées ne sont pas disponibles.",
+  "{n} cited transcript line is marked.": "{n} ligne de transcription citée est marquée.",
+  "{n} cited transcript lines are marked.": "{n} lignes de transcription citées sont marquées.",
+  "{n} line selected.": "{n} ligne sélectionnée.",
+  "{n} lines selected.": "{n} lignes sélectionnées.",
 };
 
 export const sameInFrench: Record<string, string> = {};

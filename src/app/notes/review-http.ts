@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import type { FieldError } from "../../domain/platform/text";
 import type { Result } from "../../domain/platform/result";
 import { isValidStorageId } from "../../domain/storage/object-key";
@@ -39,39 +40,61 @@ export type ReviewFormResult =
       echo: { itemId: string | null; values: Record<string, string>; lines: string[] };
     };
 
-const NOTICES: Readonly<Record<string, string>> = {
-  section_saved: "Section saved.",
-  decision_saved: "Decision saved.",
-  decision_added: "Decision added.",
-  decision_removed: "Decision removed from the draft.",
-  action_saved: "Action item saved.",
-  action_added: "Action item added.",
-  action_removed: "Action item removed from the draft.",
-  action_done: "Action item marked as done.",
-  action_reopened: "Action item reopened.",
-  speaker_renamed: "Speaker renamed on every line of the transcript.",
-  speakers_merged: "Speakers merged on every line of the transcript.",
-  speaker_assigned: "Lines assigned to the speaker.",
-  published: "Published. This note is no longer a draft.",
-  reopened: "Reopened. The note is a draft again and can be edited.",
-  retry_queued: "Transcription restarted. Only the parts that failed are redone.",
-  draft_regeneration_queued:
-    "Regenerating the whole draft. It will update here when it is ready; your current draft stays until then.",
-};
-
 /**
  * Fixed codes only: nothing from the URL is ever reflected into the page. The two move notices
  * name the folder the note is in now, which the page reads from the database (never the URL).
+ * A switch with one literal `t()` per code, so the strings are found by the catalog scanner and
+ * nothing is translated when this module loads.
  */
 export function reviewNoticeText(
   code: string | null,
   folderName: string | null = null,
 ): string | null {
-  if (code === "moved") return folderName === null ? "Moved." : `Moved to ${folderName}.`;
-  if (code === "move_unchanged") {
-    return folderName === null ? "Already in that folder." : `Already in ${folderName}.`;
+  switch (code) {
+    case "moved":
+      return folderName === null ? t("Moved.") : t("Moved to {folder}.", { folder: folderName });
+    case "move_unchanged":
+      return folderName === null
+        ? t("Already in that folder.")
+        : t("Already in {folder}.", { folder: folderName });
+    case "section_saved":
+      return t("Section saved.");
+    case "decision_saved":
+      return t("Decision saved.");
+    case "decision_added":
+      return t("Decision added.");
+    case "decision_removed":
+      return t("Decision removed from the draft.");
+    case "action_saved":
+      return t("Action item saved.");
+    case "action_added":
+      return t("Action item added.");
+    case "action_removed":
+      return t("Action item removed from the draft.");
+    case "action_done":
+      return t("Action item marked as done.");
+    case "action_reopened":
+      return t("Action item reopened.");
+    case "speaker_renamed":
+      return t("Speaker renamed on every line of the transcript.");
+    case "speakers_merged":
+      return t("Speakers merged on every line of the transcript.");
+    case "speaker_assigned":
+      return t("Lines assigned to the speaker.");
+    case "published":
+      return t("Published. This note is no longer a draft.");
+    case "reopened":
+      return t("Reopened. The note is a draft again and can be edited.");
+    case "retry_queued":
+      return t("Transcription restarted. Only the parts that failed are redone.");
+    case "draft_regeneration_queued":
+      return t(
+        "Regenerating the whole draft. It will update here when it is ready; " +
+          "your current draft stays until then.",
+      );
+    default:
+      return null;
   }
-  return code !== null && Object.hasOwn(NOTICES, code) ? (NOTICES[code] ?? null) : null;
 }
 
 const FIELDS = [
@@ -206,7 +229,7 @@ export async function handleReviewForm(
       if (retried.error.kind === "invalid_transition" && retried.error.from === "processing") {
         return { kind: "redirect", notice: "retry_queued", anchor: null };
       }
-      return conflict("Transcription can only be retried after it failed.", fields);
+      return conflict(t("Transcription can only be retried after it failed."), fields);
     }
     default:
       return { kind: "bad_request" };
@@ -237,7 +260,7 @@ function moveResult(
           errors: [
             {
               field: "folder",
-              message: "That folder is not available. Choose one of your folders.",
+              message: t("That folder is not available. Choose one of your folders."),
             },
           ],
         },
@@ -246,11 +269,17 @@ function moveResult(
       );
     case "not_published":
       return conflict(
-        "Only a published note can be moved to another folder. This one is not published right now; the page shows where things stand.",
+        t(
+          "Only a published note can be moved to another folder. " +
+            "This one is not published right now; the page shows where things stand.",
+        ),
         fields,
       );
     case "conflict":
-      return conflict("The note changed at the same moment. Check it below and try again.", fields);
+      return conflict(
+        t("The note changed at the same moment. Check it below and try again."),
+        fields,
+      );
   }
 }
 
@@ -277,16 +306,22 @@ function problemOrNotFound(
       return {
         kind: "problem",
         status: 422,
-        message: "That was not saved. Fix the highlighted problem and try again.",
+        message: t("That was not saved. Fix the highlighted problem and try again."),
         errors: error.errors,
         echo: echoOf(itemId, fields),
       };
     case "not_editable":
       return conflict(
-        "This note is not an editable draft right now. Reopen it if it is published; the page shows where things stand.",
+        t(
+          "This note is not an editable draft right now. Reopen it if it is published; " +
+            "the page shows where things stand.",
+        ),
         fields,
       );
     case "conflict":
-      return conflict("The note changed at the same moment. Check it below and try again.", fields);
+      return conflict(
+        t("The note changed at the same moment. Check it below and try again."),
+        fields,
+      );
   }
 }

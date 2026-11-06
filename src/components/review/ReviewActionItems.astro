@@ -1,4 +1,5 @@
 ---
+import { t } from "../../i18n/translate";
 import { actionItemChips } from "../../domain/notes/action-chips";
 import { dueDateInputValue } from "../../domain/notes/review";
 import type { ReviewActionItem } from "../../ports/review-repository";
@@ -53,8 +54,8 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
 ---
 
 <section class="panel review-lists" id="action-items" aria-labelledby="actions-heading">
-  <h2 id="actions-heading">Action items</h2>
-  {actionItems.length === 0 && <p>No action items were recorded.</p>}
+  <h2 id="actions-heading">{t("Action items")}</h2>
+  {actionItems.length === 0 && <p>{t("No action items were recorded.")}</p>}
   {actionItems.length > 0 && (
     <ul class="rl-list rl-checklist">
       {actionItems.map((a) => {
@@ -83,7 +84,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                   <input type="hidden" name="intent" value="edit_action_item" />
                   <input type="hidden" name="id" value={a.id} />
                   <div class="field field-wide">
-                    <label for={`act-text-${a.id}`}>Action</label>
+                    <label for={`act-text-${a.id}`}>{t("Action")}</label>
                     <input
                       id={`act-text-${a.id}`}
                       name="text"
@@ -104,7 +105,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                   </div>
                   <div class="field-group">
                     <div class="field">
-                      <label for={`act-owner-${a.id}`}>Owner</label>
+                      <label for={`act-owner-${a.id}`}>{t("Owner")}</label>
                       <select
                         id={`act-owner-${a.id}`}
                         name="assignee"
@@ -119,7 +120,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                           value=""
                           selected={typed(key, "assignee", a.assigneeId ?? "") === ""}
                         >
-                          No owner
+                          {t("No owner")}
                         </option>
                         {attendees.map((p) => (
                           <option
@@ -137,7 +138,9 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                       ))}
                     </div>
                     <div class="field">
-                      <label for={`act-due-${a.id}`}>Due date ({timezone})</label>
+                      <label for={`act-due-${a.id}`}>
+                        {t("Due date ({timezone})", { timezone })}
+                      </label>
                       <input
                         id={`act-due-${a.id}`}
                         name="due"
@@ -162,29 +165,33 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                       type="checkbox"
                       checked={checked(key, "done", isDone)}
                     />
-                    <label for={`act-done-${a.id}`}>Done</label>
+                    <label for={`act-done-${a.id}`}>{t("Done")}</label>
                   </div>
                   <div class="row-actions">
                     <button class="button" type="submit">
-                      Save action item<span class="sr-only">: {a.text}</span>
+                      {t("Save action item")}
+                      <span class="sr-only">{t(": {text}", { text: a.text })}</span>
                     </button>
                     <a href={`${base}#action-${a.id}`}>
-                      Cancel<span class="sr-only"> editing this action item</span>
+                      {t("Cancel")}
+                      <span class="sr-only"> {t("editing this action item")}</span>
                     </a>
                   </div>
                 </form>
                 <details class="rl-remove">
-                  <summary>Remove this action item</summary>
+                  <summary>{t("Remove this action item")}</summary>
                   <form method="post" action={base} class="form">
                     <input type="hidden" name="csrf_token" value={csrf} />
                     <input type="hidden" name="intent" value="delete_action_item" />
                     <input type="hidden" name="id" value={a.id} />
                     <p class="help">
-                      Removes only this action item from the draft. The transcript is untouched.
+                      {t(
+                        "Removes only this action item from the draft. The transcript is untouched.",
+                      )}
                     </p>
                     <div class="row-actions">
                       <button class="button button-danger" type="submit">
-                        Confirm: remove action item
+                        {t("Confirm: remove action item")}
                       </button>
                     </div>
                   </form>
@@ -205,30 +212,31 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                       checked={isDone}
                     />
                     <label class="sr-only" for={`act-done-${a.id}`}>
-                      Mark done: {a.text}
+                      {t("Mark done: {text}", { text: a.text })}
                     </label>
                     <button class="button-quiet rl-done-save" type="submit">
-                      Save status<span class="sr-only">: {a.text}</span>
+                      {t("Save status")}
+                      <span class="sr-only">{t(": {text}", { text: a.text })}</span>
                     </button>
                   </form>
                 ) : (
-                  <span class="rl-state">{isDone ? "Done" : "Open"}</span>
+                  <span class="rl-state">{isDone ? t("Done") : t("Open")}</span>
                 )}
                 <span class="rl-text">
-                  {isDone && <span class="sr-only">Done: </span>}
+                  {isDone && <span class="sr-only">{t("Done:")} </span>}
                   {a.text}
                 </span>
                 <span class="rl-meta">
-                  {isHit("action_item", a.id) && <span class="badge">Search match</span>}
+                  {isHit("action_item", a.id) && <span class="badge">{t("Search match")}</span>}
                   {chips.assignee !== null && (
                     <span class="rl-chip">
-                      <span class="sr-only">Owner: </span>
+                      <span class="sr-only">{t("Owner:")} </span>
                       {chips.assignee}
                     </span>
                   )}
                   {chips.due !== null && a.dueAt !== null && (
                     <span class="rl-chip">
-                      <time datetime={a.dueAt} title={`In ${zone}`}>
+                      <time datetime={a.dueAt} title={t("In {zone}", { zone })}>
                         {chips.due}
                       </time>
                     </span>
@@ -237,10 +245,11 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                     <span class="rl-chip rl-chip-overdue">{chips.overdue}</span>
                   )}
                   <ReviewSource source={sourceLink(a.sourceFrom, a.sourceTo)} chip />
-                  {a.edited && <span class="rl-chip">Edited by you</span>}
+                  {a.edited && <span class="rl-chip">{t("Edited by you")}</span>}
                   {editable && (
                     <a class="rl-edit" href={`${base}?edit=${a.id}#action-${a.id}`}>
-                      Edit<span class="sr-only"> action item: {a.text}</span>
+                      {t("Edit")}
+                      <span class="sr-only"> {t("action item: {text}", { text: a.text })}</span>
                     </a>
                   )}
                 </span>
@@ -253,12 +262,12 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
   )}
   {editable && (
     <details class="rl-add" open={addErrors.length > 0}>
-      <summary>Add an action item</summary>
+      <summary>{t("Add an action item")}</summary>
       <form method="post" action={base} class="form form-wide">
         <input type="hidden" name="csrf_token" value={csrf} />
         <input type="hidden" name="intent" value="add_action_item" />
         <div class="field field-wide">
-          <label for="new-action">Action</label>
+          <label for="new-action">{t("Action")}</label>
           <input
             id="new-action"
             name="text"
@@ -278,7 +287,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
         </div>
         <div class="field-group">
           <div class="field">
-            <label for="new-action-owner">Owner</label>
+            <label for="new-action-owner">{t("Owner")}</label>
             <select
               id="new-action-owner"
               name="assignee"
@@ -291,7 +300,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
                   : undefined
               }
             >
-              <option value="">No owner</option>
+              <option value="">{t("No owner")}</option>
               {attendees.map((p) => (
                 <option value={p.id} selected={typed("add_action_item", "assignee", "") === p.id}>
                   {p.name}
@@ -305,7 +314,7 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
             ))}
           </div>
           <div class="field">
-            <label for="new-action-due">Due date ({timezone})</label>
+            <label for="new-action-due">{t("Due date ({timezone})", { timezone })}</label>
             <input
               id="new-action-due"
               name="due"
@@ -325,12 +334,14 @@ const addErrors = FIELDS.flatMap((f) => errorsFor("add_action_item", f));
         </div>
         <div class="row-actions">
           <button class="button button-quiet" type="submit">
-            Add action item
+            {t("Add action item")}
           </button>
         </div>
       </form>
       {attendees.length === 0 && (
-        <p class="help">This meeting has no attendees, so action items cannot have an owner.</p>
+        <p class="help">
+          {t("This meeting has no attendees, so action items cannot have an owner.")}
+        </p>
       )}
     </details>
   )}

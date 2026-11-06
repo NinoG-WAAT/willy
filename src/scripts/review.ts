@@ -1,4 +1,5 @@
 import "./i18n";
+import { t, tn } from "./i18n";
 
 /**
  * Review screen enhancement. Without JavaScript a source link reloads the page with the cited
@@ -93,8 +94,12 @@ document.addEventListener("click", (event) => {
   if (announce) {
     announce.textContent =
       marked === 0
-        ? "The cited transcript lines are not available."
-        : `${String(marked)} cited transcript ${marked === 1 ? "line is" : "lines are"} marked.`;
+        ? t("The cited transcript lines are not available.")
+        : tn(
+            "{n} cited transcript line is marked.",
+            "{n} cited transcript lines are marked.",
+            marked,
+          );
   }
 });
 // Assigning transcript lines to a speaker: shift-click ticks everything between two lines, and a
@@ -106,7 +111,7 @@ let lastPick: HTMLInputElement | null = null;
 function announcePicks(): void {
   if (!pickStatus) return;
   const n = picks.filter((p) => p.checked).length;
-  pickStatus.textContent = n === 0 ? "" : `${String(n)} ${n === 1 ? "line" : "lines"} selected.`;
+  pickStatus.textContent = n === 0 ? "" : tn("{n} line selected.", "{n} lines selected.", n);
 }
 
 for (const pick of picks) {

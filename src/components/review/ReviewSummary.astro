@@ -1,4 +1,5 @@
 ---
+import { t } from "../../i18n/translate";
 import { describeJob } from "../../domain/progress/text";
 import type { ReviewSection } from "../../ports/review-repository";
 import ReviewOutline from "./ReviewOutline.astro";
@@ -46,10 +47,10 @@ const {
 } = Astro.props;
 ---
 
-<h2>Meeting summary</h2>
+<h2>{t("Meeting summary")}</h2>
 {editable && (
   <details class="regenerate-draft" id="regenerate-draft" open={draftRegeneration !== null}>
-    <summary>Regenerate whole draft</summary>
+    <summary>{t("Regenerate whole draft")}</summary>
     <form
       method="post"
       action={`/meetings/${meetingId}/note/regenerate-all`}
@@ -57,9 +58,11 @@ const {
     >
       <input type="hidden" name="csrf_token" value={csrf} />
       <p class="help" id="regenerate-draft-help">
-        Writes the summary again from the transcript. It replaces every section, decision and action
-        item, including your edits to them. Your rough notes, the transcript and the speaker names
-        are kept, and the note stays a draft until you publish it.
+        {t(
+          "Writes the summary again from the transcript. It replaces every section, decision and " +
+            "action item, including your edits to them. Your rough notes, the transcript and the " +
+            "speaker names are kept, and the note stays a draft until you publish it.",
+        )}
       </p>
       <div class="check">
         <input
@@ -69,11 +72,11 @@ const {
           required
           aria-describedby="regenerate-draft-help"
         />
-        <label for="regenerate-draft-confirm">Replace my edits with a new draft.</label>
+        <label for="regenerate-draft-confirm">{t("Replace my edits with a new draft.")}</label>
       </div>
       <div class="row-actions">
         <button class="button button-quiet" type="submit">
-          Regenerate whole draft
+          {t("Regenerate whole draft")}
         </button>
       </div>
     </form>
@@ -85,13 +88,15 @@ const {
         data-scope="all"
         data-progress-url={`/api/meetings/${meetingId}/status`}
       >
-        <span data-field="text">Regeneration: {describeJob(draftRegeneration)}.</span>{" "}
-        <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
+        <span data-field="text">
+          {t("Regeneration: {status}.", { status: describeJob(draftRegeneration) })}
+        </span>{" "}
+        <span data-field="outcome" data-optional hidden /> <a href={base}>{t("Check again")}</a>
       </p>
     )}
   </details>
 )}
-{sections.length === 0 && <p class="empty">The summary has no sections.</p>}
+{sections.length === 0 && <p class="empty">{t("The summary has no sections.")}</p>}
 <div class="outline">
   {sections.map((s) => {
     const source = sourceLink(s.sourceFrom, s.sourceTo);
@@ -108,8 +113,8 @@ const {
         <h3 id={`heading-${s.id}`}>{s.heading}</h3>
         {(s.edited || isHit("note_section", s.id)) && (
           <p class="outline-marks">
-            {s.edited && <span class="outline-mark">Edited by you</span>}
-            {isHit("note_section", s.id) && <span class="badge">Search match</span>}
+            {s.edited && <span class="outline-mark">{t("Edited by you")}</span>}
+            {isHit("note_section", s.id) && <span class="badge">{t("Search match")}</span>}
           </p>
         )}
         {editing ? (
@@ -119,7 +124,7 @@ const {
             <input type="hidden" name="id" value={s.id} />
             <div class="field field-wide">
               <label class="sr-only" for={`body-${s.id}`}>
-                Text of “{s.heading}”
+                {t("Text of “{heading}”", { heading: s.heading })}
               </label>
               <textarea
                 id={`body-${s.id}`}
@@ -139,10 +144,12 @@ const {
             </div>
             <div class="outline-actions">
               <button class="button" type="submit">
-                Save<span class="sr-only"> section {s.heading}</span>
+                {t("Save")}
+                <span class="sr-only"> {t("section {heading}", { heading: s.heading })}</span>
               </button>
               <a class="outline-link" href={`${base}#section-${s.id}`}>
-                Cancel<span class="sr-only"> editing {s.heading}</span>
+                {t("Cancel")}
+                <span class="sr-only"> {t("editing {heading}", { heading: s.heading })}</span>
               </a>
             </div>
           </form>
@@ -154,13 +161,15 @@ const {
             <ReviewSource source={source} chip />
             {editable && (
               <a class="outline-link" href={`${base}?edit=${s.id}#section-${s.id}`}>
-                Edit<span class="sr-only"> section {s.heading}</span>
+                {t("Edit")}
+                <span class="sr-only"> {t("section {heading}", { heading: s.heading })}</span>
               </a>
             )}
             {editable && (
               <details class="outline-menu" open={regenerating}>
                 <summary>
-                  Regenerate<span class="sr-only"> section {s.heading}</span>
+                  {t("Regenerate")}
+                  <span class="sr-only"> {t("section {heading}", { heading: s.heading })}</span>
                 </summary>
                 <form
                   method="post"
@@ -170,11 +179,14 @@ const {
                   <input type="hidden" name="csrf_token" value={csrf} />
                   <input type="hidden" name="section_id" value={s.id} />
                   <p class="help">
-                    Replaces only this section with a new draft from the transcript, including your
-                    edits to it.
+                    {t(
+                      "Replaces only this section with a new draft from the transcript, " +
+                        "including your edits to it.",
+                    )}
                   </p>
                   <button class="button button-quiet" type="submit">
-                    Regenerate this section<span class="sr-only">: {s.heading}</span>
+                    {t("Regenerate this section")}
+                    <span class="sr-only">{t(": {text}", { text: s.heading })}</span>
                   </button>
                 </form>
               </details>
@@ -189,8 +201,10 @@ const {
             data-progress-url={`/api/meetings/${meetingId}/status`}
             data-section-id={s.id}
           >
-            <span data-field="text">Regeneration: {describeJob(regen)}.</span>{" "}
-            <span data-field="outcome" data-optional hidden /> <a href={base}>Check again</a>
+            <span data-field="text">
+              {t("Regeneration: {status}.", { status: describeJob(regen) })}
+            </span>{" "}
+            <span data-field="outcome" data-optional hidden /> <a href={base}>{t("Check again")}</a>
           </p>
         )}
       </section>
