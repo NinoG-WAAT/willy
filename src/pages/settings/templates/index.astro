@@ -6,7 +6,7 @@ import { listTemplates, setDefaultTemplate } from "../../../app/notes/templates"
 import { readFormFields, single } from "../../../app/platform/form";
 import { getNotesDeps } from "../../../composition";
 import { t, tn } from "../../../i18n/translate";
-import { DEFAULT_TEMPLATE } from "../../../domain/notes/template";
+import { builtinTemplate } from "../../../domain/notes/template";
 
 export const prerender = false;
 
@@ -31,7 +31,10 @@ if (Astro.request.method === "POST") {
 const templates = await listTemplates(deps, owner.id);
 const notice = noticeText(Astro.url.searchParams.get("notice"));
 const hasDefault = templates.some((template) => template.isDefault);
-const builtInSections = DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ");
+// The built-in layout in the owner's language: the headings new notes will actually get.
+const builtInSections = builtinTemplate()
+  .sections.map((s) => s.heading)
+  .join(", ");
 ---
 
 <Base title={t("Templates")}>
