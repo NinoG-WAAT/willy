@@ -4,6 +4,7 @@ import { requireOwner } from "../../../app/identity/require-owner";
 import { deleteFolder, findFolderForDelete } from "../../../app/notes/folders";
 import { readFormFields } from "../../../app/platform/form";
 import { getNotesDeps } from "../../../composition";
+import { t, tn } from "../../../i18n/translate";
 
 export const prerender = false;
 
@@ -32,18 +33,15 @@ const folder = found.value;
 const blocked = blockedMessage ?? (folder.noteCount > 0 ? "blocked" : null);
 ---
 
-<Base title={`Delete folder ${folder.name}`}>
-  <h1>Delete folder</h1>
+<Base title={t("Delete folder {name}", { name: folder.name })}>
+  <h1>{t("Delete folder")}</h1>
+  <p>{t("You are about to delete the folder {name}.", { name: folder.name })}</p>
   <p>
-    You are about to delete the folder <strong>{folder.name}</strong>.
+    {t(
+      "Scope: only the folder itself is removed. Notes are never deleted by this action, which is why a folder that still contains notes cannot be deleted.",
+    )}
   </p>
-  <p>
-    Scope: only the folder itself is removed. Notes are never deleted by this action, which is why a
-    folder that still contains notes cannot be deleted.
-  </p>
-  <p>
-    This folder contains {folder.noteCount} {folder.noteCount === 1 ? "note" : "notes"}.
-  </p>
+  <p>{tn("This folder contains {n} note.", "This folder contains {n} notes.", folder.noteCount)}</p>
 
   {blockedMessage !== null && (
     <p class="alert" role="alert">
@@ -54,16 +52,16 @@ const blocked = blockedMessage ?? (folder.noteCount > 0 ? "blocked" : null);
   {blocked !== null ? (
     <p>
       <a class="button button-quiet" href="/folders">
-        Back to folders
+        {t("Back to folders")}
       </a>
     </p>
   ) : (
     <form class="row-actions" method="post" action={`/folders/${folder.id}/delete`}>
       <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ""} />
       <button class="button button-danger" type="submit">
-        Delete folder
+        {t("Delete folder")}
       </button>
-      <a href="/folders">Cancel</a>
+      <a href="/folders">{t("Cancel")}</a>
     </form>
   )}
 </Base>

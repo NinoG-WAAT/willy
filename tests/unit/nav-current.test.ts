@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NAV_LINKS, currentNavHref, shellFolderState } from "../../src/components/nav-current";
+import { currentNavHref, navLinks, shellFolderState } from "../../src/components/nav-current";
 
 describe("currentNavHref", () => {
   it("marks the exact page", () => {
@@ -38,7 +38,7 @@ describe("currentNavHref", () => {
   });
 
   it("lists every navigation link once, in the order of the shell", () => {
-    expect(NAV_LINKS.map((l) => l.href)).toEqual([
+    expect(navLinks().map((l) => l.href)).toEqual([
       "/",
       "/notes",
       "/search",
@@ -49,7 +49,7 @@ describe("currentNavHref", () => {
   });
 
   it("calls the first item Inbox and offers All notes next to it", () => {
-    expect(NAV_LINKS.map((l) => l.label)).toEqual([
+    expect(navLinks().map((l) => l.label)).toEqual([
       "Inbox",
       "All notes",
       "Search",

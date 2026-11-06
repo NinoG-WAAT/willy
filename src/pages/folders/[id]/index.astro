@@ -5,6 +5,7 @@ import Pager from "../../../components/Pager.astro";
 import { requireOwner } from "../../../app/identity/require-owner";
 import { loadFolderView } from "../../../app/notes/folder-view";
 import { getFolderViewDeps } from "../../../composition";
+import { t, tn } from "../../../i18n/translate";
 
 export const prerender = false;
 
@@ -23,16 +24,16 @@ const result = await loadFolderView(
 if (!result.ok) return Astro.rewrite("/404");
 
 const { folder, items, page } = result.value;
-const noteCount = `${String(folder.publishedCount)} ${folder.publishedCount === 1 ? "note" : "notes"}`;
+const noteCount = tn("{n} note", "{n} notes", folder.publishedCount);
 const pageHref = (n: number): string =>
   n === 1 ? `/folders/${folder.id}` : `/folders/${folder.id}?page=${String(n)}`;
 ---
 
 <Base title={folder.name}>
-  <nav class="breadcrumb" aria-label="Breadcrumb">
+  <nav class="breadcrumb" aria-label={t("Breadcrumb")}>
     <ol>
       <li>
-        <a href="/folders">Folders</a>
+        <a href="/folders">{t("Folders")}</a>
       </li>
       <li>
         <span aria-current="page">{folder.name}</span>
@@ -43,21 +44,23 @@ const pageHref = (n: number): string =>
   <div class="page-head">
     <h1>{folder.name}</h1>
   </div>
-  <p class="row-meta">{noteCount} · Private to you</p>
+  <p class="row-meta">
+    {noteCount} · {t("Private to you")}
+  </p>
 
   {items.length === 0 ? (
     <section aria-labelledby="empty-heading" class="empty">
-      <h2 id="empty-heading">Nothing published here yet</h2>
-      <p>Publish a note to this folder from its review.</p>
+      <h2 id="empty-heading">{t("Nothing published here yet")}</h2>
+      <p>{t("Publish a note to this folder from its review.")}</p>
       <p>
         <a class="button button-quiet" href="/">
-          Go to your meetings
+          {t("Go to your meetings")}
         </a>
       </p>
     </section>
   ) : (
     <section aria-labelledby="notes-heading">
-      <h2 id="notes-heading">Notes</h2>
+      <h2 id="notes-heading">{t("Notes")}</h2>
       <NoteList items={items} />
     </section>
   )}

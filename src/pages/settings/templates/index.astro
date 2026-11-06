@@ -5,7 +5,8 @@ import { noticeText } from "../../../app/notes/notices";
 import { listTemplates, setDefaultTemplate } from "../../../app/notes/templates";
 import { readFormFields, single } from "../../../app/platform/form";
 import { getNotesDeps } from "../../../composition";
-import { builtinTemplate } from "../../../domain/notes/template";
+import { t, tn } from "../../../i18n/translate";
+import { DEFAULT_TEMPLATE } from "../../../domain/notes/template";
 
 export const prerender = false;
 
@@ -29,23 +30,21 @@ if (Astro.request.method === "POST") {
 
 const templates = await listTemplates(deps, owner.id);
 const notice = noticeText(Astro.url.searchParams.get("notice"));
-const hasDefault = templates.some((t) => t.isDefault);
-// In the owner's language: the layout new notes use until they have a template of their own.
-const builtinHeadings = builtinTemplate()
-  .sections.map((s) => s.heading)
-  .join(", ");
+const hasDefault = templates.some((template) => template.isDefault);
+const builtInSections = DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ");
 ---
 
-<Base title="Templates">
+<Base title={t("Templates")}>
   <div class="page-head">
-    <h1>Templates</h1>
+    <h1>{t("Templates")}</h1>
     <a class="button button-primary" href="/settings/templates/new">
-      New template
+      {t("New template")}
     </a>
   </div>
   <p>
-    A template lists the sections of the note generated after a meeting, for example a weekly sync
-    or a customer call. Pick one when you create a meeting, or set a default.
+    {t(
+      "A template lists the sections of the note generated after a meeting, for example a weekly sync or a customer call. Pick one when you create a meeting, or set a default.",
+    )}
   </p>
 
   {notice !== null && (
@@ -56,31 +55,46 @@ const builtinHeadings = builtinTemplate()
 
   {templates.length === 0 ? (
     <p>
-      You have no templates yet. Until you create one, new notes use the built-in layout:{" "}
-      {builtinHeadings}.
+      {t(
+        "You have no templates yet. Until you create one, new notes use the built-in layout: {sections}.",
+        {
+          sections: builtInSections,
+        },
+      )}
     </p>
   ) : (
     <>
       {!hasDefault && (
         <p>
-          None of your templates is the default, so new notes use the built-in layout:{" "}
-          {builtinHeadings}.
+          {t(
+            "None of your templates is the default, so new notes use the built-in layout: {sections}.",
+            {
+              sections: builtInSections,
+            },
+          )}
         </p>
       )}
       <ul class="rows">
         {templates.map((template) => (
           <li class="row">
             <h2>
-              {template.name} {template.isDefault && <span class="badge">Default</span>}
+              {template.name} {template.isDefault && <span class="badge">{t("Default")}</span>}
             </h2>
             <p class="row-meta">
-              {template.sections.length} {template.sections.length === 1 ? "section" : "sections"}:{" "}
-              {template.sections.map((s) => s.heading).join(", ")}. Used by {template.meetingCount}
-              {template.meetingCount === 1 ? " meeting" : " meetings"}.
+              {tn(
+                "{n} section: {headings}.",
+                "{n} sections: {headings}.",
+                template.sections.length,
+                {
+                  headings: template.sections.map((s) => s.heading).join(", "),
+                },
+              )}{" "}
+              {tn("Used by {n} meeting.", "Used by {n} meetings.", template.meetingCount)}
             </p>
             <div class="row-actions">
               <a href={`/settings/templates/${template.id}`}>
-                Edit<span class="sr-only"> template {template.name}</span>
+                {t("Edit")}
+                <span class="sr-only"> {t("template {name}", { name: template.name })}</span>
               </a>
               {!template.isDefault && (
                 <form method="post" action="/settings/templates">
@@ -88,12 +102,14 @@ const builtinHeadings = builtinTemplate()
                   <input type="hidden" name="intent" value="set_default" />
                   <input type="hidden" name="id" value={template.id} />
                   <button class="button button-quiet" type="submit">
-                    Make default<span class="sr-only"> template {template.name}</span>
+                    {t("Make default")}
+                    <span class="sr-only"> {t("template {name}", { name: template.name })}</span>
                   </button>
                 </form>
               )}
               <a href={`/settings/templates/${template.id}/delete`}>
-                Delete<span class="sr-only"> template {template.name}</span>
+                {t("Delete")}
+                <span class="sr-only"> {t("template {name}", { name: template.name })}</span>
               </a>
             </div>
           </li>

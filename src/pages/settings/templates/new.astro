@@ -5,7 +5,8 @@ import { requireOwner } from "../../../app/identity/require-owner";
 import { parseTemplateForm } from "../../../app/notes/template-form";
 import { createTemplate } from "../../../app/notes/templates";
 import { getNotesDeps } from "../../../composition";
-import { builtinTemplate } from "../../../domain/notes/template";
+import { t } from "../../../i18n/translate";
+import { DEFAULT_TEMPLATE } from "../../../domain/notes/template";
 import type { FieldError } from "../../../domain/platform/text";
 
 export const prerender = false;
@@ -16,7 +17,7 @@ Astro.response.headers.set("Cache-Control", "no-store");
 let name = "";
 let isDefault = false;
 // Start from the built-in layout so a first template is one edit away, not a blank page.
-let sections: { heading: string; prompt: string }[] = builtinTemplate().sections.map((s) => ({
+let sections: { heading: string; prompt: string }[] = DEFAULT_TEMPLATE.sections.map((s) => ({
   ...s,
 }));
 let errors: FieldError[] = [];
@@ -34,8 +35,8 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<Base title="New template">
-  <h1>New template</h1>
+<Base title={t("New template")}>
+  <h1>{t("New template")}</h1>
   <TemplateForm
     action="/settings/templates/new"
     csrfToken={Astro.locals.csrfToken ?? ""}
@@ -44,6 +45,6 @@ if (Astro.request.method === "POST") {
     sections={sections}
     errors={errors}
     blankRows={blankRows}
-    submitLabel="Create template"
+    submitLabel={t("Create template")}
   />
 </Base>

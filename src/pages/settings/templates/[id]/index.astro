@@ -5,6 +5,7 @@ import { requireOwner } from "../../../../app/identity/require-owner";
 import { parseTemplateForm } from "../../../../app/notes/template-form";
 import { findTemplate, updateTemplate } from "../../../../app/notes/templates";
 import { getNotesDeps } from "../../../../composition";
+import { t } from "../../../../i18n/translate";
 import type { FieldError } from "../../../../domain/platform/text";
 
 export const prerender = false;
@@ -35,8 +36,8 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<Base title={`Edit template ${found.value.name}`}>
-  <h1>Edit template</h1>
+<Base title={t("Edit template {name}", { name: found.value.name })}>
+  <h1>{t("Edit template")}</h1>
   <TemplateForm
     action={`/settings/templates/${found.value.id}`}
     csrfToken={Astro.locals.csrfToken ?? ""}
@@ -45,6 +46,6 @@ if (Astro.request.method === "POST") {
     sections={sections}
     errors={errors}
     blankRows={blankRows}
-    submitLabel="Save template"
+    submitLabel={t("Save template")}
   />
 </Base>

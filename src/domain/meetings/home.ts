@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import type { MeetingListItem } from "./list-item";
 import { statusLabel } from "./stage";
 
@@ -21,30 +22,35 @@ export function describeMeeting(
       return {
         label: statusLabel("scheduled"),
         marker: "○",
-        actionLabel: "Start note",
+        actionLabel: t("Start note"),
         href: live,
       };
     case "capturing":
       return {
         label: statusLabel("capturing"),
         marker: "●",
-        actionLabel: "Return to recording",
+        actionLabel: t("Return to recording"),
         href: live,
       };
     case "paused":
-      return { label: statusLabel("paused"), marker: "❚❚", actionLabel: "Resume note", href: live };
+      return {
+        label: statusLabel("paused"),
+        marker: "❚❚",
+        actionLabel: t("Resume note"),
+        href: live,
+      };
     case "processing":
       return {
         label: statusLabel("processing"),
         marker: "…",
-        actionLabel: "View progress",
+        actionLabel: t("View progress"),
         href: review,
       };
     case "review":
       return {
         label: statusLabel("review"),
         marker: "✎",
-        actionLabel: "Review note",
+        actionLabel: t("Review note"),
         href: review,
       };
     case "published":
@@ -52,30 +58,35 @@ export function describeMeeting(
         label:
           item.folderName === null
             ? statusLabel("published")
-            : `${statusLabel("published")} to ${item.folderName}`,
+            : t("Published to {folder}", { folder: item.folderName }),
         marker: "✓",
-        actionLabel: "Open note",
+        actionLabel: t("Open note"),
         href: review,
       };
     case "failed":
       return {
         label: statusLabel("failed"),
         marker: "!",
-        actionLabel: "Open and retry",
+        actionLabel: t("Open and retry"),
         href: review,
       };
     case "archived":
-      return { label: statusLabel("archived"), marker: "▭", actionLabel: "Open note", href: live };
+      return {
+        label: statusLabel("archived"),
+        marker: "▭",
+        actionLabel: t("Open note"),
+        href: live,
+      };
     case "deleting":
     case "deleted":
       // Never listed; handled for exhaustiveness without leaking anything.
-      return { label: statusLabel(item.status), marker: "-", actionLabel: "Back", href: "/" };
+      return { label: statusLabel(item.status), marker: "-", actionLabel: t("Back"), href: "/" };
   }
 }
 
 /** Consent readiness in words. It only ever reports the Owner's own confirmation. */
 export function consentLabel(item: MeetingListItem): string {
   return item.consentConfirmedAt === null
-    ? "Your consent confirmation is still needed before capture"
-    : "You confirmed consent";
+    ? t("Your consent confirmation is still needed before capture")
+    : t("You confirmed consent");
 }

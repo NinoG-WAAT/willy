@@ -5,6 +5,7 @@ import Pager from "../../components/Pager.astro";
 import { requireOwner } from "../../app/identity/require-owner";
 import { loadAllNotes } from "../../app/notes/all-notes";
 import { getAllNotesDeps } from "../../composition";
+import { t, tn } from "../../i18n/translate";
 import {
   NOTE_STATUS_FILTERS,
   notesHref,
@@ -25,31 +26,34 @@ const { filter, items, total, page, folders } = await loadAllNotes(
   parseNotesFilter(Astro.url.searchParams),
 );
 
+// Built per request (page frontmatter runs on each one), so the words follow the owner's language.
 const STATUS_LABELS: Record<NoteStatusFilter, string> = {
-  all: "All",
-  draft: "Draft",
-  published: "Published",
-  archived: "Archived",
+  all: t("All"),
+  draft: t("Draft"),
+  published: t("Published"),
+  archived: t("Archived"),
 };
 const selectedFolder = folders.find((f) => f.id === filter.folderId) ?? null;
 const filtering = filter.status !== "all" || filter.folderId !== null;
-const count = `${String(total)} ${total === 1 ? "note" : "notes"}`;
+const count = tn("{n} note, newest first.", "{n} notes, newest first.", total);
 ---
 
-<Base title="All notes">
+<Base title={t("All notes")}>
   <div class="page-head">
-    <h1>All notes</h1>
+    <h1>{t("All notes")}</h1>
   </div>
   <p class="list-summary">
-    {count}, newest first.{" "}
-    {selectedFolder !== null && <a href={`/folders/${selectedFolder.id}`}>Open the folder</a>}
+    {count}{" "}
+    {selectedFolder !== null && (
+      <a href={`/folders/${selectedFolder.id}`}>{t("Open the folder")}</a>
+    )}
   </p>
 
   <p id="progress-announce" class="sr-only" role="status" aria-live="polite"></p>
 
   <div class="note-filters">
-    <nav class="filter-group" aria-label="Filter by status">
-      <p class="filter-label">Status</p>
+    <nav class="filter-group" aria-label={t("Filter by status")}>
+      <p class="filter-label">{t("Status")}</p>
       <ul class="seg">
         {NOTE_STATUS_FILTERS.map((status) => (
           <li>
@@ -64,8 +68,8 @@ const count = `${String(total)} ${total === 1 ? "note" : "notes"}`;
       </ul>
     </nav>
 
-    <nav class="filter-group" aria-label="Filter by folder">
-      <p class="filter-label">Folder</p>
+    <nav class="filter-group" aria-label={t("Filter by folder")}>
+      <p class="filter-label">{t("Folder")}</p>
       <ul class="chips">
         <li>
           <a
@@ -73,7 +77,7 @@ const count = `${String(total)} ${total === 1 ? "note" : "notes"}`;
             href={notesHref({ status: filter.status, folderId: null })}
             aria-current={filter.folderId === null ? "true" : undefined}
           >
-            All folders
+            {t("All folders")}
           </a>
         </li>
         {folders.map((f) => (
@@ -93,29 +97,30 @@ const count = `${String(total)} ${total === 1 ? "note" : "notes"}`;
 
   {total === 0 && filtering && (
     <section aria-labelledby="empty-heading" class="empty">
-      <h2 id="empty-heading">No notes match</h2>
+      <h2 id="empty-heading">{t("No notes match")}</h2>
       <p>
-        There are no notes for this filter. <a href="/notes">Clear filters</a>
+        {t("There are no notes for this filter.")} <a href="/notes">{t("Clear filters")}</a>
       </p>
     </section>
   )}
   {total === 0 && !filtering && (
     <section aria-labelledby="empty-heading" class="empty">
-      <h2 id="empty-heading">No notes yet</h2>
+      <h2 id="empty-heading">{t("No notes yet")}</h2>
       <p>
-        Create a note for a meeting you are about to have. Nothing is recorded until you confirm
-        consent.
+        {t(
+          "Create a note for a meeting you are about to have. Nothing is recorded until you confirm consent.",
+        )}
       </p>
       <p>
         <a class="button button-quiet" href="/meetings/new">
-          Create a note
+          {t("Create a note")}
         </a>
       </p>
     </section>
   )}
   {total > 0 && (
     <section aria-labelledby="notes-heading">
-      <h2 id="notes-heading">Notes</h2>
+      <h2 id="notes-heading">{t("Notes")}</h2>
       <NoteList items={items} />
     </section>
   )}

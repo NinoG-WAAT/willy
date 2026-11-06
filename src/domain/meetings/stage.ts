@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import type { MeetingStatus } from "./lifecycle";
 
 /**
@@ -7,32 +8,60 @@ import type { MeetingStatus } from "./lifecycle";
  * the person sees "Draft".
  */
 
-/** The label of every status. The header, the cards and the progress text all read this table. */
-export const STATUS_LABELS: Record<MeetingStatus, string> = {
-  scheduled: "Scheduled",
-  capturing: "Recording",
-  paused: "Recording paused",
-  processing: "Processing",
-  review: "Draft",
-  published: "Published",
-  failed: "Needs attention",
-  archived: "Archived",
-  // Never shown (such a meeting is a 404); present so the table is exhaustive.
-  deleting: "Unavailable",
-  deleted: "Unavailable",
-};
-
-export const statusLabel = (status: MeetingStatus): string => STATUS_LABELS[status];
+/**
+ * The label of every status. The header, the cards and the progress text all read this. A switch
+ * with one literal per case, so the words are looked up for the request's language when shown.
+ */
+export function statusLabel(status: MeetingStatus): string {
+  switch (status) {
+    case "scheduled":
+      return t("Scheduled");
+    case "capturing":
+      return t("Recording");
+    case "paused":
+      return t("Recording paused");
+    case "processing":
+      return t("Processing");
+    case "review":
+      return t("Draft");
+    case "published":
+      return t("Published");
+    case "failed":
+      return t("Needs attention");
+    case "archived":
+      return t("Archived");
+    // Never shown (such a meeting is a 404); present so the switch is exhaustive.
+    case "deleting":
+    case "deleted":
+      return t("Unavailable");
+  }
+}
 
 export type StageKey = "scheduled" | "capturing" | "processing" | "draft" | "published";
 
-export const STAGE_STEPS: readonly { key: StageKey; label: string }[] = [
-  { key: "scheduled", label: "Scheduled" },
-  { key: "capturing", label: "Capturing" },
-  { key: "processing", label: "Processing" },
-  { key: "draft", label: "Draft" },
-  { key: "published", label: "Published" },
+/** The five steps of the stepper, in order. Their words come from `stepLabel`. */
+export const STAGE_STEP_KEYS: readonly StageKey[] = [
+  "scheduled",
+  "capturing",
+  "processing",
+  "draft",
+  "published",
 ];
+
+function stepLabel(key: StageKey): string {
+  switch (key) {
+    case "scheduled":
+      return t("Scheduled");
+    case "capturing":
+      return t("Capturing");
+    case "processing":
+      return t("Processing");
+    case "draft":
+      return t("Draft");
+    case "published":
+      return t("Published");
+  }
+}
 
 export type StepState = "done" | "current" | "upcoming" | "attention";
 
@@ -63,12 +92,18 @@ export type Stage =
   | { kind: "archived"; label: string }
   | { kind: "gone" };
 
-const STATE_TEXT: Record<StepState, string> = {
-  done: "Done",
-  current: "Current step",
-  upcoming: "Upcoming",
-  attention: "Needs attention",
-};
+function stateText(state: StepState): string {
+  switch (state) {
+    case "done":
+      return t("Done");
+    case "current":
+      return t("Current step");
+    case "upcoming":
+      return t("Upcoming");
+    case "attention":
+      return t("Needs attention");
+  }
+}
 
 /** The step a status sits on. Paused is still Capturing; failed is Processing that needs attention. */
 const CURRENT_STEP: Partial<Record<MeetingStatus, StageKey>> = {
@@ -83,31 +118,38 @@ const CURRENT_STEP: Partial<Record<MeetingStatus, StageKey>> = {
 
 /** Where a meeting is in its life. Archived is its own state, and a deleted one has no stage. */
 export function stageFor(status: MeetingStatus): Stage {
-  if (status === "archived") return { kind: "archived", label: STATUS_LABELS.archived };
+  if (status === "archived") return { kind: "archived", label: statusLabel("archived") };
   const currentKey = CURRENT_STEP[status];
   if (currentKey === undefined) return { kind: "gone" };
-  const current = STAGE_STEPS.findIndex((s) => s.key === currentKey);
+  const current = STAGE_STEP_KEYS.indexOf(currentKey);
   const attention = status === "failed";
-  const steps = STAGE_STEPS.map((s, index): Step => {
+  const steps = STAGE_STEP_KEYS.map((key, index): Step => {
     const state: StepState =
       index < current ? "done" : index > current ? "upcoming" : attention ? "attention" : "current";
     return {
-      key: s.key,
-      label: s.label,
+      key,
+      label: stepLabel(key),
       state,
       current: index === current,
-      stateText: STATE_TEXT[state],
+      stateText: stateText(state),
       mark: state === "done" ? "✓" : state === "attention" ? "!" : String(index + 1),
     };
   });
-  const position = `Step ${String(current + 1)} of ${String(STAGE_STEPS.length)}`;
-  const note = attention ? ", needs attention" : status === "paused" ? ", paused" : "";
+  const total = STAGE_STEP_KEYS.length;
+  const params = { current: current + 1, total, step: stepLabel(currentKey) };
+  // One sentence per variant: the words after the colon change with the state, and French orders
+  // them differently, so the pieces are never joined here.
+  const summary = attention
+    ? t("Step {current} of {total}: {step}, needs attention", params)
+    : status === "paused"
+      ? t("Step {current} of {total}: {step}, paused", params)
+      : t("Step {current} of {total}: {step}", params);
   return {
     kind: "flow",
     steps,
     current,
-    position,
-    summary: `${position}: ${STAGE_STEPS[current]?.label ?? ""}${note}`,
+    position: t("Step {current} of {total}", { current: current + 1, total }),
+    summary,
     attention,
   };
 }
@@ -122,8 +164,8 @@ export interface HeaderAction {
   emphasis: "primary" | "secondary";
 }
 
-export const OPEN_DRAFT_LABEL = "Open the draft";
-export const RETRY_LINK_LABEL = "See what happened and retry";
+export const openDraftLabel = (): string => t("Open the draft");
+export const retryLinkLabel = (): string => t("See what happened and retry");
 
 interface HeaderContext {
   meetingId: string;
@@ -147,25 +189,25 @@ export function headerAction(
     switch (status) {
       case "scheduled":
         return {
-          label: "Start capture",
+          label: t("Start capture"),
           href: ctx.consentConfirmed ? "#start-button" : "#consent",
           emphasis: "primary",
         };
       case "review":
-        return { label: OPEN_DRAFT_LABEL, href: reviewHref, emphasis: "primary" };
+        return { label: openDraftLabel(), href: reviewHref, emphasis: "primary" };
       case "failed":
-        return { label: RETRY_LINK_LABEL, href: reviewHref, emphasis: "primary" };
+        return { label: retryLinkLabel(), href: reviewHref, emphasis: "primary" };
       case "published":
-        return { label: "Open the published note", href: reviewHref, emphasis: "secondary" };
+        return { label: t("Open the published note"), href: reviewHref, emphasis: "secondary" };
       default:
         return null;
     }
   }
   if (status === "review" && ctx.noteStatus === "draft") {
-    return { label: "Publish to folder", href: "#publish", emphasis: "primary" };
+    return { label: t("Publish to folder"), href: "#publish", emphasis: "primary" };
   }
   if (status === "published" && ctx.noteStatus === "published") {
-    return { label: "Reopen for editing", href: "#publish", emphasis: "secondary" };
+    return { label: t("Reopen for editing"), href: "#publish", emphasis: "secondary" };
   }
   return null;
 }
@@ -186,14 +228,14 @@ export function headerChips(input: {
   if (input.noteStatus === "published" && input.folder !== null) {
     chips.push({
       kind: "folder",
-      label: `Folder: ${input.folder.name}`,
+      label: t("Folder: {name}", { name: input.folder.name }),
       href: `/folders/${input.folder.id}`,
     });
   }
   if (input.template !== null) {
     chips.push({
       kind: "template",
-      label: `Template: ${input.template.name}`,
+      label: t("Template: {name}", { name: input.template.name }),
       href: `/settings/templates/${input.template.id}`,
     });
   }

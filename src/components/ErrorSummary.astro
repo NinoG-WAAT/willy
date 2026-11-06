@@ -1,5 +1,6 @@
 ---
 import type { FieldError } from "../domain/platform/text";
+import { t } from "../i18n/translate";
 
 interface Props {
   errors: FieldError[];
@@ -10,7 +11,7 @@ const { errors } = Astro.props;
 
 {errors.length > 0 && (
   <div class="alert" role="alert" id="form-errors">
-    <p>Fix the following before continuing:</p>
+    <p>{t("Fix the following before continuing:")}</p>
     <ul>
       {errors.map((e) => (
         <li>

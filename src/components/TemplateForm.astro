@@ -1,6 +1,7 @@
 ---
 import { TEMPLATE_LIMITS } from "../domain/notes/template";
 import type { FieldError } from "../domain/platform/text";
+import { t } from "../i18n/translate";
 
 interface Props {
   action: string;
@@ -49,7 +50,7 @@ const errorFor = (id: string): FieldError | undefined => errors.find((e) => idFo
 
   {errors.length > 0 && (
     <div class="alert" role="alert" tabindex="-1" id="form-errors">
-      <p>Fix the following before saving:</p>
+      <p>{t("Fix the following before saving:")}</p>
       <ul>
         {errors.map((e) => (
           <li>
@@ -61,7 +62,7 @@ const errorFor = (id: string): FieldError | undefined => errors.find((e) => idFo
   )}
 
   <div class="field">
-    <label for="name">Template name</label>
+    <label for="name">{t("Template name")}</label>
     <input
       id="name"
       name="name"
@@ -80,19 +81,20 @@ const errorFor = (id: string): FieldError | undefined => errors.find((e) => idFo
   </div>
 
   <fieldset class="field">
-    <legend>Sections</legend>
+    <legend>{t("Sections")}</legend>
     <p id="sections-help">
-      Each section becomes a titled part of the generated note. The prompt tells the summary what
-      belongs there. Leave a row empty to skip it, and clear a row to remove it.
+      {t(
+        "Each section becomes a titled part of the generated note. The prompt tells the summary what belongs there. Leave a row empty to skip it, and clear a row to remove it.",
+      )}
     </p>
     {visibleRows.map((row, i) => {
       const headingId = `section-${String(i)}-heading`;
       const promptId = `section-${String(i)}-prompt`;
       return (
         <fieldset class="section-row">
-          <legend>Section {i + 1}</legend>
+          <legend>{t("Section {n}", { n: i + 1 })}</legend>
           <div class="field">
-            <label for={headingId}>Heading</label>
+            <label for={headingId}>{t("Heading")}</label>
             <input
               id={headingId}
               name="section_heading"
@@ -109,7 +111,7 @@ const errorFor = (id: string): FieldError | undefined => errors.find((e) => idFo
             )}
           </div>
           <div class="field">
-            <label for={promptId}>Prompt (optional)</label>
+            <label for={promptId}>{t("Prompt (optional)")}</label>
             <textarea
               id={promptId}
               name="section_prompt"
@@ -131,13 +133,13 @@ const errorFor = (id: string): FieldError | undefined => errors.find((e) => idFo
 
   <div class="check">
     <input id="is-default" name="is_default" type="checkbox" checked={isDefault} />
-    <label for="is-default">Use as my default template for new meetings</label>
+    <label for="is-default">{t("Use as my default template for new meetings")}</label>
   </div>
 
   <div class="row-actions">
     <button class="button button-primary" type="submit">
       {submitLabel}
     </button>
-    <a href="/settings/templates">Cancel</a>
+    <a href="/settings/templates">{t("Cancel")}</a>
   </div>
 </form>

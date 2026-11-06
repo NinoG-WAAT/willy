@@ -1,7 +1,8 @@
 import { t, tn } from "../../i18n/translate";
 import { describeMeeting } from "../meetings/home";
 import type { MeetingStatus } from "../meetings/lifecycle";
-import { OPEN_DRAFT_LABEL, RETRY_LINK_LABEL, statusLabel } from "../meetings/stage";
+import { openDraftLabel, retryLinkLabel, statusLabel } from "../meetings/stage";
+import { t } from "../../i18n/translate";
 import { describeDeletion, type DeletionDescription } from "../settings/deletion-status";
 
 /**
@@ -106,9 +107,9 @@ export const reviewPath = (meetingId: string): string => `/meetings/${meetingId}
 export function reviewLinkLabel(status: MeetingStatus): string | null {
   switch (status) {
     case "review":
-      return OPEN_DRAFT_LABEL;
+      return openDraftLabel();
     case "failed":
-      return RETRY_LINK_LABEL;
+      return retryLinkLabel();
     default:
       return null;
   }

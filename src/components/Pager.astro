@@ -1,5 +1,6 @@
 ---
 import type { PageWindow } from "../domain/notes/folder-view";
+import { t } from "../i18n/translate";
 
 interface Props {
   page: PageWindow;
@@ -13,20 +14,18 @@ const { page, previousHref, nextHref } = Astro.props;
 
 {/* Plain links: no script. Shared by the folder view and All notes. */}
 {page.pageCount > 1 && (
-  <nav class="pager" aria-label="Pages of notes">
+  <nav class="pager" aria-label={t("Pages of notes")}>
     {page.hasPrevious ? (
       <a class="button button-quiet" href={previousHref} rel="prev">
-        Previous page
+        {t("Previous page")}
       </a>
     ) : (
       <span />
     )}
-    <span>
-      Page {page.page} of {page.pageCount}
-    </span>
+    <span>{t("Page {page} of {pageCount}", { page: page.page, pageCount: page.pageCount })}</span>
     {page.hasNext ? (
       <a class="button button-quiet" href={nextHref} rel="next">
-        Next page
+        {t("Next page")}
       </a>
     ) : (
       <span />
