@@ -1,4 +1,4 @@
-import { currentLocale, intlLocale, type Locale } from "../i18n";
+import { currentLocale, intlLocale, t, type Locale } from "../i18n";
 
 const DEBOUNCE_MS = 1_000;
 const RETRY_BASE_MS = 3_000;
@@ -68,21 +68,22 @@ export function setupNotesAutosave(root: HTMLElement): void {
         if (textarea.value === value) {
           writeDraft(null);
           markUnsaved(false);
-          status.textContent = `Saved at ${clockTime(new Date())}.`;
+          status.textContent = t("Saved at {time}.", { time: clockTime(new Date()) });
         } else {
           schedule(DEBOUNCE_MS);
         }
       } else if (response.status === 422 || response.status === 413) {
-        status.textContent = "Not saved: these notes are too long. Shorten them to save.";
+        status.textContent = t("Not saved: these notes are too long. Shorten them to save.");
       } else if (response.status === 404 || response.status === 401 || response.status === 403) {
-        status.textContent =
-          "Not saved: sign in again or reload the page. Your text is kept in this browser.";
+        status.textContent = t(
+          "Not saved: sign in again or reload the page. Your text is kept in this browser.",
+        );
       } else {
         throw new Error("transient");
       }
     } catch {
       failures += 1;
-      status.textContent = "Not saved yet. Retrying. Your text is kept in this browser.";
+      status.textContent = t("Not saved yet. Retrying. Your text is kept in this browser.");
       schedule(Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** (failures - 1)));
     } finally {
       saving = false;
@@ -93,14 +94,14 @@ export function setupNotesAutosave(root: HTMLElement): void {
   if (draft !== null && draft !== textarea.value) {
     textarea.value = draft;
     markUnsaved(true);
-    status.textContent = "Restored notes you typed but had not saved. Saving…";
+    status.textContent = t("Restored notes you typed but had not saved. Saving…");
     schedule(0);
   }
 
   textarea.addEventListener("input", () => {
     writeDraft(textarea.value);
     markUnsaved(true);
-    status.textContent = "Saving…";
+    status.textContent = t("Saving…");
     schedule(DEBOUNCE_MS);
   });
 }

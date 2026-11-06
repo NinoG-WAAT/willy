@@ -6,6 +6,7 @@ import { createMeeting } from "../../app/meetings/create-meeting";
 import { listTemplates } from "../../app/notes/templates";
 import { readFormFields, single } from "../../app/platform/form";
 import { getCreateMeetingDeps, getNotesDeps } from "../../composition";
+import { t } from "../../i18n/translate";
 import { NEW_MEETING_LIMITS } from "../../domain/meetings/new-meeting";
 import type { FieldError } from "../../domain/platform/text";
 
@@ -68,18 +69,19 @@ if (Astro.request.method === "POST") {
 }
 
 const templates = await listTemplates(getNotesDeps(), owner.id);
-const defaultTemplate = templates.find((t) => t.isDefault);
+const defaultTemplate = templates.find((template) => template.isDefault);
 const zones = [...new Set(["UTC", ...Intl.supportedValuesOf("timeZone")])];
 const errorFor = (field: string) => errors.find((e) => e.field === field);
 const invalid = (field: string) => (errorFor(field) ? "true" : undefined);
 const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : undefined);
 ---
 
-<Base title="New note">
-  <h1>New note</h1>
+<Base title={t("New note")}>
+  <h1>{t("New note")}</h1>
   <p>
-    Create a note for a meeting. Nothing is recorded now: you confirm consent and start capture from
-    the note itself.
+    {t(
+      "Create a note for a meeting. Nothing is recorded now: you confirm consent and start capture from the note itself.",
+    )}
   </p>
 
   <ErrorSummary errors={errors} />
@@ -89,7 +91,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
     <input type="hidden" name="submission_id" value={values.submission_id} />
 
     <div class="field">
-      <label for="title">Title</label>
+      <label for="title">{t("Title")}</label>
       <input
         id="title"
         name="title"
@@ -109,7 +111,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
 
     <div class="field-group">
       <div class="field">
-        <label for="date">Date</label>
+        <label for="date">{t("Date")}</label>
         <input
           id="date"
           name="date"
@@ -126,7 +128,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
         )}
       </div>
       <div class="field">
-        <label for="time">Start time</label>
+        <label for="time">{t("Start time")}</label>
         <input
           id="time"
           name="time"
@@ -143,7 +145,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
         )}
       </div>
       <div class="field">
-        <label for="duration">Duration (minutes)</label>
+        <label for="duration">{t("Duration (minutes)")}</label>
         <input
           id="duration"
           name="duration"
@@ -165,7 +167,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
     </div>
 
     <div class="field">
-      <label for="timezone">Time zone</label>
+      <label for="timezone">{t("Time zone")}</label>
       <select
         id="timezone"
         name="timezone"
@@ -187,7 +189,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
     </div>
 
     <div class="field">
-      <label for="agenda">Agenda (optional)</label>
+      <label for="agenda">{t("Agenda (optional)")}</label>
       <textarea
         id="agenda"
         name="agenda"
@@ -204,7 +206,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
     </div>
 
     <div class="field">
-      <label for="attendees">Attendees (optional)</label>
+      <label for="attendees">{t("Attendees (optional)")}</label>
       <textarea
         id="attendees"
         name="attendees"
@@ -215,8 +217,10 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
         aria-invalid={invalid("attendees")}
       >{values.attendees}</textarea>
       <p id="attendees-help" class="help">
-        One per line: <code>Name &lt;email&gt;</code>, an email, or just a name. Only list people
-        who will be in the meeting. Listing someone here does not record their consent.
+        {t(
+          "One per line: {example}, an email, or just a name. Only list people who will be in the meeting. Listing someone here does not record their consent.",
+          { example: "Name <email>" },
+        )}
       </p>
       {errorFor("attendees") && (
         <p class="field-error" id="attendees-error">
@@ -226,7 +230,7 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
     </div>
 
     <div class="field">
-      <label for="template_id">Template</label>
+      <label for="template_id">{t("Template")}</label>
       <select
         id="template_id"
         name="template_id"
@@ -234,11 +238,13 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
         aria-describedby={describedBy("template_id")}
       >
         <option value="" selected={values.template_id === ""}>
-          {defaultTemplate ? `My default (${defaultTemplate.name})` : "Built-in layout"}
+          {defaultTemplate
+            ? t("My default ({name})", { name: defaultTemplate.name })
+            : t("Built-in layout")}
         </option>
-        {templates.map((t) => (
-          <option value={t.id} selected={t.id === values.template_id}>
-            {t.name}
+        {templates.map((template) => (
+          <option value={template.id} selected={template.id === values.template_id}>
+            {template.name}
           </option>
         ))}
       </select>
@@ -248,16 +254,16 @@ const describedBy = (field: string) => (errorFor(field) ? `${field}-error` : und
         </p>
       )}
       <p class="help">
-        Sections of the note generated after the meeting.{" "}
-        <a href="/settings/templates">Manage templates</a>
+        {t("Sections of the note generated after the meeting.")}{" "}
+        <a href="/settings/templates">{t("Manage templates")}</a>
       </p>
     </div>
 
     <div class="row-actions">
       <button class="button button-primary" type="submit">
-        Create note
+        {t("Create note")}
       </button>
-      <a href="/">Cancel</a>
+      <a href="/">{t("Cancel")}</a>
     </div>
   </form>
 

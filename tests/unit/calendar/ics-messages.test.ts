@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   icsProblemMessage,
   icsProblemStatus,
-  skippedReason,
+  skippedMessage,
 } from "../../../src/app/calendar/ics-messages";
 import { noticeMessage } from "../../../src/app/meetings/messages";
 
@@ -48,7 +48,12 @@ describe("icsProblemMessage", () => {
   });
 });
 
-describe("skippedReason", () => {
+describe("skippedMessage", () => {
+  it("names the event by its title, or says 'An event' when it has none", () => {
+    expect(skippedMessage("bad_uid", "Team sync")).toBe('"Team sync" has no usable identifier.');
+    expect(skippedMessage("bad_uid", null)).toBe("An event has no usable identifier.");
+  });
+
   it("gives every skip code a reason", () => {
     for (const code of [
       "bad_uid",
@@ -60,7 +65,7 @@ describe("skippedReason", () => {
       "invalid_event",
       "duplicate",
     ] as const) {
-      expect(skippedReason(code).length).toBeGreaterThan(5);
+      expect(skippedMessage(code, null).length).toBeGreaterThan(15);
     }
   });
 });

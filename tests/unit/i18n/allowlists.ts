@@ -12,6 +12,8 @@
 export const allowedDynamic: Readonly<Record<string, string>> = {
   "src/domain/notes/template.ts":
     "builtinTemplate translates the table of English strings marked with msg() in DEFAULT_TEMPLATE",
+  "src/domain/meetings/consent-statement.ts":
+    "The one consent sentence is written once, as CONSENT_STATEMENT (tests and the stored version refer to it); consentStatement() translates that same literal.",
 };
 
 /**

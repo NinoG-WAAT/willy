@@ -1,4 +1,5 @@
 import "./i18n";
+import { t } from "./i18n";
 
 // Progressive enhancement: forms that carry data-pending-text show a pending state while the
 // browser submits them. Without JavaScript the form still works; it just gives no interim text.
@@ -9,7 +10,7 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-pending
     if (button.getAttribute("aria-disabled") === "true") event.preventDefault();
   });
   form.addEventListener("submit", () => {
-    const text = form.dataset["pendingText"] ?? "Working…";
+    const text = form.dataset["pendingText"] ?? t("Working…");
     if (button) {
       button.setAttribute("aria-disabled", "true");
       button.textContent = text;

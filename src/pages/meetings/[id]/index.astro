@@ -12,7 +12,8 @@ import {
   getMeetingDeps,
   getStatusDeps,
 } from "../../../composition";
-import { CONSENT_STATEMENT } from "../../../domain/meetings/lifecycle";
+import { t } from "../../../i18n/translate";
+import { consentStatement } from "../../../domain/meetings/consent-statement";
 import { MAX_ROUGH_NOTES_CHARS } from "../../../domain/meetings/rough-notes";
 import { handoffProgress } from "../../../domain/progress/handoff";
 import { reviewPath } from "../../../domain/progress/text";
@@ -50,7 +51,10 @@ if (Astro.request.method === "POST") {
     const saved = await saveRoughNotes(live, owner.id, id, raw);
     if (saved.ok) return Astro.redirect(`/meetings/${id}?notice=notes_saved`, 303);
     if (saved.error.kind === "not_found") return Astro.rewrite("/404");
-    problem = `Your notes were not saved: they are longer than ${String(MAX_ROUGH_NOTES_CHARS)} characters. What you typed is still below.`;
+    problem = t(
+      "Your notes were not saved: they are longer than {max} characters. What you typed is still below.",
+      { max: String(MAX_ROUGH_NOTES_CHARS) },
+    );
     notesDraft = raw;
     Astro.response.status = 422;
   } else if (intent === "start" || intent === "pause" || intent === "resume" || intent === "stop") {
@@ -63,17 +67,19 @@ if (Astro.request.method === "POST") {
         return Astro.rewrite("/404");
       case "consent_required":
       case "consent_not_given":
-        problem =
-          "Capture did not start. Tick the consent statement first: nothing is recorded until you confirm it.";
+        problem = t(
+          "Capture did not start. Tick the consent statement first: nothing is recorded until you confirm it.",
+        );
         Astro.response.status = 422;
         break;
       case "conflict":
-        problem = "The note changed at the same moment. Check its state below and try again.";
+        problem = t("The note changed at the same moment. Check its state below and try again.");
         Astro.response.status = 409;
         break;
       default:
-        problem =
-          "That action is not available in the note's current state. The page shows where things stand.";
+        problem = t(
+          "That action is not available in the note's current state. The page shows where things stand.",
+        );
         Astro.response.status = 409;
     }
     // The state may have moved on (for example a double click): show what is true now.
@@ -85,7 +91,7 @@ if (Astro.request.method === "POST") {
 }
 
 const { detail, controls, nextSeq, recordedMs } = loaded.value;
-const notice = Astro.url.searchParams.get("notice") === "notes_saved" ? "Notes saved." : null;
+const notice = Astro.url.searchParams.get("notice") === "notes_saved" ? t("Notes saved.") : null;
 // Browsers drop the first newline inside <textarea>, so one is added to keep the text exact.
 const textareaText = `\n${notesDraft ?? detail.roughNotes}`;
 const csrf = Astro.locals.csrfToken ?? "";
@@ -109,10 +115,17 @@ const handoff =
     : null;
 const action = `/meetings/${detail.id}`;
 // What happened, in a sentence, for the states after capture ends (the header carries the status word).
-const STATUS_TEXT: Record<string, string> = {
-  review: "Recording finished. A draft is ready for review.",
-  published: "Published",
-  failed: "Recording finished, but processing needs attention.",
+const statusText = (status: string): string | null => {
+  switch (status) {
+    case "review":
+      return t("Recording finished. A draft is ready for review.");
+    case "published":
+      return t("Published");
+    case "failed":
+      return t("Recording finished, but processing needs attention.");
+    default:
+      return null;
+  }
 };
 ---
 
@@ -130,12 +143,12 @@ const STATUS_TEXT: Record<string, string> = {
     >
       <span class="rec-shape" aria-hidden="true"></span>
       <strong id="rec-label">
-        {controls.indicator === "recording" ? "Recording" : "Recording paused"}
+        {controls.indicator === "recording" ? t("Recording") : t("Recording paused")}
       </strong>
       <span id="rec-detail">
         {controls.indicator === "recording"
-          ? "This note is being captured."
-          : "Capture is paused. Nothing is being recorded."}
+          ? t("This note is being captured.")
+          : t("Capture is paused. Nothing is being recorded.")}
       </span>
       <time id="rec-timer" aria-hidden="true">
         00:00:00
@@ -152,7 +165,8 @@ const STATUS_TEXT: Record<string, string> = {
     consentConfirmed={detail.consentConfirmedAt !== null}
   >
     <a slot="links" href={`/meetings/${detail.id}/export.md`} download>
-      Export as Markdown<span class="sr-only"> ({detail.title})</span>
+      {t("Export as Markdown")}
+      <span class="sr-only"> ({detail.title})</span>
     </a>
   </MeetingHeader>
 
@@ -178,7 +192,7 @@ const STATUS_TEXT: Record<string, string> = {
     data-notes-editable={controls.notesEditable ? "1" : "0"}
   >
     <section aria-labelledby="capture-heading" class="panel">
-      <h2 id="capture-heading">Capture</h2>
+      <h2 id="capture-heading">{t("Capture")}</h2>
 
       {controls.canStart && (
         <form method="post" action={action} id="start-form" class="form form-wide">
@@ -193,33 +207,32 @@ const STATUS_TEXT: Record<string, string> = {
                   type="checkbox"
                   aria-describedby="consent-help"
                 />
-                <label for="consent">{CONSENT_STATEMENT}</label>
+                <label for="consent">{consentStatement()}</label>
               </div>
               <p id="consent-help" class="help">
-                Only you can confirm this. Willycrumbs never records anyone's consent for them, and
-                nothing is captured until you start.
+                {t(
+                  "Only you can confirm this. Willycrumbs never records anyone's consent for them, and nothing is captured until you start.",
+                )}
               </p>
             </>
           ) : (
             <p>
-              You confirmed consent on{" "}
-              <time datetime={detail.consentConfirmedAt ?? ""}>
-                {formatSchedule(
+              {t("You confirmed consent on {when}.", {
+                when: formatSchedule(
                   detail.consentConfirmedAt ?? detail.scheduledStartAt,
                   detail.timezone,
-                )}
-              </time>
-              .
+                ),
+              })}
             </p>
           )}
           <div class="row-actions">
             <button class="button" type="submit" id="start-button">
-              Start capture
+              {t("Start capture")}
             </button>
           </div>
           <noscript>
             <p class="help">
-              Audio capture needs JavaScript. Without it you can still take notes below.
+              {t("Audio capture needs JavaScript. Without it you can still take notes below.")}
             </p>
           </noscript>
         </form>
@@ -232,7 +245,7 @@ const STATUS_TEXT: Record<string, string> = {
               <input type="hidden" name="csrf_token" value={csrf} />
               <input type="hidden" name="intent" value="pause" />
               <button class="button button-quiet" type="submit">
-                Pause
+                {t("Pause")}
               </button>
             </form>
           )}
@@ -241,7 +254,7 @@ const STATUS_TEXT: Record<string, string> = {
               <input type="hidden" name="csrf_token" value={csrf} />
               <input type="hidden" name="intent" value="resume" />
               <button class="button button-primary" type="submit">
-                Resume
+                {t("Resume")}
               </button>
             </form>
           )}
@@ -254,22 +267,23 @@ const STATUS_TEXT: Record<string, string> = {
             <input type="hidden" name="csrf_token" value={csrf} />
             <input type="hidden" name="intent" value="stop" />
             <button class="button button-danger" type="submit" id="stop-button">
-              Stop capture
+              {t("Stop capture")}
             </button>
           </form>
         </div>
       )}
       {(controls.canPause || controls.canResume || controls.canStop) && (
         <p id="stop-help" class="help">
-          Stopping ends the recording and starts the transcript. You cannot resume this recording
-          afterwards.
+          {t(
+            "Stopping ends the recording and starts the transcript. You cannot resume this recording afterwards.",
+          )}
         </p>
       )}
 
       {controls.indicator !== null && (
         <>
           <div class="level" id="level" hidden>
-            <label for="level-meter">Microphone input level</label>
+            <label for="level-meter">{t("Microphone input level")}</label>
             <meter id="level-meter" min="0" max="1" value="0" aria-hidden="true"></meter>
             <p id="level-text" class="help" role="status" aria-live="polite"></p>
           </div>
@@ -278,27 +292,28 @@ const STATUS_TEXT: Record<string, string> = {
             <p id="capture-problem-text"></p>
             <div class="row-actions">
               <button class="button" type="button" id="retry-mic" hidden>
-                Try the microphone again
+                {t("Try the microphone again")}
               </button>
               <button class="button" type="button" id="retry-upload" hidden>
-                Retry upload
+                {t("Retry upload")}
               </button>
               <button class="button button-quiet" type="button" id="stop-anyway" hidden>
-                Stop anyway
+                {t("Stop anyway")}
               </button>
             </div>
           </div>
           <noscript>
             <p class="alert">
-              Audio capture needs JavaScript, so no audio is being recorded in this browser. You can
-              still take notes and stop capture.
+              {t(
+                "Audio capture needs JavaScript, so no audio is being recorded in this browser. You can still take notes and stop capture.",
+              )}
             </p>
           </noscript>
         </>
       )}
 
       {controls.phase === "after" && detail.status !== "processing" && (
-        <p role="status">{STATUS_TEXT[detail.status]}</p>
+        <p role="status">{statusText(detail.status)}</p>
       )}
       {handoff !== null && (
         <div
@@ -315,7 +330,7 @@ const STATUS_TEXT: Record<string, string> = {
           <progress
             class="handoff-bar"
             data-bar
-            aria-label="Transcription progress"
+            aria-label={t("Transcription progress")}
             max={handoff.bar?.max ?? 1}
             value={handoff.bar?.value ?? 0}
             hidden={handoff.bar === null}
@@ -345,20 +360,21 @@ const STATUS_TEXT: Record<string, string> = {
       )}
       {controls.phase === "after" && detail.status === "processing" && (
         <p class="help">
-          This can take a few minutes. <a href={action}>Check again</a>.
+          {t("This can take a few minutes.")} <a href={action}>{t("Check again")}</a>
+          {"."}
         </p>
       )}
-      {controls.phase === "archived" && <p>Your rough notes are kept.</p>}
+      {controls.phase === "archived" && <p>{t("Your rough notes are kept.")}</p>}
     </section>
 
     <div class="two-col">
       <section aria-labelledby="notes-heading" class="panel">
-        <h2 id="notes-heading">Rough notes</h2>
+        <h2 id="notes-heading">{t("Rough notes")}</h2>
         <form method="post" action={action} id="notes-form" class="form form-wide">
           <input type="hidden" name="csrf_token" value={csrf} />
           <input type="hidden" name="intent" value="save_notes" />
           <div class="field">
-            <label for="rough-notes">Your notes (saved as you type)</label>
+            <label for="rough-notes">{t("Your notes (saved as you type)")}</label>
             <textarea
               id="rough-notes"
               name="rough_notes"
@@ -369,11 +385,11 @@ const STATUS_TEXT: Record<string, string> = {
             >{textareaText}</textarea>
           </div>
           <p id="notes-status" class="help" role="status" aria-live="polite">
-            {notice !== null ? "All changes saved." : ""}
+            {notice !== null ? t("All changes saved.") : ""}
           </p>
           <div class="row-actions">
             <button class="button button-quiet" type="submit" id="save-notes">
-              Save notes
+              {t("Save notes")}
             </button>
           </div>
         </form>
@@ -381,9 +397,9 @@ const STATUS_TEXT: Record<string, string> = {
 
       <div>
         <section aria-labelledby="attendees-heading" class="panel">
-          <h2 id="attendees-heading">Attendees</h2>
+          <h2 id="attendees-heading">{t("Attendees")}</h2>
           {detail.attendees.length === 0 ? (
-            <p>No attendees were added.</p>
+            <p>{t("No attendees were added.")}</p>
           ) : (
             <ul class="plain">
               {detail.attendees.map((a) => (
@@ -396,9 +412,9 @@ const STATUS_TEXT: Record<string, string> = {
           )}
         </section>
         <section aria-labelledby="agenda-heading" class="panel">
-          <h2 id="agenda-heading">Agenda</h2>
+          <h2 id="agenda-heading">{t("Agenda")}</h2>
           {detail.agenda === null ? (
-            <p>No agenda was added.</p>
+            <p>{t("No agenda was added.")}</p>
           ) : (
             <p class="prewrap">{detail.agenda}</p>
           )}

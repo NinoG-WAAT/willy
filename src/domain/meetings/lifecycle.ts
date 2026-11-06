@@ -14,12 +14,9 @@ export type MeetingStatus =
   | "deleted";
 
 /**
- * The consent statement the Owner ticks. Changing the wording bumps the version, and the version
- * is stored with the confirmation. It only ever covers the Owner's own attestation: the system
- * never records or claims consent on behalf of participants.
+ * Version of the consent statement (src/domain/meetings/consent-statement.ts), stored with the
+ * confirmation. Bump it when the meaning of the wording changes; a translation does not.
  */
-export const CONSENT_STATEMENT =
-  "I have told every participant that this meeting will be recorded and transcribed, and I have their consent.";
 export const CONSENT_STATEMENT_VERSION = 1;
 
 /** Lifecycle view of a Meeting (the aggregate). Read models carry the other fields. */

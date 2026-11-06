@@ -1,5 +1,6 @@
 import { mergeCatalogs } from "../merge-catalogs";
 import * as auth from "./auth";
+import * as capture from "./capture";
 import * as scripts from "./scripts";
 import * as settings from "./settings";
 import * as shell from "./shell";
@@ -10,7 +11,14 @@ import * as summaries from "./summaries";
  * `src/i18n/fr/<area>.ts` exporting `fr` (and `sameInFrench` for words that are identical in
  * French) and list it here. See docs/I18N.md.
  */
-const AREAS: Record<string, AreaModule> = { shell, auth, settings, scripts, summaries };
+const AREAS: Record<string, AreaModule> = {
+  shell,
+  auth,
+  settings,
+  scripts,
+  summaries,
+  capture,
+};
 
 interface AreaModule {
   fr: Record<string, string>;
