@@ -1,5 +1,6 @@
 import { ICS_LIMITS } from "../../domain/calendar/ics";
-import { standalonePage } from "../platform/standalone-page";
+import { t } from "../../i18n/translate";
+import { escapeHtml, paragraph, standalonePage } from "../platform/standalone-page";
 
 /**
  * Both ICS posts carry a whole calendar (the upload, or the text sent back to confirm it). The
@@ -29,12 +30,13 @@ export function checkBodyLength(header: string | null, limit: number): 411 | 413
 export function bodyTooLargeResponse(status: 411 | 413): Response {
   const message =
     status === 413
-      ? "That upload is too large. Export a shorter date range from your calendar and try again."
-      : "That upload could not be sized. Try again from the import page.";
+      ? t("That upload is too large. Export a shorter date range from your calendar and try again.")
+      : t("That upload could not be sized. Try again from the import page.");
+  const back = escapeHtml(t("Back to the calendar file import"));
   return new Response(
     standalonePage(
-      status === 413 ? "Upload too large" : "Upload not accepted",
-      `<p>${message}</p><p><a href="/meetings/import/ics">Back to the calendar file import</a></p>`,
+      status === 413 ? t("Upload too large") : t("Upload not accepted"),
+      `${paragraph(message)}<p><a href="/meetings/import/ics">${back}</a></p>`,
     ),
     {
       status,

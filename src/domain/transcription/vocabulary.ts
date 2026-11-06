@@ -1,3 +1,4 @@
+import { t, tn } from "../../i18n/translate";
 import { err, ok, type Result } from "../platform/result";
 import type { FieldError } from "../platform/text";
 
@@ -48,15 +49,19 @@ const shown = (piece: string): string => {
 };
 
 function messageFor(problem: TermProblem, piece: string): string {
+  const word = shown(piece);
   switch (problem) {
     case "empty":
-      return "Enter at least one word.";
+      return t("Enter at least one word.");
     case "too_long":
-      return `"${shown(piece)}" is too long: a word can have at most ${String(TERM_MAX_LENGTH)} characters.`;
+      return t('"{word}" is too long: a word can have at most {max} characters.', {
+        word,
+        max: TERM_MAX_LENGTH,
+      });
     case "control":
-      return `"${shown(piece)}" contains a character that cannot be used in a word.`;
+      return t('"{word}" contains a character that cannot be used in a word.', { word });
     case "leading_dash":
-      return `"${shown(piece)}" cannot start with a dash.`;
+      return t('"{word}" cannot start with a dash.', { word });
   }
 }
 
@@ -69,7 +74,7 @@ export function parseTerms(raw: unknown): Result<string[], FieldError[]> {
   const empty = err([{ field: "term", message: messageFor("empty", "") }]);
   if (typeof raw !== "string") return empty;
   if (raw.length > MAX_INPUT_CHARS) {
-    return err([{ field: "term", message: "That is too much text at once. Add fewer words." }]);
+    return err([{ field: "term", message: t("That is too much text at once. Add fewer words.") }]);
   }
   const terms: string[] = [];
   const seen = new Set<string>();
@@ -98,7 +103,10 @@ export interface AdditionPlan {
 }
 
 export const limitMessage = (have: number, adding: number): string =>
-  `You can keep at most ${String(MAX_TERMS_PER_OWNER)} words and you have ${String(have)}. Adding ${String(adding)} more would go over; nothing was added.`;
+  t(
+    "You can keep at most {max} words and you have {have}. Adding {adding} more would go over; nothing was added.",
+    { max: MAX_TERMS_PER_OWNER, have, adding },
+  );
 
 /**
  * What adding `raw` to a list that already holds `existing` would do. Over the limit is a
@@ -137,11 +145,21 @@ export function canBeAutoCorrected(term: string): boolean {
 /** The status line of the Vocabulary screen: how many terms the speech recogniser really reads. */
 export function describeVocabularyStatus(total: number, used: number): string {
   if (total === 0) return "";
-  const noun = total === 1 ? "term is" : "terms are";
-  const base = `${String(used)} of ${String(total)} ${noun} used by the speech recogniser.`;
   const left = total - used;
-  if (left === 0) return base;
-  return `${base} ${String(left)} ${left === 1 ? "does not fit and is" : "do not fit and are"} left out.`;
+  if (left === 0) {
+    return tn(
+      "{used} of {n} term is used by the speech recogniser.",
+      "{used} of {n} terms are used by the speech recogniser.",
+      total,
+      { used },
+    );
+  }
+  return tn(
+    "{used} of {total} terms are used by the speech recogniser. {n} does not fit and is left out.",
+    "{used} of {total} terms are used by the speech recogniser. {n} do not fit and are left out.",
+    left,
+    { used, total },
+  );
 }
 
 export interface TranscriptionPrompt {

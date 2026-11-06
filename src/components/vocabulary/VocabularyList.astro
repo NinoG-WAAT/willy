@@ -1,5 +1,6 @@
 ---
 import { canBeAutoCorrected } from "../../domain/transcription/vocabulary";
+import { t } from "../../i18n/translate";
 import type { VocabularyTerm } from "../../ports/vocabulary-repository";
 
 /**
@@ -19,23 +20,24 @@ const { terms, csrf, leftOut = false, labelledBy } = Astro.props;
 ---
 
 <ul class="rl-list vocabulary-list" aria-labelledby={labelledBy}>
-  {terms.map((t) => (
-    <li class="rl-item" id={`term-${t.id}`}>
+  {terms.map((entry) => (
+    <li class="rl-item" id={`term-${entry.id}`}>
       <div class="rl-line">
-        <span class="rl-text">{t.term}</span>
+        <span class="rl-text">{entry.term}</span>
         <span class="rl-meta">
-          {leftOut && <span class="rl-chip">Not sent</span>}
-          {!canBeAutoCorrected(t.term) && (
-            <span class="rl-chip">Not auto-corrected in transcripts</span>
+          {leftOut && <span class="rl-chip">{t("Not sent")}</span>}
+          {!canBeAutoCorrected(entry.term) && (
+            <span class="rl-chip">{t("Not auto-corrected in transcripts")}</span>
           )}
           <form
             class="inline-form"
             method="post"
-            action={`/settings/vocabulary/${encodeURIComponent(t.id)}/remove`}
+            action={`/settings/vocabulary/${encodeURIComponent(entry.id)}/remove`}
           >
             <input type="hidden" name="csrf_token" value={csrf} />
             <button class="vocabulary-remove" type="submit">
-              Remove<span class="sr-only"> {t.term}</span>
+              {t("Remove")}
+              <span class="sr-only"> {entry.term}</span>
             </button>
           </form>
         </span>

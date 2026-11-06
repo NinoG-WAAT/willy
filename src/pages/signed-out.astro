@@ -1,15 +1,16 @@
 ---
 import Base from "../layouts/Base.astro";
+import { t } from "../i18n/translate";
 
 export const prerender = false;
 ---
 
-<Base title="Signed out" standalone>
-  <h1>You are signed out</h1>
-  <p>Your session has ended on this device.</p>
+<Base title={t("Signed out")} standalone>
+  <h1>{t("You are signed out")}</h1>
+  <p>{t("Your session has ended on this device.")}</p>
   <p>
     <a class="button button-primary" href="/sign-in">
-      Sign in
+      {t("Sign in")}
     </a>
   </p>
 </Base>

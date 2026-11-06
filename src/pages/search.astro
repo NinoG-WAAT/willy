@@ -5,6 +5,7 @@ import { searchNotes } from "../app/search/search";
 import { formatSchedule } from "../components/format-schedule";
 import { getNotesDeps, getSearchDeps } from "../composition";
 import { hitHref, hitKindLabel } from "../domain/search/hit-link";
+import { t, tn } from "../i18n/translate";
 
 export const prerender = false;
 
@@ -35,24 +36,32 @@ if (rawQuery !== null) {
 const hits = result?.ok ? result.value.hits : [];
 const terms = result?.ok ? result.value.terms : [];
 const queryText = terms.join(" ");
+const pageName =
+  rawQuery !== null && rawQuery.trim() !== ""
+    ? t("Search: {terms}", { terms: queryText || rawQuery.slice(0, 40) })
+    : t("Search");
+const resultsSummary =
+  hits.length === 0
+    ? t(
+        'No results for "{terms}". Check the spelling, try fewer words, or include archived meetings.',
+        { terms: queryText },
+      )
+    : tn('{n} result for "{terms}".', '{n} results for "{terms}".', hits.length, {
+        terms: queryText,
+      });
 ---
 
-<Base
-  title={
-    rawQuery !== null && rawQuery.trim() !== ""
-      ? `Search: ${queryText || rawQuery.slice(0, 40)}`
-      : "Search"
-  }
->
-  <h1>Search</h1>
+<Base title={pageName}>
+  <h1>{t("Search")}</h1>
   <p>
-    Search the titles, agendas, rough notes, summaries, decisions and action items of your own
-    meetings. Transcripts are not searched.
+    {t(
+      "Search the titles, agendas, rough notes, summaries, decisions and action items of your own meetings. Transcripts are not searched.",
+    )}
   </p>
 
   <form class="toolbar" role="search" method="get" action="/search">
     <div class="field">
-      <label for="q">Search your notes</label>
+      <label for="q">{t("Search your notes")}</label>
       <input
         id="q"
         name="q"
@@ -70,9 +79,9 @@ const queryText = terms.join(" ");
       )}
     </div>
     <div class="field">
-      <label for="folder">Folder</label>
+      <label for="folder">{t("Folder")}</label>
       <select id="folder" name="folder">
-        <option value="">All folders</option>
+        <option value="">{t("All folders")}</option>
         {folders.map((f) => (
           <option value={f.id} selected={f.id === folderId}>
             {f.name}
@@ -82,30 +91,29 @@ const queryText = terms.join(" ");
     </div>
     <div class="check">
       <input id="archived" name="archived" type="checkbox" value="1" checked={includeArchived} />
-      <label for="archived">Include archived</label>
+      <label for="archived">{t("Include archived")}</label>
     </div>
     <button class="button button-primary" type="submit">
-      Search
+      {t("Search")}
     </button>
   </form>
 
   {rawQuery === null && (
     <section class="empty" aria-labelledby="hint-heading">
-      <h2 id="hint-heading">Find something you wrote or decided</h2>
+      <h2 id="hint-heading">{t("Find something you wrote or decided")}</h2>
       <p>
-        Type a few words, for example a person, a project or a decision. Results show where the
-        words appear.
+        {t(
+          "Type a few words, for example a person, a project or a decision. Results show where the words appear.",
+        )}
       </p>
     </section>
   )}
 
   {result?.ok && (
     <section aria-labelledby="results-heading">
-      <h2 id="results-heading">Results</h2>
+      <h2 id="results-heading">{t("Results")}</h2>
       <p role="status" aria-live="polite">
-        {hits.length === 0
-          ? `No results for "${queryText}". Check the spelling, try fewer words, or include archived meetings.`
-          : `${String(hits.length)} ${hits.length === 1 ? "result" : "results"} for "${queryText}".`}
+        {resultsSummary}
       </p>
       {hits.length > 0 && (
         <ol class="rows">
@@ -115,13 +123,19 @@ const queryText = terms.join(" ");
                 <a href={hitHref(hit, queryText)}>{hit.meetingTitle}</a>
               </h3>
               <p class="row-meta">
-                {hitKindLabel(hit.kind)}
-                {hit.kind === "note_section" ? `: ${hit.label}` : ""}
+                {hit.kind === "note_section"
+                  ? t("{kind}: {label}", { kind: hitKindLabel(hit.kind), label: hit.label })
+                  : hitKindLabel(hit.kind)}
                 {" · "}
                 <time datetime={hit.scheduledStartAt}>
                   {formatSchedule(hit.scheduledStartAt, hit.timezone)}
                 </time>
-                {hit.folderName !== null && <span> · Folder: {hit.folderName}</span>}
+                {hit.folderName !== null && (
+                  <span>
+                    {" · "}
+                    {t("Folder: {name}", { name: hit.folderName })}
+                  </span>
+                )}
               </p>
               <p class="snippet">
                 {hit.segments.map((segment) =>
@@ -130,10 +144,12 @@ const queryText = terms.join(" ");
               </p>
               <div class="row-actions">
                 <a href={hitHref(hit, queryText)}>
-                  Open<span class="sr-only"> {hit.meetingTitle}</span>
+                  {t("Open")}
+                  <span class="sr-only"> {hit.meetingTitle}</span>
                 </a>
                 <a href={`/meetings/${hit.meetingId}/export.md`} download>
-                  Export Markdown<span class="sr-only"> of {hit.meetingTitle}</span>
+                  {t("Export Markdown")}
+                  <span class="sr-only"> {t("of {title}", { title: hit.meetingTitle })}</span>
                 </a>
               </div>
             </li>

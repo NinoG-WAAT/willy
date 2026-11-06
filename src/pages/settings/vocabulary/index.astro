@@ -8,6 +8,7 @@ import { readFormFields, single } from "../../../app/platform/form";
 import { settingsNotice } from "../../../app/settings/notices";
 import { addVocabularyTerms, listVocabulary } from "../../../app/transcription/vocabulary";
 import { getVocabularyDeps } from "../../../composition";
+import { t } from "../../../i18n/translate";
 import type { FieldError } from "../../../domain/platform/text";
 import {
   canBeAutoCorrected,
@@ -46,19 +47,19 @@ const csrf = Astro.locals.csrfToken ?? "";
 const status = describeVocabularyStatus(view.terms.length, view.usedCount);
 ---
 
-<Base title="Vocabulary">
-  <nav class="breadcrumb" aria-label="Breadcrumb">
+<Base title={t("Vocabulary")}>
+  <nav class="breadcrumb" aria-label={t("Breadcrumb")}>
     <ol>
       <li>
-        <a href="/settings">Settings</a>
+        <a href="/settings">{t("Settings")}</a>
       </li>
       <li>
-        <span aria-current="page">Vocabulary</span>
+        <span aria-current="page">{t("Vocabulary")}</span>
       </li>
     </ol>
   </nav>
   <div class="page-head">
-    <h1>Vocabulary</h1>
+    <h1>{t("Vocabulary")}</h1>
   </div>
 
   {notice !== null && (
@@ -69,41 +70,45 @@ const status = describeVocabularyStatus(view.terms.length, view.usedCount);
   <ErrorSummary errors={errors} />
 
   <section class="panel review-lists vocabulary" aria-labelledby="vocabulary-heading">
-    <h2 id="vocabulary-heading">Your words</h2>
+    <h2 id="vocabulary-heading">{t("Your words")}</h2>
     <p class="help">
-      Words your meetings use that a speech recogniser does not know: project names, clients,
-      acronyms. They are given to it before it transcribes, so it spells them the way you do.
+      {t(
+        "Words your meetings use that a speech recogniser does not know: project names, clients, acronyms. They are given to it before it transcribes, so it spells them the way you do.",
+      )}
     </p>
 
     {view.terms.length === 0 ? (
       <p class="vocabulary-empty">
-        No words yet. Add the names a transcript tends to get wrong, such as a product or a client.
+        {t(
+          "No words yet. Add the names a transcript tends to get wrong, such as a product or a client.",
+        )}
       </p>
     ) : (
       <>
         <p class="vocabulary-status">{status}</p>
-        {view.terms.some((t) => !canBeAutoCorrected(t.term)) && (
+        {view.terms.some((entry) => !canBeAutoCorrected(entry.term)) && (
           <p class="help">
-            A word marked "Not auto-corrected in transcripts" (it has a dot, a symbol or another
-            sign that is not a letter, digit, space, hyphen or apostrophe) still helps the speech
-            recogniser, but its spelling is not fixed afterwards in the transcript.
+            {t(
+              'A word marked "{label}" (it has a dot, a symbol or another sign that is not a letter, digit, space, hyphen or apostrophe) still helps the speech recogniser, but its spelling is not fixed afterwards in the transcript.',
+              { label: t("Not auto-corrected in transcripts") },
+            )}
           </p>
         )}
         {used.length > 0 && (
           <>
             <h3 id="vocabulary-used" class="sr-only">
-              Used by the speech recogniser
+              {t("Used by the speech recogniser")}
             </h3>
             <VocabularyList terms={used} csrf={csrf} labelledBy="vocabulary-used" />
           </>
         )}
         {view.leftOut.length > 0 && (
           <>
-            <h3 id="vocabulary-left-out">Left out</h3>
+            <h3 id="vocabulary-left-out">{t("Left out")}</h3>
             <p class="help">
-              The speech recogniser can read only about 600 characters of words, in the order of
-              this list. These come last and do not fit. Remove words above to make room, or remove
-              these.
+              {t(
+                "The speech recogniser can read only about 600 characters of words, in the order of this list. These come last and do not fit. Remove words above to make room, or remove these.",
+              )}
             </p>
             <VocabularyList
               terms={view.leftOut}
