@@ -160,7 +160,7 @@ test.describe("vocabulary in French", () => {
     ).toBeVisible();
     await expect(
       page.getByText(
-        /^Un mot marqué « Non corrigé automatiquement dans les transcriptions » \(il contient un point/,
+        /^Un mot marqué «\u00a0Non corrigé automatiquement dans les transcriptions\u00a0» \(il contient un point/,
       ),
     ).toBeVisible();
     await expectNoHorizontalScroll(page);
@@ -240,7 +240,7 @@ test.describe("search and export in French", () => {
     expect(markdown).toContain("## Résumé");
     expect(markdown).toContain("## Décisions\n\n- Ship in November");
     expect(markdown).toMatch(
-      /## Actions\n\n- \[ \] Send the deck \(responsable : Ada Lovelace, échéance : 30\/10\/2026\)/,
+      /## Actions\n\n- \[ \] Send the deck \(responsable\u00a0: Ada Lovelace, échéance\u00a0: 30\/10\/2026\)/,
     );
     // The owner's own words are untouched.
     expect(markdown).toContain("Pricing is pending.");

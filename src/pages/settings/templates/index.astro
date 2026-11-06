@@ -5,7 +5,7 @@ import { noticeText } from "../../../app/notes/notices";
 import { listTemplates, setDefaultTemplate } from "../../../app/notes/templates";
 import { readFormFields, single } from "../../../app/platform/form";
 import { getNotesDeps } from "../../../composition";
-import { DEFAULT_TEMPLATE } from "../../../domain/notes/template";
+import { builtinTemplate } from "../../../domain/notes/template";
 
 export const prerender = false;
 
@@ -30,6 +30,10 @@ if (Astro.request.method === "POST") {
 const templates = await listTemplates(deps, owner.id);
 const notice = noticeText(Astro.url.searchParams.get("notice"));
 const hasDefault = templates.some((t) => t.isDefault);
+// In the owner's language: the layout new notes use until they have a template of their own.
+const builtinHeadings = builtinTemplate()
+  .sections.map((s) => s.heading)
+  .join(", ");
 ---
 
 <Base title="Templates">
@@ -53,14 +57,14 @@ const hasDefault = templates.some((t) => t.isDefault);
   {templates.length === 0 ? (
     <p>
       You have no templates yet. Until you create one, new notes use the built-in layout:{" "}
-      {DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ")}.
+      {builtinHeadings}.
     </p>
   ) : (
     <>
       {!hasDefault && (
         <p>
           None of your templates is the default, so new notes use the built-in layout:{" "}
-          {DEFAULT_TEMPLATE.sections.map((s) => s.heading).join(", ")}.
+          {builtinHeadings}.
         </p>
       )}
       <ul class="rows">
